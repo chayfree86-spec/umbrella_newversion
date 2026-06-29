@@ -1,0 +1,1521 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Select } from '../components/ui/Select';
+import { loanApi, savingApi, branchApi, areaApi, agentApi, collectionApi } from '../services/api';
+
+export default function Collection() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+  const isAgent = userRole === 'Agent / Collection Executive';
+
+  // Read search query from global header search
+  const searchParams = new URLSearchParams(location.search);
+  const searchQuery = searchParams.get('search') || '';
+
+  // Load accounts
+  const [accounts, setAccounts] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [agents, setAgents] = useState([]);
+
+  // View mode tab
+  const [activeTab, setActiveTab] = useState('single'); // 'single' or 'bulk'
+
+  useEffect(() => {
+    if (isAgent && activeTab === 'bulk') {
+      setActiveTab('single');
+    }
+  }, [isAgent, activeTab]);
+
+  // Bulk operation states
+  const [selectedAgentForBulk, setSelectedAgentForBulk] = useState('Rahul Singh');
+  const [bulkCollectSelected, setBulkCollectSelected] = useState([]);
+  const [bulkApproveSelected, setBulkApproveSelected] = useState([]);
+  const [bulkAwaitingSelected, setBulkAwaitingSelected] = useState([]);
+
+  // Filters state
+  const [filterBranch, setFilterBranch] = useState('All');
+  const [filterArea, setFilterArea] = useState('All');
+  const [filterAgent, setFilterAgent] = useState('All');
+  const [filterType, setFilterType] = useState('All'); // 'All', 'Loan', 'Saving'
+  const [filterStatus, setFilterStatus] = useState('All'); // 'All', 'Pending', 'Paid'
+
+  // Collection modal state
+  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [collectAmount, setCollectAmount] = useState('');
+  const [fineAmount, setFineAmount] = useState('0');
+  const [paymentMode, setPaymentMode] = useState('Cash');
+
+  // Receipt modal state
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptTxn, setReceiptTxn] = useState(null);
+  const [receiptAccountNo, setReceiptAccountNo] = useState(null);
+  const [editAmt, setEditAmt] = useState('');
+  const [editFine, setEditFine] = useState('');
+  const [showConfirmVoid, setShowConfirmVoid] = useState(false);
+  const [voidRefNo, setVoidRefNo] = useState(null);
+
+  useEffect(() => {
+    if (receiptTxn) {
+      setEditAmt(receiptTxn.amt.toString());
+      setEditFine(receiptTxn.fine.toString());
+    } else {
+      setEditAmt('');
+      setEditFine('');
+    }
+  }, [receiptTxn]);
+
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const getFormattedDateStr = (dateObj) => {
+    if (!(dateObj instanceof Date) || isNaN(dateObj)) dateObj = new Date();
+    return `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
+  };
+
+  const selectedDateStr = getFormattedDateStr(selectedDate);
+  const todayStr = selectedDateStr; // Backward compatibility alias
+
+  const handlePrevDay = () => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(prev.getDate() - 1);
+      return d;
+    });
+  };
+
+  const handleNextDay = () => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(prev.getDate() + 1);
+      return d;
+    });
+  };
+
+  const getDaysAroundSelected = () => {
+    const list = [];
+    for (let i = -3; i <= 3; i++) {
+      const d = new Date(selectedDate);
+      d.setDate(selectedDate.getDate() + i);
+      list.push(d);
+    }
+    return list;
+  };
+
+  const hasCollectionOnDate = (dateObj) => {
+    const dStr = getFormattedDateStr(dateObj);
+    return accounts.some(acc => acc.ledger?.some(tx => tx.date === dStr));
+  };
+
+  useEffect(() => {
+    // Load dynamic accounts from DB
+    Promise.all([
+      loanApi.list({ limit: 100 }),
+      savingApi.list({ limit: 100 })
+    ]).then(([loansRes, savingsRes]) => {
+      const loanList = (loansRes.data || []).map(l => ({
+        accNo: l.loan_account_no,
+        type: 'Loan',
+        accountStatus: l.account_status,
+        planName: l.plan_name,
+        approvedAmt: Number(l.principal_amount),
+        totalPaid: Number(l.total_paid),
+        outstanding: Number(l.outstanding_amount),
+        emiAmt: Number(l.emi_amount),
+        paymentCycle: l.collection_frequency,
+        customer: { name: l.customer_name, phone: l.customer_mobile },
+        agent: l.agent_name,
+        branch: l.branch_name,
+        area: l.area_name
+      }));
+
+      const savingList = (savingsRes.data || []).map(s => ({
+        accNo: s.saving_account_no,
+        type: 'Saving',
+        accountStatus: s.account_status,
+        planName: s.plan_name,
+        approvedAmt: Number(s.deposit_amount),
+        totalPaid: Number(s.total_deposited),
+        outstanding: 0,
+        emiAmt: Number(s.deposit_amount),
+        paymentCycle: s.collection_frequency,
+        customer: { name: s.customer_name, phone: s.customer_mobile },
+        agent: s.agent_name,
+        branch: s.branch_name,
+        area: s.area_name
+      }));
+
+      setAccounts([...loanList, ...savingList]);
+    }).catch(() => {});
+
+    // Load Branches
+    branchApi.list()
+      .then(res => setBranches(res.data || []))
+      .catch(() => {});
+
+    // Load Areas
+    areaApi.list()
+      .then(res => setAreas(res.data || []))
+      .catch(() => {});
+
+    // Load Agents
+    agentApi.list()
+      .then(res => {
+        const parsed = res.data || [];
+        setAgents(parsed);
+        if (parsed.length > 0) {
+          setSelectedAgentForBulk(parsed[0].name);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Filter accounts: only Approved, Defaulter, NPA can have daily collections
+  const activeAccounts = accounts.filter(acc => {
+    const status = acc.accountStatus || 'Approved';
+    const isStatusMatch = ['Approved', 'Defaulter', 'NPA'].includes(status);
+    const isTypeMatch = filterType === 'All' || acc.type === filterType;
+    return isStatusMatch && isTypeMatch;
+  });
+
+  // Apply filters for individual checklist
+  const filteredAccounts = activeAccounts.filter(acc => {
+    // Branch Filter
+    const accBranch = acc.branch || acc.customer?.branch || 'Main Branch - Lucknow';
+    if (filterBranch !== 'All' && accBranch !== filterBranch) return false;
+
+    // Area Filter
+    const accArea = acc.area || acc.customer?.area || 'Hazratganj';
+    if (filterArea !== 'All' && !accArea.toLowerCase().includes(filterArea.toLowerCase())) return false;
+
+    // Agent Filter (Matching assigned agent)
+    const accAgent = acc.agent || acc.customer?.agent || '';
+    if (filterAgent !== 'All' && accAgent !== filterAgent) return false;
+
+    // Today's Pay Status Filter
+    const hasTodayPay = acc.ledger?.some(tx => tx.date === todayStr);
+    const payStatus = hasTodayPay ? 'Paid' : 'Pending';
+    if (filterStatus !== 'All' && payStatus !== filterStatus) return false;
+
+    // Search query
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const name = (acc.customer?.name || acc.name || '').toLowerCase();
+      const phone = (acc.customer?.phone || acc.phone || '');
+      const accNo = acc.accNo.toLowerCase();
+      return name.includes(q) || phone.includes(q) || accNo.includes(q);
+    }
+
+    return true;
+  });
+
+  // Bulk operation lists (dynamically filtered)
+  const bulkCollectAccounts = accounts.filter(acc => {
+    const status = acc.accountStatus || 'Approved';
+    const accAgent = acc.agent || acc.customer?.agent || '';
+    const isCollectorMatch = accAgent === selectedAgentForBulk;
+    const isStatusMatch = ['Approved', 'Defaulter', 'NPA'].includes(status);
+    const todayPaid = acc.ledger?.some(tx => tx.date === todayStr);
+    const isTypeMatch = filterType === 'All' || acc.type === filterType;
+    return isCollectorMatch && isStatusMatch && !todayPaid && isTypeMatch;
+  });
+
+  const bulkApproveAccounts = accounts.filter(acc => {
+    const status = acc.accountStatus || '';
+    const accAgent = acc.agent || acc.customer?.agent || '';
+    const isCollectorMatch = accAgent === selectedAgentForBulk;
+    const isTypeMatch = filterType === 'All' || acc.type === filterType;
+    return isCollectorMatch && status === 'Processing' && isTypeMatch;
+  });
+
+  const bulkAwaitingApproveCollections = accounts.filter(acc => {
+    const accAgent = acc.agent || acc.customer?.agent || '';
+    const isCollectorMatch = accAgent === selectedAgentForBulk;
+    const isTypeMatch = filterType === 'All' || acc.type === filterType;
+    const hasAwaiting = acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Awaiting Approval');
+    return isCollectorMatch && isTypeMatch && hasAwaiting;
+  });
+
+  // Calculate Metrics for Today
+  const totalTargetToday = activeAccounts.reduce((sum, acc) => sum + (acc.emiAmt || 0), 0);
+  
+  const totalCollectedToday = activeAccounts.reduce((sum, acc) => {
+    const todayTxns = (acc.ledger || []).filter(tx => tx.date === todayStr && tx.status !== 'Awaiting Approval');
+    const txnsSum = todayTxns.reduce((s, tx) => s + (tx.amt || 0), 0);
+    return sum + txnsSum;
+  }, 0);
+
+  const totalPendingToday = Math.max(0, totalTargetToday - totalCollectedToday);
+  const progressPercent = totalTargetToday > 0 ? Math.round((totalCollectedToday / totalTargetToday) * 100) : 0;
+
+  // Open collection modal
+  const handleOpenCollect = (acc) => {
+    setSelectedAccount(acc);
+    setCollectAmount((acc.emiAmt || '').toString());
+    setFineAmount('0');
+    setPaymentMode('Cash');
+  };
+
+  // Submit collection
+  const handleCollectSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedAccount) return;
+
+    const amt = parseFloat(collectAmount) || 0;
+    const fine = parseFloat(fineAmount) || 0;
+
+    if (amt <= 0) {
+      alert('Please enter a valid collection amount.');
+      return;
+    }
+
+    const collectCall = selectedAccount.type === 'Loan'
+      ? loanApi.collect(selectedAccount.accNo, amt, fine, paymentMode, 'Daily collection via dashboard')
+      : savingApi.deposit(selectedAccount.accNo, amt, paymentMode, 'Daily deposit via dashboard');
+
+    collectCall
+      .then(res => {
+        const receiptNo = res.data.receipt_no;
+        const newTxn = {
+          id: String(Date.now()),
+          date: todayStr,
+          refNo: receiptNo,
+          type: selectedAccount.type === 'Loan' ? 'EMI Payment' : 'Savings Deposit',
+          amt: amt,
+          fine: fine,
+          collector: localStorage.getItem('active_user_name') || 'Rahul Singh',
+          status: 'Approved'
+        };
+
+        // Reload accounts list
+        Promise.all([
+          loanApi.list({ limit: 100 }),
+          savingApi.list({ limit: 100 })
+        ]).then(([loansRes, savingsRes]) => {
+          const loanList = (loansRes.data || []).map(l => ({
+            accNo: l.loan_account_no,
+            type: 'Loan',
+            accountStatus: l.account_status,
+            planName: l.plan_name,
+            approvedAmt: Number(l.principal_amount),
+            totalPaid: Number(l.total_paid),
+            outstanding: Number(l.outstanding_amount),
+            emiAmt: Number(l.emi_amount),
+            paymentCycle: l.collection_frequency,
+            customer: { name: l.customer_name, phone: l.customer_mobile },
+            agent: l.agent_name,
+            branch: l.branch_name,
+            area: l.area_name
+          }));
+
+          const savingList = (savingsRes.data || []).map(s => ({
+            accNo: s.saving_account_no,
+            type: 'Saving',
+            accountStatus: s.account_status,
+            planName: s.plan_name,
+            approvedAmt: Number(s.deposit_amount),
+            totalPaid: Number(s.total_deposited),
+            outstanding: 0,
+            emiAmt: Number(s.deposit_amount),
+            paymentCycle: s.collection_frequency,
+            customer: { name: s.customer_name, phone: s.customer_mobile },
+            agent: s.agent_name,
+            branch: s.branch_name,
+            area: s.area_name
+          }));
+
+          setAccounts([...loanList, ...savingList]);
+        });
+
+        setReceiptAccountNo(selectedAccount.accNo);
+        setReceiptTxn(newTxn);
+        setShowReceipt(true);
+      })
+      .catch(err => {
+        alert(err.message || 'Collection failed.');
+      });
+
+    setSelectedAccount(null);
+  };
+
+  const closeReceipt = () => {
+    setShowReceipt(false);
+    setReceiptTxn(null);
+    setReceiptAccountNo(null);
+  };
+
+  const triggerVoidConfirm = (refNo) => {
+    setVoidRefNo(refNo);
+    setShowConfirmVoid(true);
+  };
+
+  const executeVoidTransaction = (refNo) => {
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    if (savedDb) {
+      try {
+        const db = JSON.parse(savedDb);
+        let foundAccNo = null;
+        Object.values(db).forEach(acc => {
+          if (acc.ledger?.some(tx => tx.refNo === refNo)) {
+            foundAccNo = acc.accNo;
+          }
+        });
+
+        if (foundAccNo && db[foundAccNo]) {
+          const acc = db[foundAccNo];
+          const txIndex = acc.ledger.findIndex(tx => tx.refNo === refNo);
+          if (txIndex !== -1) {
+            const tx = acc.ledger[txIndex];
+            
+            // Rollback values
+            acc.totalPaid = Math.max(0, (acc.totalPaid || 0) - tx.amt);
+            
+            if (acc.type === 'Loan') {
+              acc.outstanding = (acc.outstanding || 0) + tx.amt;
+              acc.pendingDue = (acc.pendingDue || 0) + tx.amt;
+              if (acc.accountStatus === 'Account Closed') {
+                acc.accountStatus = 'Approved';
+              }
+            } else {
+              acc.balance = (acc.balance || 0) - tx.amt;
+            }
+            
+            // Remove txn
+            acc.ledger.splice(txIndex, 1);
+            
+            db[foundAccNo] = acc;
+            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+            setAccounts(Object.values(db));
+            setShowConfirmVoid(false);
+            setVoidRefNo(null);
+            closeReceipt();
+            alert("Collection voided successfully.");
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Something went wrong.");
+      }
+    }
+  };
+
+  const handleApproveCollection = (accNo, refNo) => {
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    if (savedDb) {
+      try {
+        const db = JSON.parse(savedDb);
+        const acc = db[accNo];
+        if (acc) {
+          const tx = acc.ledger?.find(t => t.refNo === refNo);
+          if (tx && tx.status === 'Awaiting Approval') {
+            tx.status = 'Approved';
+            
+            // Apply updates now
+            acc.totalPaid = (acc.totalPaid || 0) + tx.amt;
+            
+            if (acc.type === 'Loan') {
+              acc.outstanding = Math.max(0, (acc.outstanding || 0) - tx.amt);
+              acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - tx.amt);
+              if (acc.outstanding === 0) {
+                acc.accountStatus = 'Account Closed';
+              }
+            } else {
+              acc.balance = (acc.balance || 0) + tx.amt;
+            }
+            
+            db[accNo] = acc;
+            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+            setAccounts(Object.values(db));
+            alert("Collection approved successfully.");
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Something went wrong.");
+      }
+    }
+  };
+
+  const handleRejectCollection = async (accNo, refNo) => {
+    if (!await window.confirm("Are you sure you want to reject this collection? This will remove it from active ledgers.")) {
+      return;
+    }
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    if (savedDb) {
+      try {
+        const db = JSON.parse(savedDb);
+        const acc = db[accNo];
+        if (acc) {
+          const tx = acc.ledger?.find(t => t.refNo === refNo);
+          if (tx && tx.status === 'Awaiting Approval') {
+            tx.status = 'Rejected';
+            
+            db[accNo] = acc;
+            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+            setAccounts(Object.values(db));
+            alert("Collection rejected successfully.");
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Something went wrong.");
+      }
+    }
+  };
+
+  const handleApproveWithEdits = (accNo, refNo, amt, fine) => {
+    if (isNaN(amt) || amt <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    if (savedDb) {
+      try {
+        const db = JSON.parse(savedDb);
+        const acc = db[accNo];
+        if (acc) {
+          const tx = acc.ledger?.find(t => t.refNo === refNo);
+          if (tx && tx.status === 'Awaiting Approval') {
+            tx.status = 'Approved';
+            tx.amt = amt;
+            tx.fine = fine;
+            
+            // Apply updates now
+            acc.totalPaid = (acc.totalPaid || 0) + amt;
+            
+            if (acc.type === 'Loan') {
+              acc.outstanding = Math.max(0, (acc.outstanding || 0) - amt);
+              acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - amt);
+              if (acc.outstanding === 0) {
+                acc.accountStatus = 'Account Closed';
+              }
+            } else {
+              acc.balance = (acc.balance || 0) + amt;
+            }
+            
+            db[accNo] = acc;
+            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+            setAccounts(Object.values(db));
+            closeReceipt();
+            alert("Collection approved successfully.");
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Something went wrong.");
+      }
+    }
+  };
+
+  const handleRejectWithConfirmation = (accNo, refNo) => {
+    handleRejectCollection(accNo, refNo);
+    closeReceipt();
+  };
+
+  const handleBulkApproveCollectionsSubmit = (e) => {
+    e.preventDefault();
+    if (bulkAwaitingSelected.length === 0) {
+      alert('Please select at least one collection to approve.');
+      return;
+    }
+
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    const db = savedDb ? JSON.parse(savedDb) : {};
+
+    let successCount = 0;
+    bulkAwaitingSelected.forEach(accNo => {
+      const acc = db[accNo];
+      if (acc) {
+        const tx = acc.ledger?.find(t => t.date === todayStr && t.status === 'Awaiting Approval');
+        if (tx) {
+          tx.status = 'Approved';
+          
+          acc.totalPaid = (acc.totalPaid || 0) + tx.amt;
+          
+          if (acc.type === 'Loan') {
+            acc.outstanding = Math.max(0, (acc.outstanding || 0) - tx.amt);
+            acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - tx.amt);
+            if (acc.outstanding === 0) {
+              acc.accountStatus = 'Account Closed';
+            }
+          } else {
+            acc.balance = (acc.balance || 0) + tx.amt;
+          }
+          successCount++;
+        }
+      }
+    });
+
+    if (successCount > 0) {
+      localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+      setAccounts(Object.values(db));
+      alert(`Successfully approved ${successCount} daily collections.`);
+    }
+    setBulkAwaitingSelected([]);
+  };
+
+  // Bulk collection action
+  const handleBulkCollectSubmit = (e) => {
+    e.preventDefault();
+    if (bulkCollectSelected.length === 0) {
+      alert('Please select at least one account to collect.');
+      return;
+    }
+
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    const db = savedDb ? JSON.parse(savedDb) : {};
+
+    let successCount = 0;
+    const isDirectAdmin = !isAgent;
+    const status = isDirectAdmin ? 'Approved' : 'Awaiting Approval';
+
+    bulkCollectSelected.forEach(accNo => {
+      const acc = db[accNo];
+      if (acc) {
+        // Only collect if not paid/awaiting today
+        const hasTodayPay = acc.ledger?.some(tx => tx.date === todayStr);
+        if (!hasTodayPay) {
+          const amt = acc.emiAmt || 0;
+
+          const newTxn = {
+            id: String(Date.now() + Math.random()),
+            date: todayStr,
+            refNo: `RC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            type: acc.type === 'Loan' ? 'EMI Payment' : 'Savings Deposit',
+            amt: amt,
+            fine: 0,
+            collector: selectedAgentForBulk,
+            status: status
+          };
+          acc.ledger = [newTxn, ...(acc.ledger || [])];
+
+          if (isDirectAdmin) {
+            acc.totalPaid = (acc.totalPaid || 0) + amt;
+            if (acc.type === 'Loan') {
+              acc.outstanding = Math.max(0, (acc.outstanding || 0) - amt);
+              acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - amt);
+              if (acc.outstanding === 0) {
+                acc.accountStatus = 'Account Closed';
+              }
+            } else {
+              acc.balance = (acc.balance || 0) + amt;
+            }
+          }
+
+          successCount++;
+        }
+      }
+    });
+
+    if (successCount > 0) {
+      localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+      setAccounts(Object.values(db));
+      if (isDirectAdmin) {
+        alert(`Successfully collected ${successCount} daily payments.`);
+      } else {
+        alert(`Successfully collected ${successCount} daily payments. Awaiting Admin Approval.`);
+      }
+    } else {
+      alert('No payments collected.');
+    }
+    setBulkCollectSelected([]);
+  };
+
+  // Bulk approval action
+  const handleBulkApproveSubmit = (e) => {
+    e.preventDefault();
+    if (bulkApproveSelected.length === 0) {
+      alert('Please select at least one account to approve.');
+      return;
+    }
+
+    const savedDb = localStorage.getItem('accounts_database_v2');
+    const db = savedDb ? JSON.parse(savedDb) : {};
+
+    let successCount = 0;
+    bulkApproveSelected.forEach(accNo => {
+      const acc = db[accNo];
+      if (acc && acc.accountStatus === 'Processing') {
+        acc.accountStatus = 'Approved';
+        acc.approvedDate = todayStr;
+        acc.disbursalDate = todayStr;
+        acc.todayStatus = 'Pending';
+        acc.nextDueDate = todayStr;
+        successCount++;
+      }
+    });
+
+    if (successCount > 0) {
+      localStorage.setItem('accounts_database_v2', JSON.stringify(db));
+      setAccounts(Object.values(db));
+      alert(`Successfully approved ${successCount} accounts.`);
+    } else {
+      alert('No accounts approved.');
+    }
+    setBulkApproveSelected([]);
+  };
+
+  return (
+    <div className="w-full space-y-6 animate-fade-in">
+      {/* Top Header Card */}
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-row items-center justify-between gap-4 overflow-x-auto no-scrollbar">
+        {activeTab === 'single' ? (
+          <div className="flex items-center gap-3 flex-1 flex-nowrap shrink-0">
+            {/* Branch Filter */}
+            <Select 
+              options={[{ value: 'All', label: 'All Branches' }, ...branches.map(b => ({ value: b.name, label: b.name }))] }
+              value={filterBranch}
+              onChange={(val) => setFilterBranch(val)}
+              searchable={false}
+              compact={true}
+            />
+
+            {/* Agent Filter */}
+            <Select 
+              options={[{ value: 'All', label: 'All Agents' }, ...agents.map(a => ({ value: a.name, label: a.name }))] }
+              value={filterAgent}
+              onChange={(val) => setFilterAgent(val)}
+              searchable={false}
+              compact={true}
+            />
+
+            {/* Account Type Filter */}
+            <Select 
+              options={[
+                { value: 'All', label: 'All Types' },
+                { value: 'Loan', label: 'Loans Only' },
+                { value: 'Saving', label: 'Savings Only' }
+              ]}
+              value={filterType}
+              onChange={(val) => setFilterType(val)}
+              searchable={false}
+              compact={true}
+            />
+
+            {/* Today's Pay Status Tabs */}
+            <div className="flex bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shrink-0">
+              {['All', 'Pending', 'Paid'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterStatus === s 
+                      ? 'bg-[#1E3A8A] text-white shadow-sm'
+                      : 'text-[#64748B] hover:text-[#0F172A]'
+                  }`}
+                >
+                  {s === 'All' ? 'All Dues' : s === 'Pending' ? 'Uncollected' : 'Collected'}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 flex-1 flex-nowrap shrink-0">
+            <Select 
+              options={agents.map(a => ({ value: a.name, label: `${a.name} (${a.code})` }))}
+              value={selectedAgentForBulk}
+              onChange={(val) => {
+                setSelectedAgentForBulk(val);
+                setBulkCollectSelected([]);
+                setBulkApproveSelected([]);
+              }}
+              searchable={false}
+              compact={true}
+            />
+
+            <Select 
+              options={[
+                { value: 'All', label: 'All Types' },
+                { value: 'Loan', label: 'Loans Only' },
+                { value: 'Saving', label: 'Savings Only' }
+              ]}
+              value={filterType}
+              onChange={(val) => {
+                setFilterType(val);
+                setBulkCollectSelected([]);
+                setBulkApproveSelected([]);
+              }}
+              searchable={false}
+              compact={true}
+            />
+          </div>
+        )}
+
+        {/* Horizontal Date Selection Bar */}
+        <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shadow-sm shrink-0">
+          {/* Prev Day Button */}
+          <button 
+            type="button"
+            onClick={handlePrevDay}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-rounded text-base select-none">chevron_left</span>
+          </button>
+
+          {/* Selected Date Text */}
+          <div className="flex items-center">
+            <span className="text-[11px] font-black text-[#1E3A8A] min-w-[72px] text-center select-none tracking-tight">
+              {selectedDateStr}
+            </span>
+          </div>
+
+          {/* Next Day Button */}
+          <button 
+            type="button"
+            onClick={handleNextDay}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-rounded text-base select-none">chevron_right</span>
+          </button>
+
+          {/* Calendar Picker (Jump to Date) */}
+          <div className="relative w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
+            <span className="material-symbols-rounded text-base select-none">event</span>
+            <input 
+              type="date"
+              value={selectedDate.toISOString().split('T')[0]}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setSelectedDate(new Date(e.target.value));
+                }
+              }}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Metrics Bento Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Target Collection</span>
+            <span className="material-symbols-rounded text-slate-300 text-lg select-none">track_changes</span>
+          </div>
+          <strong className="text-xl font-black text-[#0F172A] block">₹{totalTargetToday.toLocaleString()}</strong>
+          <span className="text-[9px] text-[#64748B] block">Expected EMI collections today</span>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected Today</span>
+            <span className="material-symbols-rounded text-emerald-400 text-lg select-none">payments</span>
+          </div>
+          <strong className="text-xl font-black text-[#16A34A] block">₹{totalCollectedToday.toLocaleString()}</strong>
+          <span className="text-[9px] text-emerald-600 font-semibold block">EMI payments recorded</span>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pending Balance</span>
+            <span className="material-symbols-rounded text-amber-400 text-lg select-none">hourglass_empty</span>
+          </div>
+          <strong className="text-xl font-black text-[#EA580C] block">₹{totalPendingToday.toLocaleString()}</strong>
+          <span className="text-[9px] text-[#EA580C] font-semibold block">Remaining to collect</span>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completion Rate</span>
+            <span className="text-xs font-bold text-[#1E3A8A] bg-[#1E3A8A]/5 px-2 py-0.5 rounded">{progressPercent}%</span>
+          </div>
+          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
+            <div 
+              className="bg-[#1E3A8A] h-full rounded-full transition-all duration-500" 
+              style={{ width: `${Math.min(100, progressPercent)}%` }}
+            ></div>
+          </div>
+          <span className="text-[9px] text-[#64748B] block mt-1">Today's collection progress</span>
+        </div>
+      </div>
+
+      {/* View Tabs */}
+      <div className="flex border-b border-[#E2E8F0] gap-6">
+        <button
+          onClick={() => setActiveTab('single')}
+          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
+            activeTab === 'single' ? 'text-[#1E3A8A]' : 'text-[#64748B] hover:text-[#0F172A]'
+          }`}
+        >
+          Single Collection Checklist
+          {activeTab === 'single' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1E3A8A] rounded-full"></div>
+          )}
+        </button>
+        {!isAgent && (
+          <button
+            onClick={() => setActiveTab('bulk')}
+            className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
+              activeTab === 'bulk' ? 'text-[#1E3A8A]' : 'text-[#64748B] hover:text-[#0F172A]'
+            }`}
+          >
+            Agent-Wise Bulk Operations
+            {activeTab === 'bulk' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1E3A8A] rounded-full"></div>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Tab 1: Single Collection checklist */}
+      {activeTab === 'single' && (
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 space-y-5 animate-fade-in">
+          {/* Collection Checklist Table */}
+          <div className="overflow-x-auto -mx-6">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full divide-y divide-[#E2E8F0]">
+                <thead className="bg-[#F8FAFC]">
+                  <tr>
+                    <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Account No</th>
+                    <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Customer Details</th>
+                    <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Account Type</th>
+                    <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Daily EMI</th>
+                    <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Today's Pay Status</th>
+                    <th scope="col" className="px-6 py-3.5 text-center text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E2E8F0] bg-white">
+                  {filteredAccounts.length > 0 ? (
+                    filteredAccounts.map((acc) => {
+                      const name = acc.customer?.name || acc.name || 'Customer';
+                      const phone = acc.customer?.phone || acc.phone || 'N/A';
+                      
+                      // Check today status
+                      const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
+                      const todayPaid = !!(todayPayment && todayPayment.status !== 'Awaiting Approval');
+                      const todayAwaiting = !!(todayPayment && todayPayment.status === 'Awaiting Approval');
+                      const todayRejected = !todayPayment && !!acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Rejected');
+
+                      return (
+                        <tr 
+                          key={acc.accNo}
+                          onClick={() => navigate(`/account/${acc.accNo}`)}
+                          className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
+                        >
+                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#1E3A8A]">
+                            {acc.accNo}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4">
+                            <div className="text-xs font-bold text-[#0F172A]">{name}</div>
+                            <div className="text-[10px] text-[#64748B]">{phone}</div>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-xs">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                              acc.type === 'Loan' ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                            }`}>
+                              {acc.type}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0F172A]">
+                            ₹{(acc.emiAmt || 0).toLocaleString()}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                              todayPaid 
+                                ? 'bg-[#16A34A]/10 text-[#16A34A]' 
+                                : todayAwaiting 
+                                  ? 'bg-[#F59E0B]/10 text-[#F59E0B]' 
+                                  : todayRejected
+                                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
+                                    : 'bg-[#EA580C]/10 text-[#EA580C]'
+                            }`}>
+                              {todayPaid ? 'Collected' : todayAwaiting ? 'Awaiting Approval' : todayRejected ? 'Reset' : 'Pending'}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            {todayPaid ? (
+                              <button
+                                onClick={() => {
+                                  setReceiptAccountNo(acc.accNo);
+                                  setReceiptTxn(todayPayment);
+                                  setShowReceipt(true);
+                                }}
+                                className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                              >
+                                <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                                Receipt
+                              </button>
+                            ) : todayAwaiting ? (
+                              <button
+                                onClick={() => {
+                                  setReceiptAccountNo(acc.accNo);
+                                  setReceiptTxn(todayPayment);
+                                  setShowReceipt(true);
+                                }}
+                                className="px-4 py-1.5 border border-[#16A34A] hover:bg-[#16A34A]/5 text-[#16A34A] rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto"
+                              >
+                                <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                                Receipt
+                              </button>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <button
+                                  onClick={() => handleOpenCollect(acc)}
+                                  className="px-5 py-1.5 rounded-lg text-xs font-bold bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
+                                >
+                                  Collect
+                                </button>
+                                {todayRejected && (
+                                  <span className="text-[9px] text-[#EF4444] font-black uppercase tracking-wider">
+                                    Rejected Today
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-12 text-xs text-[#64748B]">
+                        No active collection accounts found for today matching the filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Agent-wise bulk operations */}
+      {activeTab === 'bulk' && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Section 1: Bulk Collections */}
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex flex-col gap-4">
+              <div className="flex justify-between items-center pb-3 border-b border-[#F1F5F9]">
+                <div>
+                  <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-wider">Bulk Today's Collection</h4>
+                  <p className="text-[10px] text-[#64748B] mt-0.5">Uncollected accounts assigned to {selectedAgentForBulk}</p>
+                </div>
+                <span className="bg-[#1E3A8A]/10 text-[#1E3A8A] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {bulkCollectAccounts.length} Pending
+                </span>
+              </div>
+
+              {bulkCollectAccounts.length > 0 ? (
+                <div className="flex flex-col gap-4 flex-1">
+                  {/* Select All checkbox */}
+                  <div className="flex justify-between items-center bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={bulkCollectSelected.length === bulkCollectAccounts.length && bulkCollectAccounts.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setBulkCollectSelected(bulkCollectAccounts.map(a => a.accNo));
+                          } else {
+                            setBulkCollectSelected([]);
+                          }
+                        }}
+                        className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-[#0F172A]">Select All Pending</span>
+                    </label>
+                    <span className="text-xs font-bold text-[#1E3A8A]">
+                      Selected: {bulkCollectSelected.length} / {bulkCollectAccounts.length}
+                    </span>
+                  </div>
+
+                  {/* Checklist Table */}
+                  <div className="overflow-x-auto border border-[#E2E8F0] rounded-xl flex-1 max-h-[350px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-[#E2E8F0]">
+                      <thead className="bg-[#F8FAFC] sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-2.5 text-left text-[10px] font-bold text-[#64748B] uppercase">Select</th>
+                          <th className="px-4 py-2.5 text-left text-[10px] font-bold text-[#64748B] uppercase">Customer</th>
+                          <th className="px-4 py-2.5 text-right text-[10px] font-bold text-[#64748B] uppercase">EMI (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E2E8F0] text-xs">
+                        {bulkCollectAccounts.map(acc => {
+                          const name = acc.customer?.name || acc.name;
+                          const isChecked = bulkCollectSelected.includes(acc.accNo);
+
+                          return (
+                            <tr key={acc.accNo} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setBulkCollectSelected(prev => [...prev, acc.accNo]);
+                                    } else {
+                                      setBulkCollectSelected(prev => prev.filter(id => id !== acc.accNo));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="font-bold text-[#0F172A]">{name}</div>
+                                <div className="text-[10px] text-[#1E3A8A] font-medium">{acc.accNo} ({acc.type})</div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-black text-[#0F172A]">
+                                ₹{(acc.emiAmt || 0).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Summary Box & Action Button */}
+                  <div className="pt-3 border-t border-[#F1F5F9] space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#64748B] font-medium">Total Selected EMI Amount:</span>
+                      <strong className="text-base font-black text-[#16A34A]">
+                        ₹{bulkCollectAccounts
+                          .filter(a => bulkCollectSelected.includes(a.accNo))
+                          .reduce((sum, a) => sum + (a.emiAmt || 0), 0)
+                          .toLocaleString()}
+                      </strong>
+                    </div>
+                    <button
+                      onClick={handleBulkCollectSubmit}
+                      disabled={bulkCollectSelected.length === 0}
+                      className="w-full h-11 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">payments</span>
+                      Collect Selected ({bulkCollectSelected.length} EMIs)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-16 text-center flex flex-col items-center justify-center gap-3 border border-dashed border-[#E2E8F0] rounded-2xl bg-[#F8FAFC]/50 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-[#EDF3EC] flex items-center justify-center text-[#346538] shadow-xs">
+                    <span className="material-symbols-rounded text-xl select-none">verified_user</span>
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-[#0F172A]">All Caught Up!</h5>
+                    <p className="text-[10px] text-[#64748B] mt-1 max-w-[200px] mx-auto leading-relaxed">
+                      No pending collection accounts found for {selectedAgentForBulk} today.
+                    </p>
+                  </div>
+                  <span className="bg-[#EDF3EC] text-[#346538] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    100% Collected
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Bulk Collection Approvals */}
+            <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex flex-col gap-4">
+              <div className="flex justify-between items-center pb-3 border-b border-[#F1F5F9]">
+                <div>
+                  <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-wider">Bulk Collection Approvals</h4>
+                  <p className="text-[10px] text-[#64748B] mt-0.5">Collected today by {selectedAgentForBulk}, awaiting approval</p>
+                </div>
+                <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {bulkAwaitingApproveCollections.length} Awaiting
+                </span>
+              </div>
+
+              {bulkAwaitingApproveCollections.length > 0 ? (
+                <div className="flex flex-col gap-4 flex-1">
+                  {/* Select All checkbox */}
+                  <div className="flex justify-between items-center bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={bulkAwaitingSelected.length === bulkAwaitingApproveCollections.length && bulkAwaitingApproveCollections.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setBulkAwaitingSelected(bulkAwaitingApproveCollections.map(a => a.accNo));
+                          } else {
+                            setBulkAwaitingSelected([]);
+                          }
+                        }}
+                        className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-[#0F172A]">Select All Awaiting</span>
+                    </label>
+                    <span className="text-xs font-bold text-[#1E3A8A]">
+                      Selected: {bulkAwaitingSelected.length} / {bulkAwaitingApproveCollections.length}
+                    </span>
+                  </div>
+
+                  {/* Checklist Table */}
+                  <div className="overflow-x-auto border border-[#E2E8F0] rounded-xl flex-1 max-h-[350px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-[#E2E8F0]">
+                      <thead className="bg-[#F8FAFC] sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-2.5 text-left text-[10px] font-bold text-[#64748B] uppercase">Select</th>
+                          <th className="px-4 py-2.5 text-left text-[10px] font-bold text-[#64748B] uppercase">Customer</th>
+                          <th className="px-4 py-2.5 text-right text-[10px] font-bold text-[#64748B] uppercase">Amount (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E2E8F0] text-xs">
+                        {bulkAwaitingApproveCollections.map(acc => {
+                          const name = acc.customer?.name || acc.name;
+                          const isChecked = bulkAwaitingSelected.includes(acc.accNo);
+                          const todayTx = acc.ledger?.find(t => t.date === todayStr && t.status === 'Awaiting Approval') || { amt: 0 };
+
+                          return (
+                            <tr key={acc.accNo} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setBulkAwaitingSelected(prev => [...prev, acc.accNo]);
+                                    } else {
+                                      setBulkAwaitingSelected(prev => prev.filter(id => id !== acc.accNo));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="font-bold text-[#0F172A]">{name}</div>
+                                <div className="text-[10px] text-[#1E3A8A] font-medium">{acc.accNo} ({acc.type})</div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-black text-[#16A34A]">
+                                ₹{(todayTx.amt || 0).toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Summary Box & Action Button */}
+                  <div className="pt-3 border-t border-[#F1F5F9] space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#64748B] font-medium">Total Selected for Approval:</span>
+                      <strong className="text-base font-black text-[#16A34A]">
+                        ₹{bulkAwaitingApproveCollections
+                          .filter(a => bulkAwaitingSelected.includes(a.accNo))
+                          .reduce((sum, a) => {
+                            const tx = a.ledger?.find(t => t.date === todayStr && t.status === 'Awaiting Approval');
+                            return sum + (tx?.amt || 0);
+                          }, 0)
+                          .toLocaleString()}
+                      </strong>
+                    </div>
+                    <button
+                      onClick={handleBulkApproveCollectionsSubmit}
+                      disabled={bulkAwaitingSelected.length === 0}
+                      className="w-full h-11 bg-[#16A34A] hover:bg-[#16A34A]/90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">check_circle</span>
+                      Approve Selected ({bulkAwaitingSelected.length} Collections)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-16 text-center flex flex-col items-center justify-center gap-3 border border-dashed border-[#E2E8F0] rounded-2xl bg-[#F8FAFC]/50 flex-1">
+                  <div className="w-12 h-12 rounded-full bg-[#E1F3FE] flex items-center justify-center text-[#1F6C9F] shadow-xs">
+                    <span className="material-symbols-rounded text-xl select-none">check_circle</span>
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-[#0F172A]">Cleared & Approved</h5>
+                    <p className="text-[10px] text-[#64748B] mt-1 max-w-[200px] mx-auto leading-relaxed">
+                      No collections are awaiting approval for {selectedAgentForBulk} today.
+                    </p>
+                  </div>
+                  <span className="bg-[#E1F3FE] text-[#1F6C9F] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Zero Pending
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collect Payment Modal */}
+      {selectedAccount && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setSelectedAccount(null)}>
+          <div 
+            className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl w-full max-w-md p-5 space-y-4 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">payments</span>
+                <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                  Collect Daily Payment
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedAccount(null)}
+                className="text-[#64748B] hover:text-[#0F172A] p-1 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-sm select-none">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleCollectSubmit} className="space-y-4">
+              <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border border-slate-100">
+                <div className="flex justify-between">
+                  <span className="text-[#64748B]">Customer Name:</span>
+                  <span className="font-bold text-[#0F172A]">{selectedAccount.customer?.name || selectedAccount.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#64748B]">Account Number:</span>
+                  <span className="font-bold text-[#1E3A8A]">{selectedAccount.accNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#64748B]">Standard EMI Due:</span>
+                  <span className="font-black text-[#0F172A]">₹{selectedAccount.emiAmt}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Amount (₹) *</label>
+                  <input 
+                    type="number"
+                    value={collectAmount}
+                    onChange={(e) => setCollectAmount(e.target.value)}
+                    className="w-full h-11 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Fine / Late Charge (₹)</label>
+                  <input 
+                    type="number"
+                    value={fineAmount}
+                    onChange={(e) => setFineAmount(e.target.value)}
+                    className="w-full h-11 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#E11D48] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Payment Mode *</label>
+                <select
+                  value={paymentMode}
+                  onChange={(e) => setPaymentMode(e.target.value)}
+                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none"
+                >
+                  <option value="Cash">Cash Settlement</option>
+                  <option value="Bank Transfer">Bank Transfer (UPI / IMPS)</option>
+                  <option value="Cheque">Cheque Settlement</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t border-slate-100">
+                <button 
+                  type="button"
+                  onClick={() => setSelectedAccount(null)}
+                  className="flex-1 h-11 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center flex items-center justify-center"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center"
+                >
+                  Save Payment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Collection Receipt Modal */}
+      {showReceipt && receiptTxn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeReceipt}></div>
+          
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative z-10 border border-[#E2E8F0] text-[#0F172A] font-sans flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="text-center pb-4 border-b border-dashed border-[#E2E8F0]">
+              <span className="text-sm font-bold block">Umbrella Finance</span>
+              <span className="text-[10px] text-[#64748B] block mt-0.5">Chhote Kadam, Bade Sapne</span>
+              <span className="text-xs font-bold text-[#1E3A8A] mt-2 block bg-[#1E3A8A]/5 py-1 rounded-lg">Collection Receipt</span>
+            </div>
+
+            <div className="space-y-2 text-xs py-2 border-b border-dashed border-[#E2E8F0] pb-3">
+              <div className="flex justify-between">
+                <span className="text-[#64748B]">Receipt No</span>
+                <span className="font-bold">{receiptTxn.refNo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#64748B]">Date</span>
+                <span className="font-medium">{receiptTxn.date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#64748B]">Collector</span>
+                <span className="font-bold">{receiptTxn.collector}</span>
+              </div>
+            </div>
+
+            {receiptTxn.status === 'Awaiting Approval' ? (
+              isAgent ? (
+                <div className="space-y-4">
+                  <div className="space-y-2 text-xs py-2 bg-amber-50/50 p-3 rounded-xl border border-amber-100">
+                    <div className="flex justify-between">
+                      <span className="text-[#64748B]">Amount</span>
+                      <span className="font-bold text-[#1E3A8A]">₹{receiptTxn.amt.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#64748B]">Fine</span>
+                      <span className="font-bold">₹{receiptTxn.fine.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-dashed border-amber-200 pt-2 font-bold text-sm text-[#1E3A8A]">
+                      <span>Total</span>
+                      <span>₹{(receiptTxn.amt + receiptTxn.fine).toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-amber-50 text-amber-800 text-[10px] font-bold rounded-lg text-center">
+                    Awaiting Admin Approval
+                  </div>
+
+                  <button
+                    onClick={closeReceipt}
+                    className="w-full px-4 py-2.5 bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Edit Amount (₹)</label>
+                      <input
+                        type="number"
+                        value={editAmt}
+                        onChange={(e) => setEditAmt(e.target.value)}
+                        className="w-full h-10 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Edit Fine (₹)</label>
+                      <input
+                        type="number"
+                        value={editFine}
+                        onChange={(e) => setEditFine(e.target.value)}
+                        className="w-full h-10 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#E11D48] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <button
+                      onClick={() => handleRejectWithConfirmation(receiptAccountNo, receiptTxn.refNo)}
+                      className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">close</span>
+                      Reject / Reset
+                    </button>
+                    <button
+                      onClick={() => handleApproveWithEdits(receiptAccountNo, receiptTxn.refNo, parseFloat(editAmt), parseFloat(editFine))}
+                      className="px-4 py-2.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1 shadow-md shadow-green-100"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">check_circle</span>
+                      Approve
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={closeReceipt}
+                    className="w-full px-4 py-2.5 border border-[#E2E8F0] hover:bg-[#E2E8F0] text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer text-center mt-1"
+                  >
+                    Close
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2 text-xs py-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                  <div className="flex justify-between">
+                    <span className="text-[#64748B]">Amount</span>
+                    <span className="font-bold text-[#16A34A]">₹{receiptTxn.amt.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#64748B]">Fine</span>
+                    <span className="font-bold">₹{receiptTxn.fine.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#1E3A8A]">
+                    <span>Total Received</span>
+                    <span>₹{(receiptTxn.amt + receiptTxn.fine).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {receiptTxn.status === 'Approved' && !isAgent && (
+                  <button
+                    onClick={() => triggerVoidConfirm(receiptTxn.refNo)}
+                    className="w-full flex items-center justify-center gap-1 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer mt-2"
+                  >
+                    <span className="material-symbols-rounded text-sm select-none">delete_forever</span>
+                    Void / Reset Payment
+                  </button>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <button
+                    onClick={() => {
+                      alert('Receipt print command sent.');
+                      closeReceipt();
+                    }}
+                    className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
+                  >
+                    <span className="material-symbols-rounded text-sm select-none">print</span>
+                    Print Receipt
+                  </button>
+                  <button
+                    onClick={closeReceipt}
+                    className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Void Confirmation Modal */}
+      {showConfirmVoid && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowConfirmVoid(false)}></div>
+          
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative z-50 border border-[#E2E8F0] text-[#0F172A] font-sans flex flex-col items-center text-center gap-4 animate-scale-up">
+            {/* Warning Icon */}
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+              <span className="material-symbols-rounded text-2xl select-none">warning</span>
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-[#0F172A]">Void Collection?</h3>
+              <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                Are you sure you want to void this collection? This will remove the transaction from the ledger and reset the status to Pending.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 w-full mt-2">
+              <button
+                onClick={() => setShowConfirmVoid(false)}
+                className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeVoidTransaction(voidRefNo)}
+                className="px-4 py-2.5 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 active:scale-95 transition-all cursor-pointer shadow-md shadow-red-200 text-center"
+              >
+                Void Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

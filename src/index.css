@@ -1,0 +1,281 @@
+@import "tailwindcss";
+@import "@fontsource/manrope";
+
+@theme {
+  --color-primary: #1E3A8A;
+  --color-accent: #F59E0B;
+  --color-background-fin: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-primary-text: #0F172A;
+  --color-secondary-text: #64748B;
+  --color-border-fin: #E2E8F0;
+  --color-success-fin: #16A34A;
+  --color-warning-fin: #EA580C;
+  --color-danger-fin: #E11D48;
+
+  --font-sans: 'Manrope', system-ui, sans-serif;
+  --radius-fin: 16px;
+}
+
+:root {
+  font-family: 'Manrope', system-ui, sans-serif;
+  --primary-color: #1E3A8A;
+  --accent-color: #F59E0B;
+}
+
+/* Hide spin buttons / arrows for all input type number globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+body {
+  background-color: var(--color-background-fin);
+  color: var(--color-primary-text);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Premium Typography Elements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.025em; /* tracking-tight */
+  line-height: 1.2;
+}
+
+/* Global Transitions for all interactive components */
+a, button, input, select, textarea {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Active pressed micro-state simulation */
+button:active:not(:disabled),
+a:active,
+.active-tactile:active {
+  transform: scale(0.98);
+}
+
+/* Material Symbols Outlined Custom Class */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Optimize small scaled icons for pixel-perfect crispness */
+.material-symbols-rounded.text-sm {
+  font-size: 18px !important;
+  font-variation-settings: 'FILL' 0, 'wght' 450, 'GRAD' 0, 'opsz' 20 !important;
+}
+
+.material-symbols-rounded.text-xs {
+  font-size: 15px !important;
+  font-variation-settings: 'FILL' 0, 'wght' 450, 'GRAD' 0, 'opsz' 20 !important;
+}
+
+/* Floating Label Form styling */
+.floating-label-group {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.floating-label-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-fin);
+  border-radius: var(--radius-fin);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary-text);
+  outline: none;
+}
+
+.floating-label-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(30, 58, 170, 0.1);
+}
+
+.floating-label-text {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: var(--color-surface);
+  padding: 0 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-secondary-text);
+  pointer-events: none;
+}
+
+.floating-label-input:focus ~ .floating-label-text,
+.floating-label-input:not(:placeholder-shown) ~ .floating-label-text {
+  top: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-primary);
+}
+
+/* Theme Aligned Custom Select Dropdown */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-fin);
+  border-radius: var(--radius-fin);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary-text);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  outline: none;
+}
+
+.custom-select-trigger:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(30, 58, 170, 0.1);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-fin);
+  border-radius: var(--radius-fin);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+  max-height: 200px;
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.95);
+  transform-origin: top;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.custom-select-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.custom-select-option {
+  padding: 0.75rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary-text);
+  cursor: pointer;
+}
+
+.custom-select-option:hover {
+  background-color: var(--color-background-fin);
+}
+
+.custom-select-option.selected {
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+/* Theme Aligned Custom Calendar Picker styles */
+.custom-datepicker-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-datepicker-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-fin);
+  border-radius: var(--radius-fin);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary-text);
+  outline: none;
+}
+
+.custom-datepicker-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(30, 58, 170, 0.1);
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background-fin);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-fin);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+

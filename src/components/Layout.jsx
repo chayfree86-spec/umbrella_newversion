@@ -1,0 +1,352 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+export function Layout({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+
+  const loggedInName = localStorage.getItem('username') || 'Sandeep Kumar';
+  const loggedInRole = localStorage.getItem('userRole') || 'Super Admin';
+
+  const getInitials = (name) => {
+    if (!name) return 'UF';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+  const initials = getInitials(loggedInName);
+
+  const searchInputRef = useRef(null);
+
+  // Keep search input in sync with URL search param
+  const queryParam = new URLSearchParams(location.search).get('search') || '';
+  useEffect(() => {
+    setSearchValue(queryParam);
+  }, [queryParam]);
+
+  const handleSearchChange = (val) => {
+    setSearchValue(val);
+    const query = val.trim();
+    if (location.pathname === '/collection' || location.pathname === '/daily-collection' || location.pathname === '/funds') {
+      if (query) {
+        navigate(`${location.pathname}?search=${encodeURIComponent(query)}`, { replace: true });
+      } else {
+        navigate(`${location.pathname}`, { replace: true });
+      }
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    const query = searchValue.trim();
+    if (location.pathname !== '/collection' && location.pathname !== '/daily-collection' && location.pathname !== '/funds') {
+      if (query) {
+        navigate(`/collection?search=${encodeURIComponent(query)}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const navigationItems = [
+    { name: 'Dashboard', path: '/', icon: 'dashboard' },
+    { name: 'Registration', path: '/register', icon: 'person_add' },
+    { name: 'Accounts', path: '/collection', icon: 'assignment_ind' },
+    { name: 'Daily Collection', path: '/daily-collection', icon: 'payments' },
+    { name: 'Reports', path: '/reports', icon: 'description' },
+    { name: 'Funds Management', path: '/funds', icon: 'account_balance_wallet' }
+  ];
+
+  const getPageTitle = () => {
+    if (location.pathname === '/') return 'Dashboard';
+    if (location.pathname === '/register') return 'Customer Registration (Stepper)';
+    if (location.pathname === '/collection') return 'Accounts Directory';
+    if (location.pathname === '/daily-collection') return 'Daily Collection Dashboard';
+    if (location.pathname === '/funds') return 'Capital & Fund Management';
+    if (location.pathname === '/reports') return 'Financial Reports & Ledger';
+    if (location.pathname.startsWith('/customer')) return 'Customer Profile';
+    if (location.pathname.startsWith('/settings')) {
+      if (location.pathname === '/settings/branches') return 'Branch Management';
+      if (location.pathname === '/settings/areas') return 'Area Management';
+      if (location.pathname === '/settings/agents') return 'Agent Management';
+      if (location.pathname === '/settings/plans') return 'Plan Master';
+      return 'System Settings';
+    }
+    return 'Umbrella Finance';
+  };
+
+  const isActive = (path) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-background-fin">
+      {/* Desktop Left Sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-72 lg:flex-shrink-0 bg-surface border-r border-border-fin z-20">
+        {/* Brand Header */}
+        <div className="py-3 px-4 border-b border-border-fin flex items-center justify-start overflow-hidden">
+          <img src="/logo-horizontal.png" className="h-20 w-auto object-contain -my-2" alt="Umbrella Finance" />
+        </div>
+
+        {/* Sidebar Nav */}
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          {navigationItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                isActive(item.path)
+                  ? 'bg-primary text-surface shadow-md shadow-primary/10'
+                  : 'text-secondary-text hover:text-primary-text hover:bg-background-fin'
+              }`}
+            >
+              <span className="material-symbols-rounded select-none">{item.icon}</span>
+              <span>{item.name}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* User Info / Footer */}
+        <div className="p-4 border-t border-border-fin bg-background-fin">
+          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <span className="text-sm font-bold text-primary-text block truncate leading-none mb-1" title={loggedInName}>
+                  {loggedInName}
+                </span>
+                <span className="text-xs font-medium text-secondary-text block truncate" title={loggedInRole}>
+                  {loggedInRole}
+                </span>
+              </div>
+            </div>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('auth_token');
+                window.location.href = '/';
+              }}
+              className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"
+              title="Logout"
+            >
+              <span className="material-symbols-rounded select-none block text-lg">logout</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Sticky Header */}
+        <header className="sticky top-0 bg-surface border-b border-border-fin h-16 flex items-center justify-between px-4 sm:px-6 z-10 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Mobile Menu Toggle Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 rounded-lg hover:bg-background-fin text-secondary-text cursor-pointer active:scale-[0.95]"
+            >
+              <span className="material-symbols-rounded select-none">menu</span>
+            </button>
+
+            {/* Mobile Logo next to menu button */}
+            <div className="lg:hidden flex items-center overflow-hidden h-10 border-r border-border-fin pr-2.5 mr-1">
+              <img src="/logo-horizontal.png" className="h-14 w-auto object-contain -my-2" alt="Umbrella" />
+            </div>
+
+            {/* Breadcrumb / Title */}
+            <div>
+              <span className="hidden sm:block text-[11px] font-bold text-secondary-text uppercase tracking-wider mb-0.5">
+                Umbrella Finance / {getPageTitle()}
+              </span>
+              <h1 className="text-lg font-bold text-primary-text leading-none sm:text-xl">
+                {getPageTitle()}
+              </h1>
+            </div>
+          </div>
+
+          {/* Action Header controls */}
+          <div className="flex items-center gap-3">
+            {/* Global Search */}
+            <div className="flex items-center relative w-36 xs:w-48 sm:w-72 group bg-[#F1F5F9] p-[3px] rounded-full border border-[#E2E8F0] focus-within:border-primary/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-inner-sm">
+              <span className="material-symbols-rounded pl-2.5 text-base text-secondary-text/80 select-none group-focus-within:text-primary transition-colors duration-300">
+                search
+              </span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search Account..."
+                value={searchValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearchSubmit();
+                  }
+                }}
+                className="w-full bg-transparent pl-2 pr-10 py-1.5 text-xs font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none"
+              />
+              <div className="absolute right-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-border-fin rounded-md text-[9px] font-bold text-secondary-text shadow-sm pointer-events-none select-none group-focus-within:opacity-0 transition-opacity duration-200">
+                <span className="text-[8px] font-sans">⌘</span>K
+              </div>
+            </div>
+
+            {/* Notifications Button */}
+            <div className="relative">
+              <button
+                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                className="p-2 rounded-xl bg-background-fin hover:bg-border-fin/50 text-secondary-text relative cursor-pointer active:scale-[0.95]"
+              >
+                <span className="material-symbols-rounded select-none">notifications</span>
+                {/* Alert Badge */}
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full border border-surface"></span>
+              </button>
+
+              {/* Mock Notification Dropdown */}
+              {isNotificationOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-surface border border-border-fin rounded-2xl shadow-xl z-50 p-4">
+                  <div className="flex justify-between items-center mb-3 pb-2 border-b border-border-fin">
+                    <span className="text-xs font-bold text-primary-text uppercase">Notifications</span>
+                    <button className="text-[11px] text-primary font-bold hover:underline cursor-pointer">
+                      Mark all read
+                    </button>
+                  </div>
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="p-2.5 rounded-xl hover:bg-background-fin transition-colors cursor-pointer">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-bold text-primary">New Collection</span>
+                        <span className="text-secondary-text font-bold">2m ago</span>
+                      </div>
+                      <p className="text-xs text-secondary-text font-semibold">Agent Rahul collected ₹2,500.</p>
+                    </div>
+                    <div className="p-2.5 rounded-xl hover:bg-background-fin transition-colors cursor-pointer">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-bold text-warning-fin">Loan Maturity</span>
+                        <span className="text-secondary-text font-bold">1h ago</span>
+                      </div>
+                      <p className="text-xs text-secondary-text font-semibold">Account LN-4902 is maturing today.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Settings Icon trigger in place of Profile Avatar */}
+            <Link
+              to="/settings"
+              className={`p-2 rounded-xl text-secondary-text hover:text-primary hover:bg-border-fin/50 transition-all duration-200 cursor-pointer active:scale-[0.95] ${
+                location.pathname.startsWith('/settings') ? 'bg-primary/10 text-primary' : 'bg-background-fin'
+              }`}
+              title="Settings"
+            >
+              <span className="material-symbols-rounded select-none block">settings</span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Page Content viewport */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile Drawer (Hamburger Side Navigation) */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          {/* Backdrop mask */}
+          <div
+            className="fixed inset-0 bg-primary-text/40 backdrop-blur-sm"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+
+          {/* Drawer contents */}
+          <div className="relative w-72 max-w-xs bg-surface h-full flex flex-col p-6 shadow-2xl z-50">
+            <div className="flex justify-between items-center pb-4 border-b border-border-fin mb-6">
+              <div className="flex items-center overflow-hidden">
+                <img src="/logo-horizontal.png" className="h-16 w-auto object-contain -my-1.5" alt="Umbrella Finance" />
+              </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1 rounded-lg hover:bg-background-fin text-secondary-text cursor-pointer active:scale-[0.95]"
+              >
+                <span className="material-symbols-rounded select-none">close</span>
+              </button>
+            </div>
+
+            <nav className="flex-1 space-y-1.5">
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-colors duration-200 cursor-pointer ${
+                    isActive(item.path)
+                      ? 'bg-primary text-surface'
+                      : 'text-secondary-text hover:text-primary-text hover:bg-background-fin'
+                  }`}
+                >
+                  <span className="material-symbols-rounded select-none">{item.icon}</span>
+                  <span>{item.name}</span>
+                </Link>
+              ))}
+            </nav>
+
+            <div className="pt-4 border-t border-border-fin flex items-center justify-between">
+              <div>
+                <span className="text-[11px] text-secondary-text font-bold uppercase block mb-1">Logged In</span>
+                <span className="text-sm font-bold text-primary-text block truncate max-w-[150px]">{loggedInName}</span>
+                <span className="text-[10px] text-secondary-text font-semibold block">{loggedInRole}</span>
+              </div>
+              <button 
+                onClick={() => {
+                  localStorage.removeItem('isLoggedIn');
+                  window.location.href = '/';
+                }}
+                className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"
+                title="Logout"
+              >
+                <span className="material-symbols-rounded select-none block text-lg">logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface border-t border-border-fin flex items-center justify-around z-30 px-2 pb-safe-bottom">
+        {navigationItems.map((item) => (
+          <Link
+            key={item.name}
+            to={item.path}
+            className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all duration-150 cursor-pointer ${
+              isActive(item.path)
+                ? 'text-primary font-bold scale-105'
+                : 'text-secondary-text'
+            }`}
+          >
+            <span className="material-symbols-rounded select-none text-xl leading-none">
+              {item.icon}
+            </span>
+            <span className="text-[9.5px] leading-none truncate max-w-[60px] font-bold">
+              {item.name}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
