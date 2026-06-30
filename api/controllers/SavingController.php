@@ -92,51 +92,11 @@ class SavingController {
         }
 
         $statement = SavingAccount::getStatement($db, $account['id']);
-
-        // Generate virtual schedule from start_date based on frequency + deposit amount
-        $schedule = [];
-        if (!empty($account['start_date']) && in_array($account['account_status'], ['Approved', 'Active', 'Matured', 'Closed'])) {
-            $start = new DateTime($account['start_date']);
-            $end = new DateTime($account['maturity_date'] ?? date('Y-m-d', strtotime('+1 year')));
-            $depositAmt = (float)$account['deposit_amount'];
-            $frequency = $account['collection_frequency'] ?? 'Daily';
-
-            $interval = $frequency === 'Daily' ? 'P1D' : ($frequency === 'Weekly' ? 'P7D' : 'P1M');
-
-            // Load actual deposits for matching
-            $stmt = $db->prepare("SELECT deposit_date, deposit_amount FROM saving_deposits WHERE saving_account_id = :id AND is_reversal = 0 ORDER BY deposit_date ASC");
-            $stmt->execute(['id' => $account['id']]);
-            $depositRows = $stmt->fetchAll();
-
-            // Bucket deposits per date for quick lookup
-            $depositsByDate = [];
-            foreach ($depositRows as $row) {
-                $d = $row['deposit_date'];
-                if (!isset($depositsByDate[$d])) $depositsByDate[$d] = 0;
-                $depositsByDate[$d] += (float)$row['deposit_amount'];
-            }
-
-            $cur = clone $start;
-            $i = 1;
-            while ($cur <= $end && $i <= 1000) {
-                $dueDate = $cur->format('Y-m-d');
-                $paid = $depositsByDate[$dueDate] ?? 0;
-                $status = $paid >= $depositAmt ? 'Paid' : ($paid > 0 ? 'Partial' : 'Pending');
-                $schedule[] = [
-                    'installment_no' => $i,
-                    'due_date' => $dueDate,
-                    'total_due' => $depositAmt,
-                    'paid_amount' => $paid,
-                    'status' => $status
-                ];
-                $cur->add(new DateInterval($interval));
-                $i++;
-            }
-        }
+        $installments = SavingAccount::getInstallments($db, $account['id']);
 
         Response::success([
             'transactions' => $statement,
-            'installments' => $schedule
+            'installments' => $installments
         ]);
     }
 
@@ -264,7 +224,9 @@ class SavingController {
             }
         }
 
-        if ($account['account_status'] !== 'Processing') {
+        $instCount = (int)$db->query("SELECT COUNT(*) FROM saving_installments WHERE saving_account_id = " . (int)$account['id'])->fetchColumn();
+        $isRepair = in_array($account['account_status'], ['Approved', 'Active']) && $instCount === 0;
+        if ($account['account_status'] !== 'Processing' && !$isRepair) {
             Response::error('Only Processing accounts can be approved (current: ' . $account['account_status'] . ').', 400);
         }
 
@@ -272,21 +234,29 @@ class SavingController {
         try {
             $startDate = !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d');
             $durationMonths = (int)$account['duration_months'];
-            $maturityDate = date('Y-m-d', strtotime("$startDate +$durationMonths months"));
+            if ($durationMonths <= 0) {
+                throw new Exception('Invalid saving plan duration. Update the plan first.');
+            }
+            $approvedDate = !empty($input['approved_date']) ? $input['approved_date'] : date('Y-m-d');
+            $approvedAt = $approvedDate . ' ' . date('H:i:s');
+            $maturityDate = date('Y-m-d', strtotime("$approvedDate +$durationMonths months"));
 
             $stmt = $db->prepare("
                 UPDATE saving_accounts SET
                     account_status = 'Active',
                     approved_by = :approved_by,
-                    approved_at = NOW(),
+                    approved_at = :approved_at,
                     start_date = :start_date,
-                    maturity_date = :maturity_date
+                    maturity_date = :maturity_date,
+                    created_at = :created_at
                 WHERE id = :id
             ");
             $stmt->execute([
                 'approved_by' => $authUser['id'],
+                'approved_at' => $approvedAt,
                 'start_date' => $startDate,
                 'maturity_date' => $maturityDate,
+                'created_at' => $startDate . ' ' . date('H:i:s'),
                 'id' => $account['id']
             ]);
 
@@ -295,7 +265,7 @@ class SavingController {
                ->execute(['id' => $account['id']]);
 
             SavingAccount::generateInstallments($db, $account['id'], [
-                'start_date' => $startDate,
+                'start_date' => $approvedDate,
                 'maturity_date' => $maturityDate,
                 'deposit_amount' => $account['deposit_amount'],
                 'collection_frequency' => $account['collection_frequency']
@@ -326,6 +296,127 @@ class SavingController {
             ->execute(['id' => $account['id']]);
         AuditLog::log($db, $authUser['id'], 'reject_saving_account', 'saving_accounts', $account['id']);
         Response::success(null, 'Savings account rejected.');
+    }
+
+    public static function reset($db, $authUser, $id, $input) {
+        $account = SavingAccount::getById($db, $id);
+        if (!$account) {
+            $account = SavingAccount::getByAccountNo($db, $id);
+            if (!$account) {
+                Response::error('Savings account not found.', 404);
+            }
+        }
+        if ($account['account_status'] === 'Processing') {
+            Response::error('Account is already in Processing state.', 400);
+        }
+
+        // Block if any installment is paid
+        $paidCount = (int)$db->query("SELECT COUNT(*) FROM saving_installments WHERE saving_account_id = " . (int)$account['id'] . " AND status = 'Paid'")->fetchColumn();
+        if ($paidCount > 0) {
+            Response::error('Cannot reset: ' . $paidCount . ' installment(s) already paid. Reverse collections first.', 400);
+        }
+
+        $db->beginTransaction();
+        try {
+            $db->prepare("DELETE FROM saving_installments WHERE saving_account_id = :id")
+               ->execute(['id' => $account['id']]);
+
+            $stmt = $db->prepare("
+                UPDATE saving_accounts SET
+                    account_status = 'Processing',
+                    approved_at = NULL,
+                    approved_by = NULL,
+                    start_date = NULL,
+                    maturity_date = NULL
+                WHERE id = :id
+            ");
+            $stmt->execute(['id' => $account['id']]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'reset_saving_account', 'saving_accounts', $account['id']);
+            $updated = SavingAccount::getById($db, $account['id']);
+            Response::success($updated, 'Savings account reset to Processing. Schedule cleared.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
+    }
+
+    public static function destroy($db, $authUser, $id) {
+        $account = SavingAccount::getById($db, $id);
+        if (!$account) {
+            $account = SavingAccount::getByAccountNo($db, $id);
+            if (!$account) {
+                Response::error('Savings account not found.', 404);
+            }
+        }
+
+        if ($account['account_status'] !== 'Rejected') {
+            Response::error('Only Rejected accounts can be deleted.', 400);
+        }
+
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare("UPDATE saving_accounts SET deleted_at = NOW() WHERE id = :id");
+            $stmt->execute(['id' => $account['id']]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'delete_saving_account', 'saving_accounts', $account['id']);
+            Response::success(null, 'Savings account deleted successfully.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
+    }
+
+    public static function clearLedger($db, $authUser, $id) {
+        $account = SavingAccount::getById($db, $id);
+        if (!$account) {
+            $account = SavingAccount::getByAccountNo($db, $id);
+            if (!$account) {
+                Response::error('Savings account not found.', 404);
+            }
+        }
+
+        $db->beginTransaction();
+        try {
+            // Delete all deposits
+            $db->prepare("DELETE FROM saving_deposits WHERE saving_account_id = :id")->execute(['id' => $account['id']]);
+
+            // Reset installments to Pending
+            $db->prepare("
+                UPDATE saving_installments 
+                SET paid_amount = 0.00, status = 'Pending'
+                WHERE saving_account_id = :saving_id
+            ")->execute(['saving_id' => $account['id']]);
+
+            // Reset savings account
+            $db->prepare("
+                UPDATE saving_accounts 
+                SET total_deposited = 0.00, balance = 0.00, outstanding_amount = target_amount
+                WHERE id = :id
+            ")->execute(['id' => $account['id']]);
+
+            // Delete central receipts
+            $db->prepare("DELETE FROM receipts WHERE account_no = :acc_no AND receipt_type = 'saving_deposit'")
+               ->execute(['acc_no' => $account['saving_account_no']]);
+
+            // Delete from cash book
+            $db->prepare("
+                DELETE FROM cash_book 
+                WHERE reference_type = 'saving_deposit' AND branch_id = :branch_id AND entry_date >= :start_date
+            ")->execute([
+                'branch_id' => $account['branch_id'],
+                'start_date' => $account['start_date']
+            ]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'clear_saving_ledger', 'saving_accounts', $account['id']);
+            Response::success(null, 'Savings ledger cleared successfully.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
     }
 }
 ?>

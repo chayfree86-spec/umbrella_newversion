@@ -199,9 +199,9 @@ class CustomerController {
                             'duration_days' => $durationDays,
                             'duration_months' => $durationMonths,
                             'collection_frequency' => $plan['collection_frequency'],
-                            'start_date' => date('Y-m-d'),
-                            'end_date' => date('Y-m-d', strtotime("+$durationDays days")),
-                            'account_status' => 'Approved', // Auto approval for field entries
+                            'start_date' => !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d'),
+                            'end_date' => date('Y-m-d', strtotime((!empty($input['start_date']) ? $input['start_date'] : date('Y-m-d')) . " +$durationDays days")),
+                            'account_status' => 'Processing', // Set to Processing for verification workflow
                             'created_by' => $authUser['id']
                         ];
 
@@ -254,9 +254,9 @@ class CustomerController {
                             'duration_months' => $durationMonths,
                             'maturity_amount' => $maturityAmt,
                             'collection_frequency' => $plan['collection_frequency'],
-                            'start_date' => date('Y-m-d'),
-                            'maturity_date' => date('Y-m-d', strtotime("+$durationMonths months")),
-                            'account_status' => 'Approved', // Auto approval for field entries
+                            'start_date' => !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d'),
+                            'maturity_date' => date('Y-m-d', strtotime((!empty($input['start_date']) ? $input['start_date'] : date('Y-m-d')) . " +$durationMonths months")),
+                            'account_status' => 'Processing', // Set to Processing for verification workflow
                             'created_by' => $authUser['id']
                         ];
 
@@ -311,12 +311,86 @@ class CustomerController {
             Response::error('Validation error', 422, $errors);
         }
 
-        $input['updated_by'] = $authUser['id'];
-        Customer::update($db, $id, $input);
-        $updated = Customer::getById($db, $id);
+        $db->beginTransaction();
+        try {
+            $input['updated_by'] = $authUser['id'];
+            Customer::update($db, $id, $input);
 
-        AuditLog::log($db, $authUser['id'], 'update_customer', 'customers', $id, $customer, $updated);
-        Response::success($updated, 'Customer updated successfully.');
+            // Update or Insert Address
+            if (isset($input['address'])) {
+                $stmtCheck = $db->prepare("SELECT COUNT(*) FROM customer_addresses WHERE customer_id = :customer_id");
+                $stmtCheck->execute(['customer_id' => $id]);
+                $hasAddress = $stmtCheck->fetchColumn() > 0;
+
+                if ($hasAddress) {
+                    $stmt = $db->prepare("
+                        UPDATE customer_addresses SET
+                            address_line1 = :address,
+                            city = :city,
+                            state = :state,
+                            pincode = :pincode,
+                            updated_at = NOW()
+                        WHERE customer_id = :customer_id
+                    ");
+                } else {
+                    $stmt = $db->prepare("
+                        INSERT INTO customer_addresses (customer_id, address_type, address_line1, city, state, pincode)
+                        VALUES (:customer_id, 'Permanent', :address, :city, :state, :pincode)
+                    ");
+                }
+                $stmt->execute([
+                    'customer_id' => $id,
+                    'address' => $input['address'],
+                    'city' => $input['city'] ?? null,
+                    'state' => $input['state'] ?? null,
+                    'pincode' => $input['pincode'] ?? null
+                ]);
+            }
+
+            // Update or Insert KYC
+            if (isset($input['aadhaar_no']) || isset($input['pan_no']) || isset($input['bank_name']) || isset($input['bank_account_no']) || isset($input['bank_ifsc'])) {
+                $stmtCheck = $db->prepare("SELECT COUNT(*) FROM customer_kyc WHERE customer_id = :customer_id");
+                $stmtCheck->execute(['customer_id' => $id]);
+                $hasKyc = $stmtCheck->fetchColumn() > 0;
+
+                if ($hasKyc) {
+                    $stmt = $db->prepare("
+                        UPDATE customer_kyc SET
+                            aadhaar_no = :aadhaar_no,
+                            pan_no = :pan_no,
+                            bank_name = :bank_name,
+                            bank_account_no = :bank_account_no,
+                            bank_ifsc = :bank_ifsc,
+                            updated_at = NOW()
+                        WHERE customer_id = :customer_id
+                    ");
+                } else {
+                    $stmt = $db->prepare("
+                        INSERT INTO customer_kyc (
+                            customer_id, aadhaar_no, pan_no, bank_name, bank_account_no, bank_ifsc, verified
+                        ) VALUES (
+                            :customer_id, :aadhaar_no, :pan_no, :bank_name, :bank_account_no, :bank_ifsc, 1
+                        )
+                    ");
+                }
+                $stmt->execute([
+                    'customer_id' => $id,
+                    'aadhaar_no' => $input['aadhaar_no'] ?? null,
+                    'pan_no' => $input['pan_no'] ?? null,
+                    'bank_name' => $input['bank_name'] ?? null,
+                    'bank_account_no' => $input['bank_account_no'] ?? null,
+                    'bank_ifsc' => $input['bank_ifsc'] ?? null
+                ]);
+            }
+
+            $db->commit();
+            $updated = Customer::getProfileDetails($db, $id);
+            AuditLog::log($db, $authUser['id'], 'update_customer', 'customers', $id, $customer, $updated);
+            Response::success($updated, 'Customer updated successfully.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
     }
 
     public static function destroy($db, $authUser, $id) {

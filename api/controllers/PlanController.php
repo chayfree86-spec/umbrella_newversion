@@ -14,6 +14,9 @@ class PlanController {
         if (!empty($errors)) {
             Response::error('Validation error', 422, $errors);
         }
+        if ((int)$input['duration_value'] <= 0) {
+            Response::error('Validation error', 422, ['duration_value' => 'Duration must be greater than 0.']);
+        }
 
         $id = LoanPlan::create($db, array_merge($input, ['created_by' => $authUser['id']]));
         $plan = LoanPlan::getById($db, $id);
@@ -31,6 +34,9 @@ class PlanController {
         $errors = Validator::required($input, ['name', 'min_amount', 'max_amount', 'interest_rate', 'duration_value']);
         if (!empty($errors)) {
             Response::error('Validation error', 422, $errors);
+        }
+        if ((int)$input['duration_value'] <= 0) {
+            Response::error('Validation error', 422, ['duration_value' => 'Duration must be greater than 0.']);
         }
 
         LoanPlan::update($db, $id, $input);

@@ -81,23 +81,43 @@ class SavingDeposit {
 
             // Update saving account deposited amount
             $newDeposited = $account['total_deposited'] + $depositAmount;
-            
-            // Check maturity condition
-            $newStatus = $account['account_status'];
-            if ($account['maturity_amount'] > 0 && $newDeposited >= $account['maturity_amount']) {
-                // If savings plan is configured with strict target and it is met, auto mark as Matured
-                // Else wait for manual payout maturity processing
-            }
 
             $stmtUpdateAccount = $db->prepare("
-                UPDATE saving_accounts 
-                SET total_deposited = :total_deposited 
+                UPDATE saving_accounts
+                SET total_deposited = :total_deposited
                 WHERE id = :id
             ");
             $stmtUpdateAccount->execute([
                 'total_deposited' => $newDeposited,
                 'id' => $savingAccountId
             ]);
+
+            // Apply payment to saving installments (FIFO) — matches loan behaviour
+            $stmtPending = $db->prepare("
+                SELECT * FROM saving_installments
+                WHERE saving_account_id = :id AND status != 'Paid'
+                ORDER BY installment_no ASC
+                FOR UPDATE
+            ");
+            $stmtPending->execute(['id' => $savingAccountId]);
+            $pendingInstallments = $stmtPending->fetchAll();
+
+            $remaining = $depositAmount;
+            foreach ($pendingInstallments as $inst) {
+                if ($remaining <= 0) break;
+                $pending = (float)$inst['total_due'] - (float)$inst['paid_amount'];
+                if ($pending <= 0) continue;
+
+                if ($remaining >= $pending) {
+                    $remaining -= $pending;
+                    $db->prepare("UPDATE saving_installments SET paid_amount = total_due, status = 'Paid', paid_at = NOW() WHERE id = :id")
+                       ->execute(['id' => $inst['id']]);
+                } else {
+                    $db->prepare("UPDATE saving_installments SET paid_amount = paid_amount + :paid, status = 'Partial' WHERE id = :id")
+                       ->execute(['paid' => $remaining, 'id' => $inst['id']]);
+                    $remaining = 0;
+                }
+            }
 
             // Compute new balance separately
             $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id");

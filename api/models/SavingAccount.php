@@ -47,13 +47,12 @@ class SavingAccount {
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             sp.name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,
-            CASE
-                WHEN sa.account_status NOT IN ('Approved','Active') THEN 0
-                WHEN sa.collection_frequency = 'Daily' AND (
-                    (SELECT COUNT(*) FROM saving_deposits sd2 WHERE sd2.saving_account_id = sa.id AND sd2.deposit_date = CURRENT_DATE() AND sd2.is_reversal = 0) = 0
-                ) THEN sa.deposit_amount
-                ELSE 0
-            END as today_due
+            (SELECT COALESCE(SUM(si.total_due - si.paid_amount), 0)
+                FROM saving_installments si
+                WHERE si.saving_account_id = sa.id AND si.due_date <= CURRENT_DATE() AND si.status != 'Paid') as today_due,
+            (SELECT MIN(si2.due_date) FROM saving_installments si2 WHERE si2.saving_account_id = sa.id AND si2.status != 'Paid') as next_due_date,
+            (SELECT COUNT(*) FROM saving_installments si3 WHERE si3.saving_account_id = sa.id AND si3.status = 'Paid') as paid_installments,
+            (SELECT COUNT(*) FROM saving_installments si4 WHERE si4.saving_account_id = sa.id) as total_installments
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
             JOIN branches b ON sa.branch_id = b.id

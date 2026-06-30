@@ -146,11 +146,14 @@ export const loanApi = {
   get: (id) => api.get(`/loan-accounts/${id}`),
   statement: (id) => api.get(`/loan-accounts/${id}/statement`),
   installments: (id) => api.get(`/loan-accounts/${id}/installments`),
-  approve: (id, start_date) => api.post(`/loan-accounts/${id}/approve`, { start_date }),
+  approve: (id, start_date, approved_date) => api.post(`/loan-accounts/${id}/approve`, { start_date, approved_date }),
   reject: (id) => api.post(`/loan-accounts/${id}/reject`),
+  reset: (id) => api.post(`/loan-accounts/${id}/reset`),
   collect: (id, collected_amount, penalty_amount, payment_mode, remarks, collection_date) =>
     api.post(`/loan-accounts/${id}/collect`, { collected_amount, penalty_amount, payment_mode, remarks, collection_date }),
-  close: (id) => api.post(`/loan-accounts/${id}/close`)
+  close: (id) => api.post(`/loan-accounts/${id}/close`),
+  delete: (id) => api.delete(`/loan-accounts/${id}`),
+  clearLedger: (id) => api.post(`/loan-accounts/${id}/clear-ledger`)
 };
 
 // ============================================================
@@ -163,10 +166,13 @@ export const savingApi = {
   statement: (id) => api.get(`/saving-accounts/${id}/statement`),
   deposit: (id, deposit_amount, payment_mode, remarks, deposit_date) =>
     api.post(`/saving-accounts/${id}/deposit`, { deposit_amount, payment_mode, remarks, deposit_date }),
-  approve: (id, start_date) => api.post(`/saving-accounts/${id}/approve`, { start_date }),
+  approve: (id, start_date, approved_date) => api.post(`/saving-accounts/${id}/approve`, { start_date, approved_date }),
   reject: (id) => api.post(`/saving-accounts/${id}/reject`),
+  reset: (id) => api.post(`/saving-accounts/${id}/reset`),
   mature: (id, payment_mode) => api.post(`/saving-accounts/${id}/mature`, { payment_mode }),
-  close: (id) => api.post(`/saving-accounts/${id}/close`)
+  close: (id) => api.post(`/saving-accounts/${id}/close`),
+  delete: (id) => api.delete(`/saving-accounts/${id}`),
+  clearLedger: (id) => api.post(`/saving-accounts/${id}/clear-ledger`)
 };
 
 // ============================================================
@@ -179,7 +185,8 @@ export const collectionApi = {
   collectLoan: (data) => api.post('/collections/loan', data),
   collectSaving: (data) => api.post('/collections/saving', data),
   history: (params) => api.get('/collections/history', { params }),
-  receipt: (receiptNo) => api.get(`/receipts/${receiptNo}`)
+  receipt: (receiptNo) => api.get(`/receipts/${receiptNo}`),
+  deleteCollection: (receiptNo) => api.delete(`/collections/receipts/${receiptNo}`)
 };
 
 // ============================================================

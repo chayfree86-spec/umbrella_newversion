@@ -1129,7 +1129,7 @@ export default function CustomerRegistration() {
   const focusField = (fieldKey) => {
     const keyToLabelMap = {
       planId: 'PLAN',
-      startDate: 'START DATE',
+      startDate: 'ACCOUNT OPENING DATE',
       customAmount: 'AMOUNT',
       customRate: 'RATE',
       customDuration: 'DURATION',
@@ -1235,7 +1235,7 @@ export default function CustomerRegistration() {
     if (currentStep === 1) {
       if (!formData.accountType) { missingField = 'accountType'; missingLabel = 'Account Type'; }
       else if (!formData.planId) { missingField = 'planId'; missingLabel = 'Plan'; }
-      else if (!formData.startDate) { missingField = 'startDate'; missingLabel = 'Start Date'; }
+      else if (!formData.startDate) { missingField = 'startDate'; missingLabel = 'Account Opening Date'; }
       else if (formData.accountType === 'Saving') {
         if (!formData.customDailyDeposit) { missingField = 'customDailyDeposit'; missingLabel = 'Deposit Amount'; }
         else if (!formData.customRate) { missingField = 'customRate'; missingLabel = 'Interest Rate'; }
@@ -1291,10 +1291,9 @@ export default function CustomerRegistration() {
 
     if (missingField) {
       setPendingFocusField(missingField);
-      showWarning(
-        'Required Field Missing', 
-        `Please enter or select a valid "${missingLabel}" before proceeding.`
-      );
+      // Browser Alert message as requested
+      alert(`Validation Alert:\n"${missingLabel}" field is mandatory! Please fill in this field.`);
+      focusField(missingField);
     } else {
       setCurrentStep(prev => prev + 1);
     }
@@ -1354,6 +1353,7 @@ export default function CustomerRegistration() {
       guarantor_address: formData.guarantorAddress,
       plan_id: formData.planId === 'custom' ? null : parseInt(formData.planId),
       plan_type: formData.accountType,
+      start_date: formData.startDate,
       principal_amount: parseFloat(formData.customAmount) || (selectedPlan?.amount ?? 0),
       interest_rate: parseFloat(formData.customRate) || (selectedPlan?.rate ?? 0),
       emi_amount: parseFloat(formData.accountType === 'Saving' ? formData.customDailyDeposit : formData.customEmi) || (selectedPlan?.emi ?? 0),
@@ -1767,7 +1767,7 @@ export default function CustomerRegistration() {
                 )}
 
                 <DatePicker
-                  label="Start Date"
+                  label="Account Opening Date"
                   required={true}
                   value={formData.startDate}
                   onChange={(val) => setFormData(prev => ({ ...prev, startDate: val }))}
@@ -2580,7 +2580,7 @@ export default function CustomerRegistration() {
                     <span className="font-bold text-primary-text">{selectedPlan?.label.split(' - ')[0]}</span>
                   </div>
                   <div>
-                    <span className="text-secondary-text block mb-1">Start Date</span>
+                    <span className="text-secondary-text block mb-1">Account Opening Date</span>
                     <span className="font-bold text-primary-text">{formData.startDate}</span>
                   </div>
                   {formData.accountType === 'Loan' ? (

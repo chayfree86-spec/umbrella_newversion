@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import Chart from 'react-apexcharts';
-import { loanApi, savingApi, customerApi } from '../services/api';
+import { loanApi, savingApi, customerApi, collectionApi } from '../services/api';
 
 export default function AccountDetails() {
   const { accNo } = useParams();
@@ -74,11 +74,13 @@ export default function AccountDetails() {
 
   // Account approval / reset states
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [approvalStartDate, setApprovalStartDate] = useState('');
   const [approvalDate, setApprovalDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [isClearLedgerModalOpen, setIsClearLedgerModalOpen] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   
   const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
 
@@ -94,6 +96,7 @@ export default function AccountDetails() {
   // Collection Entry Modal States
   const [isCollectModalOpen, setIsCollectModalOpen] = useState(false);
   const [selectedDayObj, setSelectedDayObj] = useState(null);
+  const [earliestUnpaidDate, setEarliestUnpaidDate] = useState(null);
   const [collectAmt, setCollectAmt] = useState(0);
   const [collectFine, setCollectFine] = useState(0);
   const [collectPayMode, setCollectPayMode] = useState('Cash');
@@ -122,9 +125,10 @@ export default function AccountDetails() {
   account.paymentCycle = account.collection_frequency || 'Daily';
   account.emiAmt = Number(account.emi_amount || account.deposit_amount || 0);
   account.totalPaid = Number(account.total_paid || account.total_deposited || 0);
-  account.outstanding = Number(account.outstanding_amount || 0);
+  const isApprovedOrActive = ['Approved', 'Active', 'Defaulter', 'NPA', 'Closed'].includes(account.account_status || account.status || '');
+  account.outstanding = isApprovedOrActive ? Number(account.outstanding_amount || 0) : 0;
   account.approvedAmt = Number(account.principal_amount || 0);
-  account.disbursedAmt = Number(account.principal_amount || 0);
+  account.disbursedAmt = isApprovedOrActive ? Number(account.principal_amount || 0) : 0;
   account.processingFee = Number(account.processing_fee || 0);
   account.interestRate = account.interest_rate ? `${account.interest_rate}%` : '0%';
   account.tenureDays = isLoan 
@@ -181,31 +185,74 @@ export default function AccountDetails() {
 
   // Approval / Reset Handlers
   const handleApproveAccount = () => {
-    // API approval endpoint
+    if (approvalDate < approvalStartDate) {
+      alert("Approved Date cannot be before the Account Opening Date.");
+      return;
+    }
+
     const api = isLoan ? loanApi : savingApi;
-    api.update(accNo, { account_status: 'Active', approved_date: approvalDate })
-      .then(() => { fetchAccount(); setIsApproveModalOpen(false); })
+    api.approve(accNo, approvalStartDate, approvalDate)
+      .then(() => { 
+        fetchAccount(); 
+        fetchStatement();
+        setIsApproveModalOpen(false); 
+      })
       .catch(err => alert(err.message || 'Approval failed.'));
   };
 
   const handleRejectAccount = () => {
     const api = isLoan ? loanApi : savingApi;
-    api.update(accNo, { account_status: 'Rejected' })
-      .then(() => fetchAccount())
+    api.reject(accNo)
+      .then(() => {
+        fetchAccount();
+        fetchStatement();
+      })
       .catch(err => alert(err.message || 'Rejection failed.'));
   };
 
   const handleResetToProcessing = () => {
     const api = isLoan ? loanApi : savingApi;
-    api.update(accNo, { account_status: 'Processing' })
-      .then(() => fetchAccount())
+    api.reset(accNo)
+      .then(() => {
+        fetchAccount();
+        fetchStatement();
+      })
+      .catch(err => alert(err.message || 'Reset failed.'));
+  };
+
+  const handleDeleteAccount = () => {
+    if (!window.confirm("Are you sure you want to delete this rejected account? This action cannot be undone.")) return;
+    const api = isLoan ? loanApi : savingApi;
+    api.delete(accNo)
+      .then(() => {
+        alert("Account deleted successfully.");
+        navigate('/collection');
+      })
+      .catch(err => alert(err.message || 'Deletion failed.'));
+  };
+
+  const handleResetCollection = (receiptNo) => {
+    if (!window.confirm(`Are you sure you want to reset/delete collection receipt ${receiptNo}? This will recalculate the ledger. This action cannot be undone.`)) return;
+    collectionApi.deleteCollection(receiptNo)
+      .then(() => {
+        alert("Collection reset successfully.");
+        fetchAccount();
+        fetchStatement();
+      })
       .catch(err => alert(err.message || 'Reset failed.'));
   };
 
   const handleClearLedger = () => {
-    // This is an admin-only action. Backend should handle it.
-    alert('Ledger clearing is managed by the backend administrator.');
-    setIsClearLedgerModalOpen(false);
+    if (!window.confirm("Are you sure you want to clear the entire payment ledger for this account? All collected collections/deposits will be permanently deleted and all installments will be reset to Pending. This action cannot be undone.")) return;
+    const api = isLoan ? loanApi : savingApi;
+    api.clearLedger(accNo)
+      .then(() => {
+        alert("Payment ledger cleared successfully.");
+        setIsClearLedgerModalOpen(false);
+        fetchAccount();
+        fetchStatement();
+      })
+      .catch(err => alert(err.message || 'Clearing ledger failed.'));
   };
 
   // Helper to open modal and set defaults
@@ -242,21 +289,26 @@ export default function AccountDetails() {
   const handleDayClick = (dayObj) => {
     setSelectedDayObj(dayObj);
     
-    // Use installments from statement to calculate dues
     const installments = statementData.installments || [];
     const emiAmt = Number(account.emi_amount || account.emiAmt || account.installment_amount || 0);
+    const clickedDateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+    
     let prevDues = 0;
     let todayDue = 0;
-
+    
+    // Find earliest unpaid installment
+    const firstUnpaidInst = installments.find(inst => inst.status !== 'Paid');
+    const earliestDate = firstUnpaidInst ? firstUnpaidInst.due_date.slice(0, 10) : null;
+    setEarliestUnpaidDate(earliestDate);
+    
     installments.forEach(inst => {
-      const instDay = new Date(inst.due_date).getDate();
-      const instMonth = new Date(inst.due_date).getMonth();
-      const instYear = new Date(inst.due_date).getFullYear();
-      if (instYear === selectedYear && instMonth === selectedMonth) {
-        if (instDay < dayObj.day && (inst.status === 'Unpaid' || inst.status === 'Partial')) {
-          prevDues += emiAmt - Number(inst.paid_amount || 0);
-        } else if (instDay === dayObj.day && (inst.status === 'Unpaid' || inst.status === 'Partial')) {
-          todayDue = emiAmt - Number(inst.paid_amount || 0);
+      const dueStr = inst.due_date.slice(0, 10);
+      if (dueStr <= clickedDateStr && inst.status !== 'Paid') {
+        const pending = Number(inst.total_due || 0) - Number(inst.paid_amount || 0);
+        if (dueStr < clickedDateStr) {
+          prevDues += pending;
+        } else if (dueStr === clickedDateStr) {
+          todayDue += pending;
         }
       }
     });
@@ -432,11 +484,101 @@ export default function AccountDetails() {
               EMI: ₹{account.emiAmt.toLocaleString()} / {account.paymentCycle.toLowerCase() === 'daily' ? 'day' : account.paymentCycle.toLowerCase() === 'weekly' ? 'week' : 'month'}
             </span>
           </div>
+
+          {/* Horizontal Account Lifecycle Stepper */}
+          <div className="flex items-center gap-3 sm:gap-5 mt-3.5 max-w-2xl w-full text-[10px] sm:text-xs font-bold text-slate-700 select-none bg-slate-50/50 p-3 rounded-2xl border border-slate-100 overflow-x-auto">
+            {/* Step 1: Registered */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-[10px] ring-4 ring-blue-100 shrink-0">
+                1
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">Registered</p>
+                <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
+                  {account.created_at ? new Date(account.created_at).toLocaleDateString('en-IN') : 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            {/* Rail Line 1 */}
+            <div className={`flex-1 h-0.5 min-w-[20px] shrink-0 ${account.status === 'Rejected' ? 'bg-[#DC2626]' : account.approved_at ? 'bg-[#16A34A]' : 'bg-slate-200'}`}></div>
+
+            {/* Step 2: Approved / Rejected */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                account.status === 'Rejected'
+                  ? 'bg-[#DC2626] text-white ring-4 ring-rose-100'
+                  : account.approved_at 
+                    ? 'bg-[#16A34A] text-white ring-4 ring-emerald-100' 
+                    : 'bg-slate-100 text-slate-400 border border-slate-200'
+              }`}>
+                2
+              </div>
+              <div>
+                <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">
+                  {account.status === 'Rejected' ? 'Rejected' : 'Approved'}
+                </p>
+                <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
+                  {account.status === 'Rejected' 
+                    ? 'Rejected'
+                    : account.approved_at ? new Date(account.approved_at).toLocaleDateString('en-IN') : 'Awaiting Approval'}
+                </p>
+              </div>
+            </div>
+
+            {account.status !== 'Rejected' && (
+              <>
+                {/* Rail Line 2 */}
+                <div className={`flex-1 h-0.5 min-w-[20px] shrink-0 ${account.approved_at ? 'bg-[#3B82F6]' : 'bg-slate-200'}`}></div>
+
+                {/* Step 3: End Date */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                    account.approved_at 
+                      ? 'bg-[#3B82F6] text-white ring-4 ring-blue-100' 
+                      : 'bg-slate-100 text-slate-400 border border-slate-200'
+                  }`}>
+                    3
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">End Date</p>
+                    <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
+                      {account.approved_at 
+                        ? new Date(account.type === 'Loan' ? account.end_date : account.maturity_date).toLocaleDateString('en-IN') 
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Rail Line 3 */}
+                <div className={`flex-1 h-0.5 min-w-[20px] shrink-0 ${account.status === 'Closed' ? 'bg-slate-700' : 'bg-slate-200'}`}></div>
+
+                {/* Step 4: Closed */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                    account.status === 'Closed' 
+                      ? 'bg-slate-700 text-white ring-4 ring-slate-100' 
+                      : 'bg-slate-100 text-slate-400 border border-slate-200'
+                  }`}>
+                    4
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">Closed</p>
+                    <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
+                      {account.status === 'Closed' 
+                        ? (account.closed_at ? new Date(account.closed_at).toLocaleDateString('en-IN') : 'Closed') 
+                        : 'Active'}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Quick Actions */}
         <div className="flex items-center gap-2">
-          {['Approved', 'Defaulter', 'NPA'].includes(accStatus) ? (
+          {['Approved', 'Active', 'Defaulter', 'NPA'].includes(accStatus) ? (
             <>
               <Link
                 to={`/collection?search=${account.accNo}`}
@@ -469,10 +611,21 @@ export default function AccountDetails() {
               Account Settled & Closed
             </span>
           ) : (
-            <span className="px-4 py-2 bg-amber-50 text-amber-700 text-xs font-extrabold rounded-xl border border-amber-200 flex items-center gap-1.5 select-none">
-              <span className="material-symbols-rounded text-sm">info</span>
-              {accStatus === 'Processing' ? 'Awaiting Approval' : accStatus === 'Pending' ? 'Draft Pending' : 'Account Rejected'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-4 py-2 bg-amber-50 text-amber-700 text-xs font-extrabold rounded-xl border border-amber-200 flex items-center gap-1.5 select-none">
+                <span className="material-symbols-rounded text-sm">info</span>
+                {accStatus === 'Processing' ? 'Awaiting Approval' : accStatus === 'Pending' ? 'Draft Pending' : 'Account Rejected'}
+              </span>
+              {accStatus === 'Rejected' && (
+                <button
+                  onClick={handleDeleteAccount}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-rounded text-sm select-none">delete</span>
+                  Delete Account
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -489,7 +642,13 @@ export default function AccountDetails() {
           </div>
           <div className="flex gap-2 w-full md:w-auto">
             <button
-              onClick={() => setIsApproveModalOpen(true)}
+              onClick={() => {
+                const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+                const initialDate = account.start_date || today;
+                setApprovalStartDate(initialDate);
+                setApprovalDate(initialDate);
+                setIsApproveModalOpen(true);
+              }}
               className="flex-1 md:flex-none px-4 py-2 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
             >
               <span className="material-symbols-rounded text-sm">check_circle</span>
@@ -507,7 +666,7 @@ export default function AccountDetails() {
       )}
 
       {/* Admin Reset Control Panel */}
-      {['Approved', 'Rejected', 'Defaulter', 'NPA', 'Written Off'].includes(accStatus) && userRole === 'Super Admin' && (
+      {['Approved', 'Active', 'Rejected', 'Defaulter', 'NPA', 'Written Off'].includes(accStatus) && userRole === 'Super Admin' && (
         <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Super Admin Controls</span>
@@ -535,7 +694,7 @@ export default function AccountDetails() {
               </div>
             ) : (
               <button
-                onClick={() => handleResetToProcessing()}
+                onClick={() => setIsResetModalOpen(true)}
                 className="px-4 py-2 border border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <span className="material-symbols-rounded text-sm">restart_alt</span>
@@ -635,27 +794,58 @@ export default function AccountDetails() {
           'July', 'August', 'September', 'October', 'November', 'December'
         ];
 
-        // Helper to get all days for selected month
-        const getCalendarDays = () => {
-          // June 2026 is the mock DB month
-          if (selectedMonth === 5 && selectedYear === 2026 && account.calendarDays) {
-            return account.calendarDays;
-          }
+        // Build per-date map from real installments + transactions (backend data only)
+        const todayDate = new Date();
+        const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
 
+        const startDateStr = account.start_date || null;
+        const startDateObj = startDateStr ? new Date(startDateStr) : null;
+        const beforeApproval = startDateObj && (
+          selectedYear < startDateObj.getFullYear() ||
+          (selectedYear === startDateObj.getFullYear() && selectedMonth < startDateObj.getMonth())
+        );
+
+        const installmentsList = statementData.installments || [];
+        const transactionsList = statementData.transactions || [];
+
+        const dateMap = {};
+        installmentsList.forEach(inst => {
+          if (!inst.due_date) return;
+          const key = inst.due_date.slice(0, 10);
+          const totalDue = Number(inst.total_due || 0);
+          const paid = Number(inst.paid_amount || 0);
+          let status;
+          if (inst.status === 'Paid') status = 'Paid';
+          else if (paid > 0) status = 'Partial';
+          else if (key < todayStr) status = 'Unpaid';
+          else status = 'Schedule';
+          dateMap[key] = { status, amt: status === 'Paid' || status === 'Partial' ? paid : totalDue, total_due: totalDue, paid };
+        });
+        // Advance payments: transactions on dates that have no installment scheduled
+        transactionsList.forEach(t => {
+          const td = t.date || t.collection_date || t.deposit_date;
+          if (!td) return;
+          const key = td.slice(0, 10);
+          if (!dateMap[key]) {
+            dateMap[key] = { status: 'Advance', amt: Number(t.amt || t.amount || 0) };
+          }
+        });
+
+        // Helper to get all days for selected month — backend driven
+        const getCalendarDays = () => {
+          if (beforeApproval) return [];
           const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
           const tempDays = [];
-          const isPast = selectedYear < 2026 || (selectedYear === 2026 && selectedMonth < 5);
-
           for (let i = 1; i <= daysInMonth; i++) {
-            let status = 'Schedule';
-            let amt = 0;
-
-            if (isPast) {
-              status = 'Paid';
-              amt = account.emiAmt;
+            const key = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            // Before account start_date → no cell content
+            if (startDateStr && key < startDateStr) {
+              tempDays.push({ day: i, status: null, amt: 0, empty: true });
+              continue;
             }
-            
-            tempDays.push({ day: i, status, amt });
+            const entry = dateMap[key];
+            if (entry) tempDays.push({ day: i, ...entry, dateStr: key, hasRecord: true });
+            else tempDays.push({ day: i, status: 'Schedule', amt: 0, dateStr: key, hasRecord: false });
           }
           return tempDays;
         };
@@ -733,6 +923,13 @@ export default function AccountDetails() {
               </div>
             </div>
 
+            {beforeApproval ? (
+              <div className="py-10 text-center text-xs font-bold text-slate-500 bg-slate-50/40 border border-dashed border-slate-200 rounded-xl">
+                <span className="material-symbols-rounded text-2xl select-none block mb-1.5 text-slate-400">event_busy</span>
+                Account approved on <strong className="text-[#0F172A]">{new Date(account.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>. No EMI schedule before this date.
+              </div>
+            ) : (
+            <>
             {/* Grid Calendar representation */}
             <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider mb-2">
               <div>Mon</div>
@@ -743,7 +940,7 @@ export default function AccountDetails() {
               <div>Sat</div>
               <div>Sun</div>
             </div>
-            
+
             <div className="grid grid-cols-7 gap-2.5">
               {/* Padding Offset Cells */}
               {Array.from({ length: startOffset }).map((_, idx) => (
@@ -751,12 +948,27 @@ export default function AccountDetails() {
               ))}
 
               {displayDays.map((d, index) => {
+                const isEmpty = d.empty || d.status === null;
                 const isPaid = d.status === 'Paid';
                 const isUnpaid = d.status === 'Unpaid';
                 const isPartial = d.status === 'Partial';
                 const isAdvance = d.status === 'Advance';
                 const isSchedule = d.status === 'Schedule';
-                const isToday = selectedYear === 2026 && selectedMonth === 5 && d.day === 28;
+                const isToday = d.dateStr === todayStr;
+                const isStart = d.dateStr === account.start_date;
+                const isEnd = d.dateStr === (isLoan ? account.end_date : account.maturity_date);
+                const isApproved = account.approved_at && d.dateStr === account.approved_at.slice(0, 10);
+
+                if (isEmpty) {
+                  return (
+                    <div
+                      key={index}
+                      className="h-20 flex flex-col justify-start p-2 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
+                    >
+                      <span className="text-xs sm:text-sm md:text-base font-black text-slate-300">{d.day}</span>
+                    </div>
+                  );
+                }
 
                 return (
                     <div
@@ -774,10 +986,19 @@ export default function AccountDetails() {
                     >
                       {/* Top Row: Date on left, icon indicator on right */}
                       <div className="flex justify-between items-center w-full">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <span className="text-xs sm:text-sm md:text-base font-black text-[#0F172A]">{d.day}</span>
                           {isToday && (
                             <span className="text-[7px] md:text-[8px] bg-amber-500 text-white font-extrabold px-1 py-0.5 rounded select-none uppercase tracking-wider scale-90">Today</span>
+                          )}
+                          {isStart && (
+                            <span className="text-[7px] md:text-[8px] bg-[#16A34A] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">Start</span>
+                          )}
+                          {isApproved && (
+                            <span className="text-[7px] md:text-[8px] bg-[#4F46E5] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">Approved</span>
+                          )}
+                          {isEnd && (
+                            <span className="text-[7px] md:text-[8px] bg-[#E11D48] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">End</span>
                           )}
                         </div>
                         {isPaid && (
@@ -792,7 +1013,7 @@ export default function AccountDetails() {
                         {isAdvance && (
                           <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#7C3AED]">verified</span>
                         )}
-                        {isSchedule && (
+                        {isSchedule && d.hasRecord && (
                           <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] animate-pulse"></span>
                         )}
                       </div>
@@ -812,7 +1033,7 @@ export default function AccountDetails() {
                             isAdvance ? 'text-[#7C3AED]' :
                             'text-slate-500'
                           }`}>
-                            ₹{(isUnpaid ? account.emiAmt : (d.amt || account.emiAmt)).toLocaleString()}
+                            {d.hasRecord ? `₹${(isUnpaid ? account.emiAmt : (d.amt || account.emiAmt)).toLocaleString()}` : ''}
                           </span>
                         )}
                       </div>
@@ -821,6 +1042,8 @@ export default function AccountDetails() {
                 );
               })}
             </div>
+            </>
+            )}
           </div>
         );
       })()}
@@ -1051,6 +1274,8 @@ export default function AccountDetails() {
                 </a>
               </div>
             </div>
+
+
           </div>
         </div>
 
@@ -1334,6 +1559,7 @@ export default function AccountDetails() {
                 <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Amount Paid</th>
                 <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Late Fine / Charges</th>
                 <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected By</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#0F172A]">
@@ -1345,6 +1571,18 @@ export default function AccountDetails() {
                   <td className="whitespace-nowrap px-6 py-3.5 text-[#16A34A] font-bold">₹{row.amt.toLocaleString()}</td>
                   <td className="whitespace-nowrap px-6 py-3.5 text-[#E11D48]">₹{row.fine.toLocaleString()}</td>
                   <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.collector}</td>
+                  <td className="whitespace-nowrap px-6 py-3.5">
+                    {(userRole === 'Super Admin' || userRole === 'Admin') && (
+                      <button
+                        onClick={() => handleResetCollection(row.refNo)}
+                        className="text-[#E11D48] hover:text-[#BE123C] font-bold hover:underline cursor-pointer flex items-center gap-1"
+                        title="Delete/Reset this collection"
+                      >
+                        <span className="material-symbols-rounded text-sm">delete</span>
+                        Reset
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1611,6 +1849,25 @@ export default function AccountDetails() {
                 </span>
               </div>
             </div>
+
+            {/* Range & Allocation Notice */}
+            <div className="border-t border-slate-200/60 pt-2 mt-1.5 space-y-1">
+              {collectTotalDue > 0 ? (
+                <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg text-[10px] text-blue-700 font-bold leading-normal">
+                  <span className="material-symbols-rounded text-xs align-middle mr-1">calendar_month</span>
+                  Collecting for range: <strong className="underline">{earliestUnpaidDate ? new Date(earliestUnpaidDate).toLocaleDateString('en-IN') : 'N/A'}</strong> to <strong className="underline">{`${selectedDayObj.day}/${selectedMonth + 1}/${selectedYear}`}</strong>
+                  <br />
+                  <span className="text-[9px] text-blue-600/85 font-medium block mt-0.5">
+                    Payments will be allocated sequentially (FIFO). Extra payment will cover future dues.
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2 bg-amber-50 border border-amber-100 rounded-lg text-[10px] text-amber-700 font-bold leading-normal">
+                  <span className="material-symbols-rounded text-xs align-middle mr-1">info</span>
+                  No dues pending up to selected date. Payment will be registered as <strong className="underline">Advance Payment</strong>.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Form */}
@@ -1695,12 +1952,18 @@ export default function AccountDetails() {
 
           <div className="space-y-4">
             <p className="text-xs text-[#64748B] leading-relaxed">
-              Account <strong>{account.accNo}</strong> à¤•à¥‹ à¤¸à¥à¤µà¥€à¤•à¥ƒà¤¤ (Approve) à¤•à¤°à¤¨à¥‡ à¤œà¤¾ à¤°à¤¹à¥‡ à¤¹à¥ˆà¤‚à¥¤ à¤•à¥ƒà¤ªà¤¯à¤¾ à¤µà¤¹ à¤¤à¤¾à¤°à¥€à¤– à¤šà¥à¤¨à¥‡à¤‚ à¤œà¤¿à¤¸à¤¸à¥‡ à¤‡à¤¸ à¤–à¤¾à¤¤à¥‡ à¤•à¤¾ à¤²à¥‡à¤¨à¤¦à¥‡à¤¨/EMI à¤¶à¥à¤°à¥‚ à¤¹à¥‹à¤—à¤¾à¥¤
+              Are you sure you want to approve account <strong>{account.accNo}</strong>? Please select the Account Opening Date and Approved Date.
             </p>
 
-            <div className="space-y-1">
+            <div className="space-y-3">
               <DatePicker 
-                label="Approval / Start Date"
+                label="Account Opening Date"
+                value={approvalStartDate}
+                onChange={(val) => setApprovalStartDate(val)}
+                required
+              />
+              <DatePicker 
+                label="Approved Date"
                 value={approvalDate}
                 onChange={(val) => setApprovalDate(val)}
                 required
@@ -1722,6 +1985,49 @@ export default function AccountDetails() {
                 Confirm & Approve
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Reset to Processing Confirmation Modal */}
+    {isResetModalOpen && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setIsResetModalOpen(false)}>
+        <div 
+          className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl w-full max-w-sm p-6 space-y-4 animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 text-[#E11D48]">
+            <div className="w-10 h-10 rounded-full bg-[#E11D48]/10 flex items-center justify-center shrink-0">
+              <span className="material-symbols-rounded">warning</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-[#0F172A]">Reset Account Status</h3>
+              <p className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider">Double Confirmation Required</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-[#64748B] leading-relaxed">
+            Are you absolutely sure you want to reset account <strong className="text-[#0F172A]">{account?.accNo}</strong> back to <strong className="text-[#2563EB]">Processing</strong> state? This will clear all approval dates, mature schedules, and allow re-evaluation.
+          </p>
+
+          <div className="flex gap-3 pt-2 border-t border-slate-100">
+            <button 
+              type="button"
+              onClick={() => setIsResetModalOpen(false)}
+              className="flex-1 h-11 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center flex items-center justify-center"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={() => {
+                handleResetToProcessing();
+                setIsResetModalOpen(false);
+              }}
+              className="flex-1 h-11 bg-[#E11D48] hover:bg-[#E11D48]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1.5"
+            >
+              Confirm Reset
+            </button>
           </div>
         </div>
       </div>
@@ -1751,7 +2057,7 @@ export default function AccountDetails() {
 
           <div className="space-y-4">
             <p className="text-xs text-[#64748B] leading-relaxed">
-              à¤•à¥à¤¯à¤¾ à¤†à¤ª à¤¸à¤š à¤®à¥‡à¤‚ à¤‡à¤¸ à¤–à¤¾à¤¤à¥‡ à¤•à¤¾ à¤ªà¥‚à¤°à¤¾ à¤ªà¥‡à¤®à¥‡à¤‚à¤Ÿ à¤²à¥‡à¤œà¤¼à¤° à¤¹à¤Ÿà¤¾à¤¨à¤¾ à¤šà¤¾à¤¹à¤¤à¥‡ à¤¹à¥ˆà¤‚? <strong className="text-[#DC2626]">à¤¯à¤¹ à¤•à¤¾à¤°à¥à¤°à¤µà¤¾à¤ˆ à¤µà¤¾à¤ªà¤¸ à¤¨à¤¹à¥€à¤‚ à¤²à¥€ à¤œà¤¾ à¤¸à¤•à¤¤à¥€à¥¤</strong> à¤²à¥‡à¤œà¤¼à¤° à¤¸à¤¾à¤« à¤¹à¥‹à¤¨à¥‡ à¤•à¥‡ à¤¬à¤¾à¤¦ à¤–à¤¾à¤¤à¤¾ à¤¸à¥à¤¥à¤¿à¤¤à¤¿ à¤•à¤¾ à¤²à¥‰à¤• à¤–à¥à¤² à¤œà¤¾à¤à¤—à¤¾ à¤”à¤° à¤†à¤ª à¤‡à¤¸à¥‡ à¤ªà¥à¤¨à¤ƒ Processing à¤¸à¥à¤¥à¤¿à¤¤à¤¿ à¤®à¥‡à¤‚ à¤°à¥€à¤¸à¥‡à¤Ÿ à¤•à¤° à¤ªà¤¾à¤à¤‚à¤—à¥‡à¥¤
+              Are you sure you want to clear the entire payment ledger for this account? <strong className="text-[#DC2626]">This action cannot be undone.</strong> Clearing the ledger will unlock the account status, allowing you to reset it to Processing status.
             </p>
 
             <div className="flex gap-3 pt-2 border-t border-slate-100">

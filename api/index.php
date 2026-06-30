@@ -318,6 +318,14 @@ try {
             RoleGuard::check($authUser, 'loans.approve');
             LoanController::reject($db, $authUser, $m[1], $input);
         }
+        elseif (preg_match('#^/loan-accounts/([^/]+)/reset$#', $uri, $m) && $method === 'POST') {
+            RoleGuard::check($authUser, 'loans.approve');
+            LoanController::reset($db, $authUser, $m[1], $input);
+        }
+        elseif (preg_match('#^/loan-accounts/([^/]+)$#', $uri, $m) && $method === 'DELETE') {
+            RoleGuard::check($authUser, 'loans.approve');
+            LoanController::destroy($db, $authUser, $m[1]);
+        }
         elseif (preg_match('#^/loan-accounts/([^/]+)/close$#', $uri, $m) && $method === 'POST') {
             RoleGuard::check($authUser, 'loans.close');
             LoanController::close($db, $authUser, $m[1], $input);
@@ -355,6 +363,14 @@ try {
             RoleGuard::check($authUser, 'savings.approve');
             SavingController::reject($db, $authUser, $m[1], $input);
         }
+        elseif (preg_match('#^/saving-accounts/([^/]+)/reset$#', $uri, $m) && $method === 'POST') {
+            RoleGuard::check($authUser, 'savings.approve');
+            SavingController::reset($db, $authUser, $m[1], $input);
+        }
+        elseif (preg_match('#^/saving-accounts/([^/]+)$#', $uri, $m) && $method === 'DELETE') {
+            RoleGuard::check($authUser, 'savings.approve');
+            SavingController::destroy($db, $authUser, $m[1]);
+        }
         elseif (preg_match('#^/saving-accounts/([^/]+)/close$#', $uri, $m) && $method === 'POST') {
             RoleGuard::check($authUser, 'savings.close');
             SavingController::close($db, $authUser, $m[1], $input);
@@ -385,6 +401,10 @@ try {
         }
         elseif (preg_match('#^/receipts/(.+)$#', $uri, $m) && $method === 'GET') {
             CollectionController::receipt($db, $authUser, $m[1]);
+        }
+        elseif (preg_match('#^/collections/receipts/([^/]+)$#', $uri, $m) && $method === 'DELETE') {
+            RoleGuard::check($authUser, 'collections.delete');
+            CollectionController::delete($db, $authUser, $m[1]);
         }
 
         // ----------------------------------------------------------

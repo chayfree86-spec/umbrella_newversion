@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { loanApi, savingApi } from '../services/api';
+import { DatePicker } from '../components/ui/DatePicker';
 
 const inr = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
@@ -79,6 +80,14 @@ export default function DailyCollection() {
 
   const [receipt, setReceipt] = useState(null);
 
+  // Approval modal states
+  const [approvingAccount, setApprovingAccount] = useState(null);
+  const [approvalStartDate, setApprovalStartDate] = useState('');
+  const [approvalDate, setApprovalDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+
   const fetchAccounts = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -105,14 +114,28 @@ export default function DailyCollection() {
   }, [location.search]);
 
   const handleApprove = (acc) => {
-    if (!window.confirm(`Approve ${acc.accNo} and generate EMI schedule from today?`)) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const call = acc.type === 'Loan'
-      ? loanApi.approve(acc.accNo, today)
-      : savingApi.approve(acc.accNo, today);
+    setApprovingAccount(acc);
+    const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    const initialDate = acc.startDate || today;
+    setApprovalStartDate(initialDate);
+    setApprovalDate(initialDate);
+  };
+
+  const handleConfirmApproval = () => {
+    if (!approvingAccount) return;
+    
+    if (approvalDate < approvalStartDate) {
+      alert("Approved Date cannot be before the Account Opening Date.");
+      return;
+    }
+
+    const call = approvingAccount.type === 'Loan'
+      ? loanApi.approve(approvingAccount.accNo, approvalStartDate, approvalDate)
+      : savingApi.approve(approvingAccount.accNo, approvalStartDate, approvalDate);
 
     call.then(() => {
-      alert(`${acc.accNo} approved successfully. Schedule generated.`);
+      alert(`${approvingAccount.accNo} approved successfully. Schedule generated.`);
+      setApprovingAccount(null);
       fetchAccounts();
     }).catch(err => alert(err.message || 'Approval failed.'));
   };
@@ -431,6 +454,66 @@ export default function DailyCollection() {
               <button onClick={() => setReceipt(null)} className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-[#64748B] rounded-xl text-xs font-bold">
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Approval Modal */}
+      {approvingAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setApprovingAccount(null)}></div>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative z-10 border border-[#E2E8F0] flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-rounded text-base text-[#16A34A] select-none">check_circle</span>
+                <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                  Approve & Start Account
+                </h3>
+              </div>
+              <button 
+                onClick={() => setApprovingAccount(null)}
+                className="text-[#64748B] hover:text-[#0F172A] p-1 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-sm select-none">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs text-[#64748B] leading-relaxed">
+                Are you sure you want to approve account <strong>{approvingAccount.accNo}</strong>? Please select the Account Opening Date and Approved Date.
+              </p>
+
+              <div className="space-y-3">
+                <DatePicker 
+                  label="Account Opening Date"
+                  value={approvalStartDate}
+                  onChange={(val) => setApprovalStartDate(val)}
+                  required
+                />
+                <DatePicker 
+                  label="Approved Date"
+                  value={approvalDate}
+                  onChange={(val) => setApprovalDate(val)}
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t border-slate-100">
+                <button 
+                  type="button"
+                  onClick={() => setApprovingAccount(null)}
+                  className="flex-1 h-11 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center flex items-center justify-center"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleConfirmApproval}
+                  className="flex-1 h-11 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1.5"
+                >
+                  Confirm & Approve
+                </button>
+              </div>
             </div>
           </div>
         </div>

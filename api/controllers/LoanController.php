@@ -50,6 +50,9 @@ class LoanController {
         if (!$plan) {
             Response::error('Invalid loan plan selected.', 422);
         }
+        if ((int)$plan['duration_value'] <= 0) {
+            Response::error('Selected loan plan has invalid duration (' . $plan['duration_value'] . '). Update the plan first.', 422);
+        }
 
         $customer = Customer::getById($db, $input['customer_id']);
         if (!$customer) {
@@ -184,29 +187,68 @@ class LoanController {
             }
         }
 
-        if ($account['account_status'] !== 'Processing') {
-            Response::error('Only Processing accounts can be approved (current: ' . $account['account_status'] . ').', 400);
+        // Allow approve in Processing OR repair flow for Approved/Active accounts
+        // with missing installments OR a malformed schedule OR if explicitly forced
+        $instCount = (int)$db->query("SELECT COUNT(*) FROM loan_installments WHERE loan_account_id = " . (int)$account['id'])->fetchColumn();
+        $paidCount = (int)$db->query("SELECT COUNT(*) FROM loan_installments WHERE loan_account_id = " . (int)$account['id'] . " AND status='Paid'")->fetchColumn();
+        $expectedCount = 0;
+        if ((float)$account['emi_amount'] > 0 && (float)$account['total_payable'] > 0) {
+            $expectedCount = (int)ceil((float)$account['total_payable'] / (float)$account['emi_amount']);
+        }
+        $isMalformed = ((int)$account['duration_days'] <= 0)
+            || ($expectedCount > 1 && $instCount < $expectedCount)
+            || empty($account['approved_at']);
+        $force = !empty($input['force']);
+        $isRepair = in_array($account['account_status'], ['Approved', 'Active']) && ($instCount === 0 || $isMalformed || $force);
+        if ($account['account_status'] !== 'Processing' && !$isRepair) {
+            Response::error('Only Processing accounts can be approved (current: ' . $account['account_status'] . '). Pass force=true to re-approve.', 400);
+        }
+        if ($force && $paidCount > 0) {
+            Response::error('Cannot re-approve: ' . $paidCount . ' installment(s) already paid. Reverse collections first.', 400);
         }
 
         $db->beginTransaction();
         try {
             $startDate = !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d');
+
+            // Derive duration_days from account; if 0 (legacy bad plan), compute from total_payable / emi_amount
             $durationDays = (int)$account['duration_days'];
-            $endDate = date('Y-m-d', strtotime("$startDate +$durationDays days"));
+            $frequency = $account['collection_frequency'] ?? 'Daily';
+            $emi = (float)$account['emi_amount'];
+            $totalPayable = (float)$account['total_payable'];
+
+            if ($durationDays <= 0 && $emi > 0 && $totalPayable > 0) {
+                $installmentsCount = (int)ceil($totalPayable / $emi);
+                if ($frequency === 'Daily') $durationDays = $installmentsCount;
+                elseif ($frequency === 'Weekly') $durationDays = $installmentsCount * 7;
+                elseif ($frequency === 'Monthly') $durationDays = $installmentsCount * 30;
+            }
+            if ($durationDays <= 0) {
+                throw new Exception('Cannot derive loan duration. Check plan duration and account EMI.');
+            }
+
+            $approvedDate = !empty($input['approved_date']) ? $input['approved_date'] : date('Y-m-d');
+            $approvedAt = $approvedDate . ' ' . date('H:i:s');
+            $endDate = date('Y-m-d', strtotime("$approvedDate +$durationDays days"));
 
             $stmt = $db->prepare("
                 UPDATE loan_accounts SET
                     account_status = 'Active',
                     approved_by = :approved_by,
-                    approved_at = NOW(),
+                    approved_at = :approved_at,
                     start_date = :start_date,
-                    end_date = :end_date
+                    end_date = :end_date,
+                    duration_days = :duration_days,
+                    created_at = :created_at
                 WHERE id = :id
             ");
             $stmt->execute([
                 'approved_by' => $authUser['id'],
+                'approved_at' => $approvedAt,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
+                'duration_days' => $durationDays,
+                'created_at' => $startDate . ' ' . date('H:i:s'),
                 'id' => $account['id']
             ]);
 
@@ -215,22 +257,23 @@ class LoanController {
                ->execute(['id' => $account['id']]);
 
             $genData = array_merge((array)$account, [
-                'start_date' => $startDate,
+                'start_date' => $approvedDate,
                 'duration_days' => $durationDays,
                 'duration_months' => $account['duration_months'],
-                'collection_frequency' => $account['collection_frequency'],
+                'collection_frequency' => $frequency,
                 'principal_amount' => $account['principal_amount'],
                 'interest_amount' => $account['interest_amount'],
-                'total_payable' => $account['total_payable'],
-                'emi_amount' => $account['emi_amount']
+                'total_payable' => $totalPayable,
+                'emi_amount' => $emi
             ]);
             LoanAccount::generateInstallments($db, $account['id'], $genData);
 
             $db->commit();
-            AuditLog::log($db, $authUser['id'], 'approve_loan_account', 'loan_accounts', $account['id'], $account, ['status' => 'Active']);
+            AuditLog::log($db, $authUser['id'], $isRepair ? 'repair_loan_schedule' : 'approve_loan_account', 'loan_accounts', $account['id'], $account, ['status' => 'Active', 'duration_days' => $durationDays]);
 
             $updated = LoanAccount::getById($db, $account['id']);
-            Response::success($updated, 'Loan account approved and EMI schedule generated.');
+            $msg = $isRepair ? 'Loan schedule repaired successfully.' : 'Loan account approved and EMI schedule generated.';
+            Response::success($updated, $msg);
         } catch (Exception $e) {
             $db->rollBack();
             Response::error($e->getMessage(), 500);
@@ -245,15 +288,161 @@ class LoanController {
                 Response::error('Loan account not found.', 404);
             }
         }
-        if ($account['account_status'] !== 'Processing') {
-            Response::error('Only Processing accounts can be rejected.', 400);
+        if (!in_array($account['account_status'], ['Processing', 'Approved', 'Active'])) {
+            Response::error('Cannot reject from status: ' . $account['account_status'], 400);
         }
 
-        $stmt = $db->prepare("UPDATE loan_accounts SET account_status = 'Rejected' WHERE id = :id");
-        $stmt->execute(['id' => $account['id']]);
+        // Block if any installment is paid (collections exist)
+        $paidCount = (int)$db->query("SELECT COUNT(*) FROM loan_installments WHERE loan_account_id = " . (int)$account['id'] . " AND status = 'Paid'")->fetchColumn();
+        if ($paidCount > 0) {
+            Response::error('Cannot reject: ' . $paidCount . ' installment(s) already paid. Reverse collections first.', 400);
+        }
 
-        AuditLog::log($db, $authUser['id'], 'reject_loan_account', 'loan_accounts', $account['id']);
-        Response::success(null, 'Loan account rejected.');
+        $db->beginTransaction();
+        try {
+            // Clean up schedule — Rejected/Processing accounts must not carry installments
+            $db->prepare("DELETE FROM loan_installments WHERE loan_account_id = :id")
+               ->execute(['id' => $account['id']]);
+
+            $stmt = $db->prepare("
+                UPDATE loan_accounts SET
+                    account_status = 'Rejected',
+                    approved_at = NULL,
+                    approved_by = NULL,
+                    start_date = NULL,
+                    end_date = NULL
+                WHERE id = :id
+            ");
+            $stmt->execute(['id' => $account['id']]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'reject_loan_account', 'loan_accounts', $account['id']);
+            Response::success(null, 'Loan account rejected and schedule cleared.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
+    }
+
+    public static function reset($db, $authUser, $id, $input) {
+        $account = LoanAccount::getById($db, $id);
+        if (!$account) {
+            $account = LoanAccount::getByAccountNo($db, $id);
+            if (!$account) {
+                Response::error('Loan account not found.', 404);
+            }
+        }
+        if ($account['account_status'] === 'Processing') {
+            Response::error('Account is already in Processing state.', 400);
+        }
+
+        // Block if any installment is paid
+        $paidCount = (int)$db->query("SELECT COUNT(*) FROM loan_installments WHERE loan_account_id = " . (int)$account['id'] . " AND status = 'Paid'")->fetchColumn();
+        if ($paidCount > 0) {
+            Response::error('Cannot reset: ' . $paidCount . ' installment(s) already paid. Reverse collections first.', 400);
+        }
+
+        $db->beginTransaction();
+        try {
+            $db->prepare("DELETE FROM loan_installments WHERE loan_account_id = :id")
+               ->execute(['id' => $account['id']]);
+
+            $stmt = $db->prepare("
+                UPDATE loan_accounts SET
+                    account_status = 'Processing',
+                    approved_at = NULL,
+                    approved_by = NULL,
+                    start_date = NULL,
+                    end_date = NULL
+                WHERE id = :id
+            ");
+            $stmt->execute(['id' => $account['id']]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'reset_loan_account', 'loan_accounts', $account['id']);
+            $updated = LoanAccount::getById($db, $account['id']);
+            Response::success($updated, 'Loan account reset to Processing. Schedule cleared.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
+    }
+
+    public static function destroy($db, $authUser, $id) {
+        $account = LoanAccount::getById($db, $id);
+        if (!$account) {
+            $account = LoanAccount::getByAccountNo($db, $id);
+            if (!$account) {
+                Response::error('Loan account not found.', 404);
+            }
+        }
+
+        if ($account['account_status'] !== 'Rejected') {
+            Response::error('Only Rejected accounts can be deleted.', 400);
+        }
+
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare("UPDATE loan_accounts SET deleted_at = NOW() WHERE id = :id");
+            $stmt->execute(['id' => $account['id']]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'delete_loan_account', 'loan_accounts', $account['id']);
+            Response::success(null, 'Loan account deleted successfully.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
+    }
+
+    public static function clearLedger($db, $authUser, $id) {
+        $account = LoanAccount::getById($db, $id);
+        if (!$account) {
+            $account = LoanAccount::getByAccountNo($db, $id);
+            if (!$account) {
+                Response::error('Loan account not found.', 404);
+            }
+        }
+
+        $db->beginTransaction();
+        try {
+            // Delete all collections
+            $db->prepare("DELETE FROM loan_collections WHERE loan_account_id = :id")->execute(['id' => $account['id']]);
+
+            // Reset installments to Pending
+            $db->prepare("
+                UPDATE loan_installments 
+                SET paid_amount = 0.00, status = 'Pending', paid_at = NULL, penalty_amount = 0.00
+                WHERE loan_account_id = :loan_id
+            ")->execute(['loan_id' => $account['id']]);
+
+            // Reset loan account
+            $db->prepare("
+                UPDATE loan_accounts 
+                SET total_paid = 0.00, outstanding_amount = total_payable, penalty_amount = 0.00, account_status = 'Active'
+                WHERE id = :id
+            ")->execute(['id' => $account['id']]);
+
+            // Delete central receipts
+            $db->prepare("DELETE FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection'")
+               ->execute(['acc_no' => $account['loan_account_no']]);
+
+            // Delete from cash book
+            $db->prepare("
+                DELETE FROM cash_book 
+                WHERE reference_type = 'loan_collection' AND branch_id = :branch_id AND entry_date >= :start_date
+            ")->execute([
+                'branch_id' => $account['branch_id'],
+                'start_date' => $account['start_date']
+            ]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'clear_loan_ledger', 'loan_accounts', $account['id']);
+            Response::success(null, 'Payment ledger cleared successfully.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
     }
 }
 ?>

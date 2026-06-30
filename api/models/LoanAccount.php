@@ -201,8 +201,6 @@ class LoanAccount {
         $currentDate = new DateTime($startDateStr);
 
         for ($i = 1; $i <= $installmentsCount; $i++) {
-            // Next due date
-            $currentDate->add(new DateInterval($intervalSpec));
             $dueDate = $currentDate->format('Y-m-d');
 
             // Adjust final installment rounding
@@ -227,6 +225,9 @@ class LoanAccount {
                 'interest_component' => $interestComponent,
                 'total_due' => $totalDue
             ]);
+
+            // Next due date for next iteration
+            $currentDate->add(new DateInterval($intervalSpec));
         }
     }
 
