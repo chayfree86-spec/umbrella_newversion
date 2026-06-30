@@ -19,7 +19,7 @@ class ReportController {
     }
 
     public static function branchWise($db, $authUser) {
-        $data = Report::branchWise($db);
+        $data = Report::branchWiseLive($db);
         Response::success($data);
     }
 
@@ -44,31 +44,76 @@ class ReportController {
     }
 
     public static function loan($db, $authUser) {
-        // Detailed loan accounts report
+        $branchId = $_GET['branch_id'] ?? null;
+        $bind = [];
+        $where = ["la.deleted_at IS NULL"];
+        if ($authUser['role_slug'] === 'branch_manager') {
+            $where[] = "la.branch_id = :branch_id";
+            $bind['branch_id'] = $authUser['branch_id'];
+        } elseif ($branchId) {
+            $where[] = "la.branch_id = :branch_id";
+            $bind['branch_id'] = $branchId;
+        }
+        $whereSql = implode(" AND ", $where);
+
         $stmt = $db->prepare("
             SELECT la.loan_account_no as AccountNo, c.full_name as CustomerName,
-            la.principal_amount as ApprovedAmount, la.total_paid as PaidPrincipal,
-            la.outstanding_amount as OutstandingBalance, la.account_status as Status
+            la.start_date as DisbursalDate, la.principal_amount as ApprovedAmount,
+            la.total_paid as PaidPrincipal, la.outstanding_amount as OutstandingBalance,
+            la.interest_amount as InterestAmount,
+            (SELECT COALESCE(SUM(interest_amount), 0) FROM loan_collections WHERE loan_account_id = la.id AND is_reversal = 0) as InterestCollected,
+            (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
+                FROM loan_installments li
+                WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid'
+            ) as InterestOverdue,
+            CONCAT(lp.name, ' (', lp.interest_rate, '% ', lp.interest_type, ')') as LoanPlan,
+            la.account_status as Status,
+            b.name as BranchName
             FROM loan_accounts la
             JOIN customers c ON la.customer_id = c.id
-            WHERE la.deleted_at IS NULL
+            JOIN loan_plans lp ON la.loan_plan_id = lp.id
+            JOIN branches b ON la.branch_id = b.id
+            WHERE $whereSql
+            ORDER BY la.id DESC
         ");
-        $stmt->execute();
+        $stmt->execute($bind);
         $data = $stmt->fetchAll();
         Response::success($data);
     }
 
     public static function saving($db, $authUser) {
-        // Detailed saving accounts report
+        $branchId = $_GET['branch_id'] ?? null;
+        $bind = [];
+        $where = ["sa.deleted_at IS NULL"];
+        if ($authUser['role_slug'] === 'branch_manager') {
+            $where[] = "sa.branch_id = :branch_id";
+            $bind['branch_id'] = $authUser['branch_id'];
+        } elseif ($branchId) {
+            $where[] = "sa.branch_id = :branch_id";
+            $bind['branch_id'] = $branchId;
+        }
+        $whereSql = implode(" AND ", $where);
+
         $stmt = $db->prepare("
             SELECT sa.saving_account_no as AccountNo, c.full_name as CustomerName,
-            sa.total_deposited as DepositedAmount, sa.interest_rate as InterestRate,
-            sa.maturity_date as MaturityDate, sa.account_status as Status
+            sa.total_deposited as DepositedAmount,
+            sa.interest_rate as InterestRate,
+            sa.start_date as StartDate, sa.maturity_date as MaturityDate,
+            sa.maturity_amount as MaturityValue,
+            CONCAT(sp.name, ' (', sa.interest_rate, '%)') as PlanDetails,
+            sp.name as PlanName,
+            ROUND(sa.total_deposited * sa.interest_rate / 100, 2) as InterestPaid,
+            ROUND(sa.total_deposited + (sa.total_deposited * sa.interest_rate / 100), 2) as NetBalance,
+            sa.account_status as Status,
+            b.name as BranchName
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
-            WHERE sa.deleted_at IS NULL
+            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            JOIN branches b ON sa.branch_id = b.id
+            WHERE $whereSql
+            ORDER BY sa.id DESC
         ");
-        $stmt->execute();
+        $stmt->execute($bind);
         $data = $stmt->fetchAll();
         Response::success($data);
     }
@@ -102,15 +147,40 @@ class ReportController {
     }
 
     public static function maturity($db, $authUser) {
+        $branchId = $_GET['branch_id'] ?? null;
+        $bind = [];
+        $where = ["sa.deleted_at IS NULL", "sa.maturity_date IS NOT NULL"];
+        if ($authUser['role_slug'] === 'branch_manager') {
+            $where[] = "sa.branch_id = :branch_id";
+            $bind['branch_id'] = $authUser['branch_id'];
+        } elseif ($branchId) {
+            $where[] = "sa.branch_id = :branch_id";
+            $bind['branch_id'] = $branchId;
+        }
+        $whereSql = implode(" AND ", $where);
+
+        // Include all accounts with a maturity_date — Matured/Closed and upcoming
         $stmt = $db->prepare("
             SELECT sa.saving_account_no as AccountNo, c.full_name as CustomerName,
-            sa.maturity_amount as MaturityValue, sp.name as PlanName, sa.account_status as Status
+            sa.maturity_date as MaturityDate,
+            sa.maturity_amount as MaturityValue,
+            sa.total_deposited as TotalDeposited,
+            sp.name as PlanName,
+            CASE
+                WHEN sa.account_status = 'Matured' THEN 'Completed'
+                WHEN sa.account_status = 'Closed' THEN 'Closed'
+                WHEN sa.maturity_date <= CURRENT_DATE() THEN 'Pending Pay Out'
+                ELSE 'Active Account'
+            END as Status,
+            b.name as BranchName
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
             JOIN saving_plans sp ON sa.saving_plan_id = sp.id
-            WHERE sa.account_status = 'Matured' AND sa.deleted_at IS NULL
+            JOIN branches b ON sa.branch_id = b.id
+            WHERE $whereSql
+            ORDER BY sa.id DESC
         ");
-        $stmt->execute();
+        $stmt->execute($bind);
         $data = $stmt->fetchAll();
         Response::success($data);
     }

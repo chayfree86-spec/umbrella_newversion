@@ -7,7 +7,7 @@ export default function Collection() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+  const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
   const isAgent = userRole === 'Agent / Collection Executive';
 
   // Read search query from global header search
@@ -29,8 +29,8 @@ export default function Collection() {
     }
   }, [isAgent, activeTab]);
 
-  // Bulk operation states
-  const [selectedAgentForBulk, setSelectedAgentForBulk] = useState('Rahul Singh');
+  // Bulk operation states (populated from agents list)
+  const [selectedAgentForBulk, setSelectedAgentForBulk] = useState('');
   const [bulkCollectSelected, setBulkCollectSelected] = useState([]);
   const [bulkApproveSelected, setBulkApproveSelected] = useState([]);
   const [bulkAwaitingSelected, setBulkAwaitingSelected] = useState([]);
@@ -220,11 +220,11 @@ export default function Collection() {
   // Apply filters for individual checklist
   const filteredAccounts = activeAccounts.filter(acc => {
     // Branch Filter
-    const accBranch = acc.branch || acc.customer?.branch || 'Main Branch - Lucknow';
+    const accBranch = acc.branch || acc.customer?.branch || '';
     if (filterBranch !== 'All' && accBranch !== filterBranch) return false;
 
     // Area Filter
-    const accArea = acc.area || acc.customer?.area || 'Hazratganj';
+    const accArea = acc.area || acc.customer?.area || '';
     if (filterArea !== 'All' && !accArea.toLowerCase().includes(filterArea.toLowerCase())) return false;
 
     // Agent Filter (Matching assigned agent)
@@ -327,7 +327,7 @@ export default function Collection() {
           type: selectedAccount.type === 'Loan' ? 'EMI Payment' : 'Savings Deposit',
           amt: amt,
           fine: fine,
-          collector: localStorage.getItem('active_user_name') || 'Rahul Singh',
+          collector: localStorage.getItem('username') || localStorage.getItem('active_user_name') || '',
           status: 'Approved'
         };
 

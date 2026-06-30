@@ -49,23 +49,29 @@ class FundController {
 
     public static function transactions($db, $authUser) {
         $transactions = Fund::getTransactions($db);
-        
+
+        // Return BOTH snake_case + short legacy aliases so any consumer works
         $list = [];
         foreach ($transactions as $ce) {
             $list[] = [
                 'id' => $ce['id'],
-                'date' => date('d-m-Y', strtotime($ce['entry_date'])),
-                'entry_date' => $ce['entry_date'],
-                'type' => (stripos($ce['description'] ?? '', 'transfer') !== false) 
-                            ? 'Fund Transfer' 
-                            : ($ce['entry_type'] === 'credit' ? 'Capital Added' : 'Withdrawal'),
-                'amount' => (float)$ce['amount'],
+                'transaction_date' => $ce['transaction_date'],
+                'date' => date('d-m-Y', strtotime($ce['transaction_date'])),
+                'entry_date' => $ce['transaction_date'],
+                'transaction_type' => $ce['transaction_type'],
+                'type' => $ce['transaction_type'],
+                'description' => $ce['description'],
                 'desc' => $ce['description'],
-                'ref' => $ce['transaction_no'],
-                'user' => $ce['entered_name'] ?? 'System'
+                'reference_no' => $ce['reference_no'],
+                'ref' => $ce['reference_no'],
+                'amount' => (float)$ce['amount'],
+                'entry_type' => $ce['entry_type'],
+                'source_name' => $ce['source_name'],
+                'created_by' => $ce['created_by'] ?: 'System',
+                'user' => $ce['created_by'] ?: 'System'
             ];
         }
-        
+
         Response::success($list);
     }
 

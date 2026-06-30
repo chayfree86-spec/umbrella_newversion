@@ -47,24 +47,24 @@ export default function Reports() {
           ];
         case 'saving':
           return [
-            row.MaturityDate || 'N/A',
+            row.MaturityDate || row.StartDate || 'N/A',
             row.CustomerName || 'N/A',
             row.AccountNo || 'N/A',
-            row.PlanDetails || ('Daily Pragati (' + (row.InterestRate || '6') + '%)'),
+            row.PlanDetails || (row.PlanName ? `${row.PlanName} (${row.InterestRate || 0}%)` : 'N/A'),
             '₹' + Number(row.DepositedAmount || 0).toLocaleString('en-IN'),
-            '₹0',
-            '₹' + Number(row.DepositedAmount || 0).toLocaleString('en-IN')
+            '₹' + Number(row.InterestPaid || 0).toLocaleString('en-IN'),
+            '₹' + Number(row.NetBalance || row.DepositedAmount || 0).toLocaleString('en-IN')
           ];
         case 'loan':
           return [
             row.DisbursalDate || 'N/A',
             row.AccountNo || 'N/A',
             row.CustomerName || 'N/A',
-            row.LoanPlan || 'Personal Loan',
+            row.LoanPlan || 'N/A',
             '₹' + Number(row.ApprovedAmount || 0).toLocaleString('en-IN'),
             '₹' + Number(row.OutstandingBalance || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.PaidPrincipal || 0).toLocaleString('en-IN'),
-            '₹0',
+            '₹' + Number(row.InterestCollected || 0).toLocaleString('en-IN'),
+            '₹' + Number(row.InterestOverdue || 0).toLocaleString('en-IN'),
             row.Status || 'N/A'
           ];
         case 'agent':
@@ -73,9 +73,9 @@ export default function Reports() {
             row.AgentName || 'N/A',
             row.AreaName || 'N/A',
             String(row.AssignedCustomers || 0),
-            '₹' + Number((row.ActualCollected || 0) * 1.05).toLocaleString('en-IN'),
+            '₹' + Number(row.TargetCollection || 0).toLocaleString('en-IN'),
             '₹' + Number(row.ActualCollected || 0).toLocaleString('en-IN'),
-            row.PerformanceRate || '95%'
+            row.PerformanceRate || '0%'
           ];
         case 'cashbook':
           return [
@@ -227,16 +227,11 @@ export default function Reports() {
     { id: 'maturity', name: 'Maturity Report', icon: 'workspace_premium', desc: 'Listing of maturing savings/loan accounts' }
   ];
 
-  // Mock Reports Datasets
+  // Report metadata only (rows + metrics come live from backend via reportRows / getReportMetrics)
   const reportsData = {
     col: {
       title: 'Collection Report',
       desc: 'Real-time daily collection ledger and synced logs',
-      metrics: [
-        { label: "Today's Collection", value: "₹2,45,800", sub: "Target ₹3,00,000", type: "success", filterVal: "all" },
-        { label: "Accounts Synced", value: "32 Accounts", sub: "Avg ₹7,680 per Acc", type: "primary", filterVal: "all" },
-        { label: "Defaulters Resolved", value: "12 Accounts", sub: "92% Efficiency", type: "accent", filterVal: "all" }
-      ],
       statusLabel: 'Payment Mode',
       statusOptions: [
         { value: 'all', label: 'All Modes' },
@@ -244,128 +239,60 @@ export default function Reports() {
         { value: 'UPI', label: 'UPI Only' },
         { value: 'Bank Transfer', label: 'Bank Transfer Only' }
       ],
-      columns: ['Date', 'Account No', 'Customer Name', 'Amount Collected', 'Agent Name', 'Payment Mode'],
-      rows: [
-        ['28-06-2026', 'LN-9082', 'Rajesh Kumar', '₹12,450', 'Rahul Singh', 'Cash'],
-        ['28-06-2026', 'SV-4109', 'Sunita Sharma', '₹2,500', 'Amit Verma', 'UPI'],
-        ['28-06-2026', 'LN-8830', 'Ramesh Chandra', '₹4,512', 'Rahul Singh', 'Cash'],
-        ['28-06-2026', 'SV-1049', 'Preeti Patel', '₹100', 'Vikas Kumar', 'Cash'],
-        ['27-06-2026', 'LN-4102', 'Amit Verma', '₹2,000', 'Amit Verma', 'Bank Transfer'],
-        ['15-05-2026', 'LN-8722', 'Sumit Kumar', '₹15,000', 'Rahul Singh', 'Cash'],
-        ['10-04-2026', 'SV-2091', 'Geeta Devi', '₹1,500', 'Vikas Kumar', 'UPI']
-      ]
+      columns: ['Date', 'Account No', 'Customer Name', 'Amount Collected', 'Agent Name', 'Payment Mode']
     },
     agent: {
       title: 'Agent Performance Logs',
       desc: 'Agent-wise field performance and collection aggregates',
-      metrics: [
-        { label: "Active Field Agents", value: "4 Agents", sub: "100% attendance today", type: "primary", filterVal: "all" },
-        { label: "Top Collector", value: "Rahul Singh", sub: "₹1,42,800 collected", type: "success", filterVal: "all" },
-        { label: "Avg Collection/Agent", value: "₹1,30,900", sub: "91% target hit", type: "accent", filterVal: "all" }
-      ],
       statusLabel: 'Performance Tier',
       statusOptions: [
         { value: 'all', label: 'All Performance' },
         { value: 'high', label: 'Above 90% (High)' },
         { value: 'low', label: 'Below 90% (Low)' }
       ],
-      columns: ['Log Date', 'Agent Name', 'Branch Area', 'Total Accounts', 'Target Collection', 'Actual Collected', 'Performance Rate'],
-      rows: [
-        ['28-06-2026', 'Rahul Singh', 'Hazratganj, Lucknow', '45', '₹1,50,000', '₹1,42,800', '95.2%'],
-        ['28-06-2026', 'Amit Verma', 'Gomti Nagar, Lucknow', '38', '₹1,20,000', '₹1,02,500', '85.4%'],
-        ['27-06-2026', 'Vikas Kumar', 'Alambagh, Lucknow', '30', '₹1,00,000', '₹92,400', '92.4%'],
-        ['15-05-2026', 'Sandeep Kumar', 'Kalyanpur, Kanpur', '50', '₹2,00,000', '₹1,85,900', '92.9%']
-      ]
+      columns: ['Log Date', 'Agent Name', 'Branch Area', 'Total Accounts', 'Target Collection', 'Actual Collected', 'Performance Rate']
     },
     loan: {
       title: 'Loan Account Balances & Ledger',
       desc: 'Listing active loans, disbursals, repayment logs, and outstanding balances',
-      metrics: [
-        { label: "Total Disbursed Pool", value: "₹5,80,000", sub: "Total principal disbursed", type: "primary", filterVal: "all" },
-        { label: "Total Outstanding Bal", value: "₹2,09,600", sub: "Remaining recovery principal", type: "danger", filterVal: "all" },
-        { label: "Active Loan Accounts", value: "48 Accounts", sub: "Avg ₹4,360 outstanding", type: "warning", filterVal: "active" }
-      ],
       statusLabel: 'Loan Status',
       statusOptions: [
         { value: 'all', label: 'All Statuses' },
         { value: 'active', label: 'Active (On Time)' },
         { value: 'defaulter', label: 'Overdue (Defaulters)' }
       ],
-      columns: ['Disbursal Date', 'Account No', 'Customer Name', 'Loan Plan', 'Disbursed Amount', 'Outstanding Principal', 'Interest Collected', 'Interest Overdue', 'Status'],
-      rows: [
-        ['28-06-2026', 'LN-9082', 'Rajesh Kumar', 'Personal Loan (12%)', '₹50,000', '₹15,000', '₹4,200', '₹0', 'Active (On Time)'],
-        ['28-06-2026', 'LN-8830', 'Ramesh Chandra', 'Business Loan (15%)', '₹1,20,000', '₹80,000', '₹8,500', '₹1,500', 'Overdue (15 Days)'],
-        ['27-06-2026', 'LN-4102', 'Amit Verma', 'Agri Loan (10%)', '₹80,000', '₹50,000', '₹6,800', '₹0', 'Active (On Time)'],
-        ['15-05-2026', 'LN-8722', 'Sumit Kumar', 'Personal Loan (12%)', '₹30,000', '₹5,000', '₹2,600', '₹0', 'Active (On Time)'],
-        ['10-04-2026', 'LN-2918', 'Sanjay Dutt', 'Business Loan (15%)', '₹3,00,000', '₹59,600', '₹12,700', '₹15,400', 'Defaulter (NPA)']
-      ]
+      columns: ['Disbursal Date', 'Account No', 'Customer Name', 'Loan Plan', 'Disbursed Amount', 'Outstanding Principal', 'Interest Collected', 'Interest Overdue', 'Status']
     },
     saving: {
       title: 'Savings Account Balance Ledger',
       desc: 'Listing savings accounts balances and interest metrics',
-      metrics: [
-        { label: "Total Savings Pool", value: "₹2,31,035", sub: "Total customer deposits", type: "success", filterVal: "all" },
-        { label: "Active Savings Accs", value: "115 Accounts", sub: "Avg ₹2,008 deposit", type: "primary", filterVal: "all" },
-        { label: "Net Interest Paid", value: "₹6,685", sub: "6% flat yearly rate", type: "accent", filterVal: "all" }
-      ],
       statusLabel: 'Plan Type',
       statusOptions: [
-        { value: 'all', label: 'All Plans' },
-        { value: 'Daily Pragati', label: 'Daily Pragati Plan' },
-        { value: 'Monthly Suraksha', label: 'Monthly Suraksha Plan' }
+        { value: 'all', label: 'All Plans' }
       ],
-      columns: ['Last Deposit Date', 'Customer Name', 'Account No', 'Plan Details', 'Total Deposit', 'Interest Paid', 'Net Balance'],
-      rows: [
-        ['28-06-2026', 'Amit Kumar', 'SV-4109', 'Daily Pragati (6%)', '₹12,500', '₹375', '₹12,875'],
-        ['28-06-2026', 'Sunita Sharma', 'SV-1049', 'Daily Pragati (6%)', '₹25,000', '₹750', '₹25,750'],
-        ['27-06-2026', 'Preeti Patel', 'SV-2091', 'Monthly Suraksha (8%)', '₹8,000', '₹160', '₹8,160'],
-        ['12-05-2026', 'Vikas Kumar', 'SV-9081', 'Daily Pragati (6%)', '₹1,80,000', '₹5,400', '₹1,85,400']
-      ]
+      columns: ['Last Deposit Date', 'Customer Name', 'Account No', 'Plan Details', 'Total Deposit', 'Interest Paid', 'Net Balance']
     },
     cashbook: {
       title: 'Cash Book Summary Ledger',
       desc: 'Cash book transactions logging opening/closing balances',
-      metrics: [
-        { label: "Opening Cash Bal", value: "₹3,98,050", sub: "Carry forward balance", type: "primary", filterVal: "all" },
-        { label: "Total Cash Inflows", value: "₹1,14,950", sub: "EMI + Savings Deposit", type: "success", filterVal: "Credit" },
-        { label: "Total Cash Outflows", value: "₹20,000", sub: "Withdrawals + Disbursal", type: "danger", filterVal: "Debit" }
-      ],
       statusLabel: 'Transaction Type',
       statusOptions: [
         { value: 'all', label: 'All Ledger Types' },
         { value: 'Credit', label: 'Credit Only' },
         { value: 'Debit', label: 'Debit Only' }
       ],
-      columns: ['Transaction Date', 'Txn Ref ID', 'Particulars/Account', 'Ledger Type', 'Debit Amount', 'Credit Amount'],
-      rows: [
-        ['28-06-2026', 'TXN-9028', 'Owner Capital Injection', 'Credit', '-', '₹1,00,000'],
-        ['28-06-2026', 'TXN-9029', 'Agent Collection In-flow', 'Credit', '-', '₹12,450'],
-        ['28-06-2026', 'TXN-9030', 'Savings Deposit Sync', 'Credit', '-', '₹2,500'],
-        ['27-06-2026', 'TXN-8822', 'New Loan Disbursal (LN-8722)', 'Debit', '₹15,000', '-'],
-        ['27-06-2026', 'TXN-8823', 'Savings Cash Payout (SV-1049)', 'Debit', '₹5,000', '-']
-      ]
+      columns: ['Transaction Date', 'Txn Ref ID', 'Particulars/Account', 'Ledger Type', 'Debit Amount', 'Credit Amount']
     },
     maturity: {
       title: 'Maturity & Payout Logs',
       desc: 'Maturity schedules for savings and payouts tracking',
-      metrics: [
-        { label: "Maturing Today", value: "2 Accounts", sub: "Total ₹1,91,200", type: "warning", filterVal: "all" },
-        { label: "Maturity Paid", value: "₹11,200", sub: "Durga Shakti plan paid", type: "success", filterVal: "Completed" },
-        { label: "Pending Payout Pool", value: "₹1,80,000", sub: "Payout verification due", type: "accent", filterVal: "Pending Pay Out" }
-      ],
       statusLabel: 'Payout Status',
       statusOptions: [
         { value: 'all', label: 'All Statuses' },
         { value: 'Pending Pay Out', label: 'Pending Payouts' },
         { value: 'Completed', label: 'Completed Payouts' }
       ],
-      columns: ['Maturity Date', 'Customer Name', 'Account No', 'Plan Subscribed', 'Maturity Amount', 'Payout Status'],
-      rows: [
-        ['28-06-2026', 'Vikas Kumar', 'SV-9081', 'Daily Pragati (6%)', '₹1,80,000', 'Pending Pay Out'],
-        ['28-06-2026', 'Anil Mishra', 'LN-9082', 'Durga Shakti (12%)', '₹11,200', 'Loan Completed'],
-        ['30-06-2026', 'Rakesh Pandey', 'SV-1049', 'Daily Pragati (6%)', '₹26,000', 'Pending Pay Out'],
-        ['05-07-2026', 'Seema Devi', 'SV-2091', 'Monthly Suraksha (8%)', '₹10,500', 'Active Account']
-      ]
+      columns: ['Maturity Date', 'Customer Name', 'Account No', 'Plan Subscribed', 'Maturity Amount', 'Payout Status']
     }
   };
 
@@ -455,25 +382,6 @@ export default function Reports() {
     return filtered;
   };
 
-  const getFilteredTodayRows = () => {
-    let rows = reportsData.col.rows.filter(row => row[0] === '28-06-2026');
-    if (selectedAgent !== 'all') {
-      const agentMap = { ag1: 'Rahul Singh', ag2: 'Amit Verma' };
-      const agentName = agentMap[selectedAgent];
-      if (agentName) {
-        rows = rows.filter(row => row[4] === agentName);
-      }
-    }
-    if (selectedBranch !== 'all') {
-      if (selectedBranch === 'b1') {
-        rows = rows.filter(row => ['Rahul Singh', 'Amit Verma', 'Vikas Kumar'].includes(row[4]));
-      } else if (selectedBranch === 'b2') {
-        rows = rows.filter(row => row[4] === 'Sandeep Kumar');
-      }
-    }
-    return rows;
-  };
-
   const handleMetricCardClick = (label, filterVal) => {
     if (!filterVal) return;
     if (selectedMetricLabel === label) {
@@ -561,7 +469,7 @@ export default function Reports() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h3 className="text-sm font-bold text-primary-text">Today's Collection Ledger Preview</h3>
-                <p className="text-xs text-secondary-text font-bold">Summary list for current date (28-06-2026)</p>
+                <p className="text-xs text-secondary-text font-bold">Summary list for current date ({new Date().toLocaleDateString('en-GB').replace(/\//g, '-')})</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -714,69 +622,78 @@ export default function Reports() {
             ))}
           </section>
 
-          {activeReport === 'loan' && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-extrabold text-primary-text uppercase tracking-wider pl-1">Interest Analysis</h4>
-              <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <button
-                  type="button"
-                  onClick={() => handleMetricCardClick('Interest Collected', 'active')}
-                  className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
-                    selectedMetricLabel === 'Interest Collected'
-                      ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
-                      : 'border-border-fin hover:border-primary/30'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Collected</span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-success-fin"></span>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black text-success-fin tracking-tight">₹34,800</h3>
-                    <span className="text-xs font-bold text-secondary-text block">Total interest earned & recovered</span>
-                  </div>
-                </button>
+          {activeReport === 'loan' && (() => {
+            const parseAmt = (val) => typeof val === 'string' ? Number(val.replace(/[^\d.]/g, '')) : Number(val || 0);
+            const collected = reportRows.reduce((s, r) => s + parseAmt(r[6]), 0);
+            const overdue = reportRows.reduce((s, r) => s + parseAmt(r[7]), 0);
+            const npaLoss = reportRows
+              .filter(r => /Defaulter|NPA|Overdue/.test(String(r[8] || '')))
+              .reduce((s, r) => s + parseAmt(r[7]), 0);
+            const fmt = (v) => '₹' + Number(v || 0).toLocaleString('en-IN');
+            return (
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-primary-text uppercase tracking-wider pl-1">Interest Analysis</h4>
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <button
+                    type="button"
+                    onClick={() => handleMetricCardClick('Interest Collected', 'active')}
+                    className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                      selectedMetricLabel === 'Interest Collected'
+                        ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
+                        : 'border-border-fin hover:border-primary/30'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Collected</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-success-fin"></span>
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-black text-success-fin tracking-tight">{fmt(collected)}</h3>
+                      <span className="text-xs font-bold text-secondary-text block">Total interest earned & recovered</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleMetricCardClick('Interest Pending', 'defaulter')}
-                  className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
-                    selectedMetricLabel === 'Interest Pending'
-                      ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
-                      : 'border-border-fin hover:border-primary/30'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Pending</span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-warning-fin"></span>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black text-warning-fin tracking-tight">₹1,500</h3>
-                    <span className="text-xs font-bold text-secondary-text block">Overdue from active accounts</span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMetricCardClick('Interest Pending', 'defaulter')}
+                    className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                      selectedMetricLabel === 'Interest Pending'
+                        ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
+                        : 'border-border-fin hover:border-primary/30'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Pending</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-warning-fin"></span>
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-black text-warning-fin tracking-tight">{fmt(overdue)}</h3>
+                      <span className="text-xs font-bold text-secondary-text block">Overdue from active accounts</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleMetricCardClick('Interest Loss', 'defaulter')}
-                  className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
-                    selectedMetricLabel === 'Interest Loss'
-                      ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
-                      : 'border-border-fin hover:border-primary/30'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Loss (NPA Defaulters)</span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-danger-fin"></span>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-black text-danger-fin tracking-tight">₹15,400</h3>
-                    <span className="text-xs font-bold text-secondary-text block">Blocked in high-risk default accounts</span>
-                  </div>
-                </button>
-              </section>
-            </div>
-          )}
+                  <button
+                    type="button"
+                    onClick={() => handleMetricCardClick('Interest Loss', 'defaulter')}
+                    className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                      selectedMetricLabel === 'Interest Loss'
+                        ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
+                        : 'border-border-fin hover:border-primary/30'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Loss (NPA Defaulters)</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-danger-fin"></span>
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-black text-danger-fin tracking-tight">{fmt(npaLoss)}</h3>
+                      <span className="text-xs font-bold text-secondary-text block">Blocked in high-risk default accounts</span>
+                    </div>
+                  </button>
+                </section>
+              </div>
+            );
+          })()}
 
           <section className="bg-surface p-6 rounded-2xl border border-border-fin shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

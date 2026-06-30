@@ -87,37 +87,7 @@ export default function Login({ onLogin }) {
   // Check if input is mobile number (only contains numbers, +, space, or dashes)
   const isMobileNum = /^[0-9+\s-]*$/.test(username) && username.length > 0;
 
-  const defaultUsers = [
-    { id: '1', name: 'Sandeep Kumar', role: 'Super Admin', email: 'sandeep@umbrellafinance.in', mobile: '9628717175', password: 'admin123', pin: '2310' },
-    { id: '2', name: 'Vijay Pratap', role: 'Branch Manager', email: 'vijay@umbrellafinance.in', mobile: '9876543225', password: 'manager123', pin: '1234' },
-    { id: '3', name: 'Aditya Narayan', role: 'Branch Manager', email: 'aditya@umbrellafinance.in', mobile: '9876543226', password: 'manager123', pin: '1234' },
-    { id: '4', name: 'Amit Verma', role: 'Area Manager', email: 'amit@umbrellafinance.in', mobile: '9876543221', password: 'manager123', pin: '1234' },
-    { id: '5', name: 'Rahul Singh', role: 'Agent / Collection Executive', email: 'rahul@umbrellafinance.in', mobile: '9876543220', password: 'agent123', pin: '1234' }
-  ];
-
-  const getSystemUsers = () => {
-    let systemUsers = [];
-    try {
-      const savedDb = localStorage.getItem('system_users_db');
-      if (savedDb) {
-        systemUsers = JSON.parse(savedDb);
-        // Self-healing update check for Sandeep Kumar's credentials
-        const sandeep = systemUsers.find(u => u.id === '1');
-        if (sandeep && (sandeep.mobile !== '9628717175' || sandeep.pin !== '2310')) {
-          sandeep.mobile = '9628717175';
-          sandeep.pin = '2310';
-          localStorage.setItem('system_users_db', JSON.stringify(systemUsers));
-        }
-      } else {
-        localStorage.setItem('system_users_db', JSON.stringify(defaultUsers));
-        systemUsers = defaultUsers;
-      }
-    } catch (err) {
-      console.error(err);
-      systemUsers = defaultUsers;
-    }
-    return systemUsers;
-  };
+  // Authentication is fully server-side via authApi.login — no local user database
 
   const handleLogin = (e) => {
     e.preventDefault();

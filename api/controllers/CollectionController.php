@@ -25,7 +25,7 @@ class CollectionController {
             $bind['agent_id'] = $agentId;
         }
 
-        // Loan Collections
+        // Loan Collections (newest first)
         $stmtLoans = $db->prepare("
             SELECT lc.*, c.full_name as customer_name, la.loan_account_no as account_no, 'Loan' as account_type, u.name as collector_name
             FROM loan_collections lc
@@ -33,11 +33,12 @@ class CollectionController {
             JOIN loan_accounts la ON lc.loan_account_id = la.id
             JOIN users u ON lc.collected_by = u.id
             $whereSql
+            ORDER BY lc.id DESC
         ");
         $stmtLoans->execute($bind);
         $loans = $stmtLoans->fetchAll();
 
-        // Savings Deposits
+        // Savings Deposits (newest first)
         $whereSqlSavings = str_replace('lc.', 'sd.', $whereSql);
         $whereSqlSavings = str_replace('collection_date', 'deposit_date', $whereSqlSavings);
 
@@ -48,6 +49,7 @@ class CollectionController {
             JOIN saving_accounts sa ON sd.saving_account_id = sa.id
             JOIN users u ON sd.collected_by = u.id
             $whereSqlSavings
+            ORDER BY sd.id DESC
         ");
         $stmtSavings->execute($bind);
         $savings = $stmtSavings->fetchAll();
@@ -57,6 +59,7 @@ class CollectionController {
         foreach ($loans as $l) {
             $list[] = [
                 'id' => 'L-' . $l['id'],
+                'sort_key' => $l['created_at'] ?? $l['collection_date'] . ' 00:00:00',
                 'receipt_no' => $l['receipt_no'],
                 'account_no' => $l['account_no'],
                 'customer_name' => $l['customer_name'],
@@ -71,6 +74,7 @@ class CollectionController {
         foreach ($savings as $s) {
             $list[] = [
                 'id' => 'S-' . $s['id'],
+                'sort_key' => $s['created_at'] ?? $s['deposit_date'] . ' 00:00:00',
                 'receipt_no' => $s['receipt_no'],
                 'account_no' => $s['account_no'],
                 'customer_name' => $s['customer_name'],
@@ -82,6 +86,17 @@ class CollectionController {
                 'date' => $s['deposit_date']
             ];
         }
+
+        // Newest first across both lists (uses created_at timestamp)
+        usort($list, function($a, $b) {
+            return strcmp($b['sort_key'], $a['sort_key']);
+        });
+
+        // Drop helper sort_key from response
+        $list = array_map(function($row) {
+            unset($row['sort_key']);
+            return $row;
+        }, $list);
 
         Response::success($list);
     }

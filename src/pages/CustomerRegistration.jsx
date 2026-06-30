@@ -1086,8 +1086,8 @@ export default function CustomerRegistration() {
     ? selectedPlan.amount + totalInterest
     : 0;
 
-  const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
-  const isKycFieldRequired = userRole !== 'Super Admin' && localStorage.getItem('policy_mandatory_kyc') !== 'false';
+  const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
+  const isKycFieldRequired = userRole !== 'Super Admin' && localStorage.getItem('mandatory_kyc') !== 'false';
 
   const isStep1Valid = () => {
     if (!formData.accountType || !formData.planId || !formData.startDate) return false;
@@ -1112,15 +1112,15 @@ export default function CustomerRegistration() {
   };
 
   const isStep4Valid = () => {
-    const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+    const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
     if (userRole === 'Super Admin') return true;
-    const isKycMandatory = localStorage.getItem('policy_mandatory_kyc') !== 'false';
+    const isKycMandatory = localStorage.getItem('mandatory_kyc') !== 'false';
     if (!isKycMandatory) return true;
     return formData.aadhaarNumber && formData.panNumber && formData.bankName && formData.bankAccountNo && formData.bankIfsc;
   };
 
   const isStep5Valid = () => {
-    const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+    const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
     if (userRole === 'Super Admin') return true;
     if (formData.accountType === 'Saving') return true;
     return formData.guarantorName && formData.guarantorMobile && formData.guarantorRelation && formData.guarantorAadhaar;
@@ -1270,8 +1270,8 @@ export default function CustomerRegistration() {
       else if (!formData.state) { missingField = 'state'; missingLabel = 'State'; }
       else if (!formData.pinCode) { missingField = 'pinCode'; missingLabel = 'PIN Code'; }
     } else if (currentStep === 4) {
-      const isKycMandatory = localStorage.getItem('policy_mandatory_kyc') !== 'false';
-      const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+      const isKycMandatory = localStorage.getItem('mandatory_kyc') !== 'false';
+      const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
       if (userRole !== 'Super Admin' && isKycMandatory) {
         if (!formData.aadhaarNumber) { missingField = 'aadhaarNumber'; missingLabel = 'Aadhaar Number'; }
         else if (!formData.panNumber) { missingField = 'panNumber'; missingLabel = 'PAN Number'; }
@@ -1280,7 +1280,7 @@ export default function CustomerRegistration() {
         else if (!formData.bankIfsc) { missingField = 'bankIfsc'; missingLabel = 'Bank IFSC Code'; }
       }
     } else if (currentStep === 5) {
-      const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+      const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
       if (userRole !== 'Super Admin' && formData.accountType === 'Loan') {
         if (!formData.guarantorName) { missingField = 'guarantorName'; missingLabel = 'Guarantor Name'; }
         else if (!formData.guarantorMobile) { missingField = 'guarantorMobile'; missingLabel = 'Guarantor Mobile'; }
@@ -1309,7 +1309,7 @@ export default function CustomerRegistration() {
     let missingField = null;
     let missingLabel = '';
 
-    const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+    const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
     if (userRole !== 'Super Admin' && formData.accountType === 'Loan') {
       if (!formData.guarantorName) { missingField = 'guarantorName'; missingLabel = 'Guarantor Name'; }
       else if (!formData.guarantorMobile) { missingField = 'guarantorMobile'; missingLabel = 'Guarantor Mobile'; }
@@ -1410,7 +1410,7 @@ export default function CustomerRegistration() {
     { num: 6, name: 'Review & Save' }
   ];
 
-  const isRegistrationAllowed = localStorage.getItem('policy_allow_registrations') !== 'false';
+  const isRegistrationAllowed = localStorage.getItem('allow_registrations') !== 'false';
 
   if (!isRegistrationAllowed) {
     return (

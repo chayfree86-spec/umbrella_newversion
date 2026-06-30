@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { syncApi, authApi, settingsApi } from '../services/api';
 
 export function Layout({ children }) {
   const location = useLocation();
@@ -7,12 +8,68 @@ export function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [notifications, setNotifications] = useState([]);
 
-  const loggedInName = localStorage.getItem('username') || 'Sandeep Kumar';
-  const loggedInRole = localStorage.getItem('userRole') || 'Super Admin';
+  const loggedInName = localStorage.getItem('username') || '';
+  const loggedInRole = localStorage.getItem('userRole') || '';
+
+  // Fetch notifications from backend
+  const fetchNotifications = () => {
+    syncApi.notifications()
+      .then(res => setNotifications(res.data || []))
+      .catch(() => setNotifications([]));
+  };
+
+  // Hydrate global settings into localStorage so every page sees backend values
+  useEffect(() => {
+    settingsApi.get()
+      .then(res => {
+        const s = res.data || {};
+        Object.entries(s).forEach(([key, val]) => {
+          localStorage.setItem(key, typeof val === 'boolean' ? String(val) : String(val ?? ''));
+        });
+      })
+      .catch(() => {});
+  }, [location.pathname]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const intervalMs = (Number(localStorage.getItem('sync_interval_seconds')) || 15) * 1000;
+    const id = setInterval(fetchNotifications, intervalMs);
+    return () => clearInterval(id);
+  }, []);
+
+  const unreadCount = notifications.filter(n => !n.is_read && n.is_read !== 1).length;
+
+  const markAllRead = () => {
+    syncApi.markAllRead().then(fetchNotifications).catch(() => {});
+  };
+
+  const markOneRead = (id) => {
+    syncApi.markRead(id).then(fetchNotifications).catch(() => {});
+  };
+
+  const handleLogout = () => {
+    authApi.logout().catch(() => {}).finally(() => {
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
+    });
+  };
+
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+    if (diff < 60) return `${Math.floor(diff)}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
 
   const getInitials = (name) => {
-    if (!name) return 'UF';
+    if (!name) return '';
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -136,12 +193,8 @@ export function Layout({ children }) {
                 </span>
               </div>
             </div>
-            <button 
-              onClick={() => {
-                localStorage.removeItem('isLoggedIn');
-                localStorage.removeItem('auth_token');
-                window.location.href = '/';
-              }}
+            <button
+              onClick={handleLogout}
               className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"
               title="Logout"
             >
@@ -212,34 +265,41 @@ export function Layout({ children }) {
                 className="p-2 rounded-xl bg-background-fin hover:bg-border-fin/50 text-secondary-text relative cursor-pointer active:scale-[0.95]"
               >
                 <span className="material-symbols-rounded select-none">notifications</span>
-                {/* Alert Badge */}
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full border border-surface"></span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full border border-surface"></span>
+                )}
               </button>
 
-              {/* Mock Notification Dropdown */}
+              {/* Notification Dropdown — backend driven */}
               {isNotificationOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-surface border border-border-fin rounded-2xl shadow-xl z-50 p-4">
                   <div className="flex justify-between items-center mb-3 pb-2 border-b border-border-fin">
-                    <span className="text-xs font-bold text-primary-text uppercase">Notifications</span>
-                    <button className="text-[11px] text-primary font-bold hover:underline cursor-pointer">
-                      Mark all read
-                    </button>
+                    <span className="text-xs font-bold text-primary-text uppercase">Notifications {unreadCount > 0 ? `(${unreadCount})` : ''}</span>
+                    {unreadCount > 0 && (
+                      <button onClick={markAllRead} className="text-[11px] text-primary font-bold hover:underline cursor-pointer">
+                        Mark all read
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-3 max-h-60 overflow-y-auto">
-                    <div className="p-2.5 rounded-xl hover:bg-background-fin transition-colors cursor-pointer">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-bold text-primary">New Collection</span>
-                        <span className="text-secondary-text font-bold">2m ago</span>
-                      </div>
-                      <p className="text-xs text-secondary-text font-semibold">Agent Rahul collected ₹2,500.</p>
-                    </div>
-                    <div className="p-2.5 rounded-xl hover:bg-background-fin transition-colors cursor-pointer">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-bold text-warning-fin">Loan Maturity</span>
-                        <span className="text-secondary-text font-bold">1h ago</span>
-                      </div>
-                      <p className="text-xs text-secondary-text font-semibold">Account LN-4902 is maturing today.</p>
-                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-secondary-text font-semibold">No notifications</div>
+                    ) : notifications.map((n) => {
+                      const typeColor = n.type === 'warning' ? 'text-warning-fin' : n.type === 'danger' ? 'text-danger-fin' : n.type === 'success' ? 'text-success-fin' : 'text-primary';
+                      return (
+                        <button
+                          key={n.id}
+                          onClick={() => markOneRead(n.id)}
+                          className={`block w-full text-left p-2.5 rounded-xl hover:bg-background-fin transition-colors cursor-pointer ${(!n.is_read && n.is_read !== 1) ? 'bg-background-fin/40' : ''}`}
+                        >
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className={`font-bold ${typeColor}`}>{n.title}</span>
+                            <span className="text-secondary-text font-bold">{timeAgo(n.created_at)}</span>
+                          </div>
+                          <p className="text-xs text-secondary-text font-semibold">{n.message}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -311,11 +371,8 @@ export function Layout({ children }) {
                 <span className="text-sm font-bold text-primary-text block truncate max-w-[150px]">{loggedInName}</span>
                 <span className="text-[10px] text-secondary-text font-semibold block">{loggedInRole}</span>
               </div>
-              <button 
-                onClick={() => {
-                  localStorage.removeItem('isLoggedIn');
-                  window.location.href = '/';
-                }}
+              <button
+                onClick={handleLogout}
                 className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"
                 title="Logout"
               >

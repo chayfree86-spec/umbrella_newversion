@@ -393,7 +393,23 @@ class Fund {
 
     public static function getTransactions($db) {
         $stmt = $db->prepare("
-            SELECT ce.*, fs.source_name, u.name as entered_name
+            SELECT ce.id, ce.uuid,
+                ce.entry_date AS transaction_date,
+                ce.transaction_no AS reference_no,
+                CASE
+                    WHEN ce.description LIKE '%Savings to Loan%' OR ce.description LIKE '%Loan to Savings%' THEN 'Internal Transfer'
+                    WHEN fs.source_type = 'investor' THEN 'Investor Funding'
+                    WHEN fs.source_type = 'owner_capital' THEN 'Capital Addition'
+                    WHEN ce.entry_type = 'debit' THEN 'Capital Withdrawal'
+                    ELSE 'Capital Addition'
+                END AS transaction_type,
+                ce.description,
+                ce.amount,
+                ce.entry_type,
+                fs.source_name,
+                u.name AS created_by,
+                ce.entered_by AS created_by_id,
+                ce.created_at
             FROM capital_entries ce
             LEFT JOIN fund_sources fs ON ce.fund_source_id = fs.id
             LEFT JOIN users u ON ce.entered_by = u.id
@@ -403,4 +419,16 @@ class Fund {
         $stmt->execute();
         return $stmt->fetchAll();
     }
+
+    public static function getEntryById($db, $id) {
+        $stmt = $db->prepare("
+            SELECT ce.*, fs.source_type, fs.source_name
+            FROM capital_entries ce
+            LEFT JOIN fund_sources fs ON ce.fund_source_id = fs.id
+            WHERE ce.id = :id
+        ");
+        $stmt->execute(['id' => $id]);
+        return $stmt->fetch();
+    }
+
 }

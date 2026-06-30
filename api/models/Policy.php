@@ -5,7 +5,7 @@
 class Policy {
 
     public static function getAll($db) {
-        $stmt = $db->prepare("SELECT * FROM policies WHERE deleted_at IS NULL ORDER BY id ASC");
+        $stmt = $db->prepare("SELECT * FROM policies WHERE deleted_at IS NULL ORDER BY id DESC");
         $stmt->execute();
         return $stmt->fetchAll();
     }

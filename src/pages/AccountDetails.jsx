@@ -228,7 +228,7 @@ export default function AccountDetails() {
   const [isClearLedgerModalOpen, setIsClearLedgerModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   
-  const userRole = localStorage.getItem('active_user_role') || 'Super Admin';
+  const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
 
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [closePayMode, setClosePayMode] = useState('Cash');
