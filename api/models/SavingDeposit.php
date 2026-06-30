@@ -19,7 +19,6 @@ class SavingDeposit {
             $stmt = $db->prepare("SELECT * FROM saving_accounts WHERE id = :id FOR UPDATE");
             $stmt->execute(['id' => $savingAccountId]);
             $account = $stmt->fetch();
-
             if (!$account) {
                 throw new Exception('Savings account not found.');
             }
@@ -30,14 +29,56 @@ class SavingDeposit {
 
             $receiptNo = NumberGenerator::generate($db, PREFIX_RECEIPT);
 
+            // Apply payment to saving installments (FIFO) — matches loan behaviour
+            $stmtPending = $db->prepare("
+                SELECT * FROM saving_installments
+                WHERE saving_account_id = :id AND status != 'Paid'
+                ORDER BY installment_no ASC
+                FOR UPDATE
+            ");
+            $stmtPending->execute(['id' => $savingAccountId]);
+            $pendingInstallments = $stmtPending->fetchAll();
+
+            $remaining = $depositAmount;
+            $allocations = [];
+            foreach ($pendingInstallments as $inst) {
+                if ($remaining <= 0) break;
+                $pending = (float)$inst['total_due'] - (float)$inst['paid_amount'];
+                if ($pending <= 0) continue;
+
+                if ($remaining >= $pending) {
+                    $allocatedForInst = $pending;
+                    $remaining -= $pending;
+                    $db->prepare("UPDATE saving_installments SET paid_amount = total_due, status = 'Paid', paid_at = NOW() WHERE id = :id")
+                       ->execute(['id' => $inst['id']]);
+                } else {
+                    $allocatedForInst = $remaining;
+                    $db->prepare("UPDATE saving_installments SET paid_amount = paid_amount + :paid, status = 'Partial' WHERE id = :id")
+                       ->execute(['paid' => $remaining, 'id' => $inst['id']]);
+                    $remaining = 0;
+                }
+
+                $allocations[] = [
+                    'due_date' => $inst['due_date'],
+                    'amount' => $allocatedForInst
+                ];
+            }
+
+            if ($remaining > 0) {
+                $allocations[] = [
+                    'due_date' => 'Advance',
+                    'amount' => $remaining
+                ];
+            }
+
             // Insert into saving_deposits
             $stmt = $db->prepare("
                 INSERT INTO saving_deposits (
                     uuid, receipt_no, saving_account_id, customer_id, branch_id, area_id, agent_id,
-                    deposit_date, deposit_amount, payment_mode, remarks, collected_by
+                    deposit_date, deposit_amount, payment_mode, remarks, collected_by, installment_allocations
                 ) VALUES (
                     :uuid, :receipt_no, :saving_account_id, :customer_id, :branch_id, :area_id, :agent_id,
-                    :deposit_date, :deposit_amount, :payment_mode, :remarks, :collected_by
+                    :deposit_date, :deposit_amount, :payment_mode, :remarks, :collected_by, :installment_allocations
                 )
             ");
             
@@ -54,7 +95,8 @@ class SavingDeposit {
                 'deposit_amount' => $depositAmount,
                 'payment_mode' => $paymentMode,
                 'remarks' => $remarks,
-                'collected_by' => $collectedBy
+                'collected_by' => $collectedBy,
+                'installment_allocations' => json_encode($allocations)
             ]);
             $depositId = $db->lastInsertId();
 
@@ -91,33 +133,6 @@ class SavingDeposit {
                 'total_deposited' => $newDeposited,
                 'id' => $savingAccountId
             ]);
-
-            // Apply payment to saving installments (FIFO) — matches loan behaviour
-            $stmtPending = $db->prepare("
-                SELECT * FROM saving_installments
-                WHERE saving_account_id = :id AND status != 'Paid'
-                ORDER BY installment_no ASC
-                FOR UPDATE
-            ");
-            $stmtPending->execute(['id' => $savingAccountId]);
-            $pendingInstallments = $stmtPending->fetchAll();
-
-            $remaining = $depositAmount;
-            foreach ($pendingInstallments as $inst) {
-                if ($remaining <= 0) break;
-                $pending = (float)$inst['total_due'] - (float)$inst['paid_amount'];
-                if ($pending <= 0) continue;
-
-                if ($remaining >= $pending) {
-                    $remaining -= $pending;
-                    $db->prepare("UPDATE saving_installments SET paid_amount = total_due, status = 'Paid', paid_at = NOW() WHERE id = :id")
-                       ->execute(['id' => $inst['id']]);
-                } else {
-                    $db->prepare("UPDATE saving_installments SET paid_amount = paid_amount + :paid, status = 'Partial' WHERE id = :id")
-                       ->execute(['paid' => $remaining, 'id' => $inst['id']]);
-                    $remaining = 0;
-                }
-            }
 
             // Compute new balance separately
             $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id");

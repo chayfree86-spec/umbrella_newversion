@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
-import { loanApi, savingApi, branchApi, areaApi, agentApi, collectionApi } from '../services/api';
+import { loanApi, savingApi, branchApi, areaApi, agentApi, collectionApi, reportApi } from '../services/api';
 
 export default function Collection() {
   const navigate = useNavigate();
@@ -52,20 +52,8 @@ export default function Collection() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptTxn, setReceiptTxn] = useState(null);
   const [receiptAccountNo, setReceiptAccountNo] = useState(null);
-  const [editAmt, setEditAmt] = useState('');
-  const [editFine, setEditFine] = useState('');
   const [showConfirmVoid, setShowConfirmVoid] = useState(false);
   const [voidRefNo, setVoidRefNo] = useState(null);
-
-  useEffect(() => {
-    if (receiptTxn) {
-      setEditAmt(receiptTxn.amt.toString());
-      setEditFine(receiptTxn.fine.toString());
-    } else {
-      setEditAmt('');
-      setEditFine('');
-    }
-  }, [receiptTxn]);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -76,6 +64,10 @@ export default function Collection() {
 
   const selectedDateStr = getFormattedDateStr(selectedDate);
   const todayStr = selectedDateStr; // Backward compatibility alias
+
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const isFutureDate = selectedDate > todayMidnight;
 
   const handlePrevDay = () => {
     setSelectedDate(prev => {
@@ -108,47 +100,92 @@ export default function Collection() {
     return accounts.some(acc => acc.ledger?.some(tx => tx.date === dStr));
   };
 
-  useEffect(() => {
-    // Load dynamic accounts from DB
+  const fetchAccountsAndCollections = () => {
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStrYMD = `${year}-${month}-${day}`;
+
     Promise.all([
       loanApi.list({ limit: 100 }),
-      savingApi.list({ limit: 100 })
-    ]).then(([loansRes, savingsRes]) => {
-      const loanList = (loansRes.data || []).map(l => ({
-        accNo: l.loan_account_no,
-        type: 'Loan',
-        accountStatus: l.account_status,
-        planName: l.plan_name,
-        approvedAmt: Number(l.principal_amount),
-        totalPaid: Number(l.total_paid),
-        outstanding: Number(l.outstanding_amount),
-        emiAmt: Number(l.emi_amount),
-        paymentCycle: l.collection_frequency,
-        customer: { name: l.customer_name, phone: l.customer_mobile },
-        agent: l.agent_name,
-        branch: l.branch_name,
-        area: l.area_name
-      }));
+      savingApi.list({ limit: 100 }),
+      reportApi.dailyCollection({ start_date: dateStrYMD, end_date: dateStrYMD })
+    ]).then(([loansRes, savingsRes, collectionsRes]) => {
+      const collections = collectionsRes.data || [];
 
-      const savingList = (savingsRes.data || []).map(s => ({
-        accNo: s.saving_account_no,
-        type: 'Saving',
-        accountStatus: s.account_status,
-        planName: s.plan_name,
-        approvedAmt: Number(s.deposit_amount),
-        totalPaid: Number(s.total_deposited),
-        outstanding: 0,
-        emiAmt: Number(s.deposit_amount),
-        paymentCycle: s.collection_frequency,
-        customer: { name: s.customer_name, phone: s.customer_mobile },
-        agent: s.agent_name,
-        branch: s.branch_name,
-        area: s.area_name
-      }));
+      const loanList = (loansRes.data || []).map(l => {
+        const matched = collections.filter(c => c.AccountNo === l.loan_account_no);
+        const ledger = matched.map(m => ({
+          id: m.ReceiptNo,
+          date: selectedDateStr,
+          refNo: m.ReceiptNo,
+          type: 'EMI Payment',
+          amt: Number(m.AmountCollected),
+          fine: Number(m.PenaltyAmount || 0),
+          collector: m.AgentName || 'Agent',
+          status: 'Approved'
+        }));
+
+        return {
+          accNo: l.loan_account_no,
+          type: 'Loan',
+          accountStatus: l.account_status,
+          planName: l.plan_name,
+          approvedAmt: Number(l.principal_amount),
+          totalPaid: Number(l.total_paid),
+          outstanding: Number(l.outstanding_amount),
+          emiAmt: Number(l.emi_amount),
+          paymentCycle: l.collection_frequency,
+          customer: { name: l.customer_name, phone: l.customer_mobile },
+          agent: l.agent_name,
+          branch: l.branch_name,
+          area: l.area_name,
+          ledger: ledger
+        };
+      });
+
+      const savingList = (savingsRes.data || []).map(s => {
+        const matched = collections.filter(c => c.AccountNo === s.saving_account_no);
+        const ledger = matched.map(m => ({
+          id: m.ReceiptNo,
+          date: selectedDateStr,
+          refNo: m.ReceiptNo,
+          type: 'Savings Deposit',
+          amt: Number(m.AmountCollected),
+          fine: 0,
+          collector: m.AgentName || 'Agent',
+          status: 'Approved'
+        }));
+
+        return {
+          accNo: s.saving_account_no,
+          type: 'Saving',
+          accountStatus: s.account_status,
+          planName: s.plan_name,
+          approvedAmt: Number(s.deposit_amount),
+          totalPaid: Number(s.total_deposited),
+          outstanding: 0,
+          emiAmt: Number(s.deposit_amount),
+          paymentCycle: s.collection_frequency,
+          customer: { name: s.customer_name, phone: s.customer_mobile },
+          agent: s.agent_name,
+          branch: s.branch_name,
+          area: s.area_name,
+          ledger: ledger
+        };
+      });
 
       setAccounts([...loanList, ...savingList]);
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error(err);
+    });
+  };
 
+  useEffect(() => {
+    fetchAccountsAndCollections();
+  }, [selectedDateStr]);
+
+  useEffect(() => {
     // Load Branches
     branchApi.list()
       .then(res => setBranches(res.data || []))
@@ -171,10 +208,11 @@ export default function Collection() {
       .catch(() => {});
   }, []);
 
-  // Filter accounts: only Approved, Defaulter, NPA can have daily collections
+  // Filter accounts: only Approved, Active, Defaulter, NPA, or accounts that have collections on the selected date can have daily collections
   const activeAccounts = accounts.filter(acc => {
     const status = acc.accountStatus || 'Approved';
-    const isStatusMatch = ['Approved', 'Defaulter', 'NPA'].includes(status);
+    const hasCollectionOnDate = (acc.ledger || []).length > 0;
+    const isStatusMatch = ['Approved', 'Active', 'Defaulter', 'NPA'].includes(status) || hasCollectionOnDate;
     const isTypeMatch = filterType === 'All' || acc.type === filterType;
     return isStatusMatch && isTypeMatch;
   });
@@ -215,7 +253,7 @@ export default function Collection() {
     const status = acc.accountStatus || 'Approved';
     const accAgent = acc.agent || acc.customer?.agent || '';
     const isCollectorMatch = accAgent === selectedAgentForBulk;
-    const isStatusMatch = ['Approved', 'Defaulter', 'NPA'].includes(status);
+    const isStatusMatch = ['Approved', 'Active', 'Defaulter', 'NPA'].includes(status);
     const todayPaid = acc.ledger?.some(tx => tx.date === todayStr);
     const isTypeMatch = filterType === 'All' || acc.type === filterType;
     return isCollectorMatch && isStatusMatch && !todayPaid && isTypeMatch;
@@ -270,9 +308,14 @@ export default function Collection() {
       return;
     }
 
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStrYMD = `${year}-${month}-${day}`;
+
     const collectCall = selectedAccount.type === 'Loan'
-      ? loanApi.collect(selectedAccount.accNo, amt, fine, paymentMode, 'Daily collection via dashboard')
-      : savingApi.deposit(selectedAccount.accNo, amt, paymentMode, 'Daily deposit via dashboard');
+      ? loanApi.collect(selectedAccount.accNo, amt, fine, paymentMode, 'Daily collection via dashboard', dateStrYMD)
+      : savingApi.deposit(selectedAccount.accNo, amt, paymentMode, 'Daily deposit via dashboard', dateStrYMD);
 
     collectCall
       .then(res => {
@@ -289,44 +332,7 @@ export default function Collection() {
         };
 
         // Reload accounts list
-        Promise.all([
-          loanApi.list({ limit: 100 }),
-          savingApi.list({ limit: 100 })
-        ]).then(([loansRes, savingsRes]) => {
-          const loanList = (loansRes.data || []).map(l => ({
-            accNo: l.loan_account_no,
-            type: 'Loan',
-            accountStatus: l.account_status,
-            planName: l.plan_name,
-            approvedAmt: Number(l.principal_amount),
-            totalPaid: Number(l.total_paid),
-            outstanding: Number(l.outstanding_amount),
-            emiAmt: Number(l.emi_amount),
-            paymentCycle: l.collection_frequency,
-            customer: { name: l.customer_name, phone: l.customer_mobile },
-            agent: l.agent_name,
-            branch: l.branch_name,
-            area: l.area_name
-          }));
-
-          const savingList = (savingsRes.data || []).map(s => ({
-            accNo: s.saving_account_no,
-            type: 'Saving',
-            accountStatus: s.account_status,
-            planName: s.plan_name,
-            approvedAmt: Number(s.deposit_amount),
-            totalPaid: Number(s.total_deposited),
-            outstanding: 0,
-            emiAmt: Number(s.deposit_amount),
-            paymentCycle: s.collection_frequency,
-            customer: { name: s.customer_name, phone: s.customer_mobile },
-            agent: s.agent_name,
-            branch: s.branch_name,
-            area: s.area_name
-          }));
-
-          setAccounts([...loanList, ...savingList]);
-        });
+        fetchAccountsAndCollections();
 
         setReceiptAccountNo(selectedAccount.accNo);
         setReceiptTxn(newTxn);
@@ -351,209 +357,19 @@ export default function Collection() {
   };
 
   const executeVoidTransaction = (refNo) => {
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    if (savedDb) {
-      try {
-        const db = JSON.parse(savedDb);
-        let foundAccNo = null;
-        Object.values(db).forEach(acc => {
-          if (acc.ledger?.some(tx => tx.refNo === refNo)) {
-            foundAccNo = acc.accNo;
-          }
-        });
-
-        if (foundAccNo && db[foundAccNo]) {
-          const acc = db[foundAccNo];
-          const txIndex = acc.ledger.findIndex(tx => tx.refNo === refNo);
-          if (txIndex !== -1) {
-            const tx = acc.ledger[txIndex];
-            
-            // Rollback values
-            acc.totalPaid = Math.max(0, (acc.totalPaid || 0) - tx.amt);
-            
-            if (acc.type === 'Loan') {
-              acc.outstanding = (acc.outstanding || 0) + tx.amt;
-              acc.pendingDue = (acc.pendingDue || 0) + tx.amt;
-              if (acc.accountStatus === 'Account Closed') {
-                acc.accountStatus = 'Approved';
-              }
-            } else {
-              acc.balance = (acc.balance || 0) - tx.amt;
-            }
-            
-            // Remove txn
-            acc.ledger.splice(txIndex, 1);
-            
-            db[foundAccNo] = acc;
-            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-            setAccounts(Object.values(db));
-            setShowConfirmVoid(false);
-            setVoidRefNo(null);
-            closeReceipt();
-            alert("Collection voided successfully.");
-          }
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Something went wrong.");
-      }
-    }
+    collectionApi.deleteCollection(refNo)
+      .then(() => {
+        fetchAccountsAndCollections();
+        setShowConfirmVoid(false);
+        setVoidRefNo(null);
+        closeReceipt();
+        alert("Collection voided successfully.");
+      })
+      .catch(err => {
+        alert(err.message || "Failed to void transaction.");
+      });
   };
 
-  const handleApproveCollection = (accNo, refNo) => {
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    if (savedDb) {
-      try {
-        const db = JSON.parse(savedDb);
-        const acc = db[accNo];
-        if (acc) {
-          const tx = acc.ledger?.find(t => t.refNo === refNo);
-          if (tx && tx.status === 'Awaiting Approval') {
-            tx.status = 'Approved';
-            
-            // Apply updates now
-            acc.totalPaid = (acc.totalPaid || 0) + tx.amt;
-            
-            if (acc.type === 'Loan') {
-              acc.outstanding = Math.max(0, (acc.outstanding || 0) - tx.amt);
-              acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - tx.amt);
-              if (acc.outstanding === 0) {
-                acc.accountStatus = 'Account Closed';
-              }
-            } else {
-              acc.balance = (acc.balance || 0) + tx.amt;
-            }
-            
-            db[accNo] = acc;
-            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-            setAccounts(Object.values(db));
-            alert("Collection approved successfully.");
-          }
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Something went wrong.");
-      }
-    }
-  };
-
-  const handleRejectCollection = async (accNo, refNo) => {
-    if (!await window.confirm("Are you sure you want to reject this collection? This will remove it from active ledgers.")) {
-      return;
-    }
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    if (savedDb) {
-      try {
-        const db = JSON.parse(savedDb);
-        const acc = db[accNo];
-        if (acc) {
-          const tx = acc.ledger?.find(t => t.refNo === refNo);
-          if (tx && tx.status === 'Awaiting Approval') {
-            tx.status = 'Rejected';
-            
-            db[accNo] = acc;
-            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-            setAccounts(Object.values(db));
-            alert("Collection rejected successfully.");
-          }
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Something went wrong.");
-      }
-    }
-  };
-
-  const handleApproveWithEdits = (accNo, refNo, amt, fine) => {
-    if (isNaN(amt) || amt <= 0) {
-      alert("Please enter a valid amount.");
-      return;
-    }
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    if (savedDb) {
-      try {
-        const db = JSON.parse(savedDb);
-        const acc = db[accNo];
-        if (acc) {
-          const tx = acc.ledger?.find(t => t.refNo === refNo);
-          if (tx && tx.status === 'Awaiting Approval') {
-            tx.status = 'Approved';
-            tx.amt = amt;
-            tx.fine = fine;
-            
-            // Apply updates now
-            acc.totalPaid = (acc.totalPaid || 0) + amt;
-            
-            if (acc.type === 'Loan') {
-              acc.outstanding = Math.max(0, (acc.outstanding || 0) - amt);
-              acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - amt);
-              if (acc.outstanding === 0) {
-                acc.accountStatus = 'Account Closed';
-              }
-            } else {
-              acc.balance = (acc.balance || 0) + amt;
-            }
-            
-            db[accNo] = acc;
-            localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-            setAccounts(Object.values(db));
-            closeReceipt();
-            alert("Collection approved successfully.");
-          }
-        }
-      } catch (e) {
-        console.error(e);
-        alert("Something went wrong.");
-      }
-    }
-  };
-
-  const handleRejectWithConfirmation = (accNo, refNo) => {
-    handleRejectCollection(accNo, refNo);
-    closeReceipt();
-  };
-
-  const handleBulkApproveCollectionsSubmit = (e) => {
-    e.preventDefault();
-    if (bulkAwaitingSelected.length === 0) {
-      alert('Please select at least one collection to approve.');
-      return;
-    }
-
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    const db = savedDb ? JSON.parse(savedDb) : {};
-
-    let successCount = 0;
-    bulkAwaitingSelected.forEach(accNo => {
-      const acc = db[accNo];
-      if (acc) {
-        const tx = acc.ledger?.find(t => t.date === todayStr && t.status === 'Awaiting Approval');
-        if (tx) {
-          tx.status = 'Approved';
-          
-          acc.totalPaid = (acc.totalPaid || 0) + tx.amt;
-          
-          if (acc.type === 'Loan') {
-            acc.outstanding = Math.max(0, (acc.outstanding || 0) - tx.amt);
-            acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - tx.amt);
-            if (acc.outstanding === 0) {
-              acc.accountStatus = 'Account Closed';
-            }
-          } else {
-            acc.balance = (acc.balance || 0) + tx.amt;
-          }
-          successCount++;
-        }
-      }
-    });
-
-    if (successCount > 0) {
-      localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-      setAccounts(Object.values(db));
-      alert(`Successfully approved ${successCount} daily collections.`);
-    }
-    setBulkAwaitingSelected([]);
-  };
 
   // Bulk collection action
   const handleBulkCollectSubmit = (e) => {
@@ -563,63 +379,38 @@ export default function Collection() {
       return;
     }
 
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    const db = savedDb ? JSON.parse(savedDb) : {};
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStrYMD = `${year}-${month}-${day}`;
 
-    let successCount = 0;
-    const isDirectAdmin = !isAgent;
-    const status = isDirectAdmin ? 'Approved' : 'Awaiting Approval';
+    const promises = bulkCollectSelected.map(accNo => {
+      const acc = accounts.find(a => a.accNo === accNo);
+      if (!acc) return Promise.resolve(null);
+      
+      const hasTodayPay = acc.ledger?.some(tx => tx.date === todayStr);
+      if (hasTodayPay) return Promise.resolve(null);
 
-    bulkCollectSelected.forEach(accNo => {
-      const acc = db[accNo];
-      if (acc) {
-        // Only collect if not paid/awaiting today
-        const hasTodayPay = acc.ledger?.some(tx => tx.date === todayStr);
-        if (!hasTodayPay) {
-          const amt = acc.emiAmt || 0;
-
-          const newTxn = {
-            id: String(Date.now() + Math.random()),
-            date: todayStr,
-            refNo: `RC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            type: acc.type === 'Loan' ? 'EMI Payment' : 'Savings Deposit',
-            amt: amt,
-            fine: 0,
-            collector: selectedAgentForBulk,
-            status: status
-          };
-          acc.ledger = [newTxn, ...(acc.ledger || [])];
-
-          if (isDirectAdmin) {
-            acc.totalPaid = (acc.totalPaid || 0) + amt;
-            if (acc.type === 'Loan') {
-              acc.outstanding = Math.max(0, (acc.outstanding || 0) - amt);
-              acc.pendingDue = Math.max(0, (acc.pendingDue || 0) - amt);
-              if (acc.outstanding === 0) {
-                acc.accountStatus = 'Account Closed';
-              }
-            } else {
-              acc.balance = (acc.balance || 0) + amt;
-            }
-          }
-
-          successCount++;
-        }
+      const amt = acc.emiAmt || 0;
+      if (acc.type === 'Loan') {
+        return loanApi.collect(acc.accNo, amt, 0, 'Cash', 'Bulk daily collection via dashboard', dateStrYMD);
+      } else {
+        return savingApi.deposit(acc.accNo, amt, 'Cash', 'Bulk daily deposit via dashboard', dateStrYMD);
       }
     });
 
-    if (successCount > 0) {
-      localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-      setAccounts(Object.values(db));
-      if (isDirectAdmin) {
-        alert(`Successfully collected ${successCount} daily payments.`);
-      } else {
-        alert(`Successfully collected ${successCount} daily payments. Awaiting Admin Approval.`);
-      }
-    } else {
-      alert('No payments collected.');
-    }
-    setBulkCollectSelected([]);
+    Promise.all(promises)
+      .then(results => {
+        const actualSuccessCount = results.filter(r => r !== null).length;
+        alert(`Successfully collected ${actualSuccessCount} daily payments.`);
+        setBulkCollectSelected([]);
+        fetchAccountsAndCollections();
+      })
+      .catch(err => {
+        alert(err.message || 'One or more bulk collections failed.');
+        setBulkCollectSelected([]);
+        fetchAccountsAndCollections();
+      });
   };
 
   // Bulk approval action
@@ -630,34 +421,45 @@ export default function Collection() {
       return;
     }
 
-    const savedDb = localStorage.getItem('accounts_database_v2');
-    const db = savedDb ? JSON.parse(savedDb) : {};
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStrYMD = `${year}-${month}-${day}`;
 
-    let successCount = 0;
-    bulkApproveSelected.forEach(accNo => {
-      const acc = db[accNo];
-      if (acc && acc.accountStatus === 'Processing') {
-        acc.accountStatus = 'Approved';
-        acc.approvedDate = todayStr;
-        acc.disbursalDate = todayStr;
-        acc.todayStatus = 'Pending';
-        acc.nextDueDate = todayStr;
-        successCount++;
+    const promises = bulkApproveSelected.map(accNo => {
+      const acc = accounts.find(a => a.accNo === accNo);
+      if (!acc || acc.accountStatus !== 'Processing') return Promise.resolve(null);
+      
+      const initialDate = acc.startDate || dateStrYMD;
+      if (acc.type === 'Loan') {
+        return loanApi.approve(acc.accNo, initialDate, dateStrYMD);
+      } else {
+        return savingApi.approve(acc.accNo, initialDate, dateStrYMD);
       }
     });
 
-    if (successCount > 0) {
-      localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-      setAccounts(Object.values(db));
-      alert(`Successfully approved ${successCount} accounts.`);
-    } else {
-      alert('No accounts approved.');
-    }
-    setBulkApproveSelected([]);
+    Promise.all(promises)
+      .then(results => {
+        const actualSuccessCount = results.filter(r => r !== null).length;
+        alert(`Successfully approved ${actualSuccessCount} accounts.`);
+        setBulkApproveSelected([]);
+        fetchAccountsAndCollections();
+      })
+      .catch(err => {
+        alert(err.message || 'One or more approvals failed.');
+        setBulkApproveSelected([]);
+        fetchAccountsAndCollections();
+      });
   };
 
   return (
     <div className="w-full space-y-6 animate-fade-in">
+      {isFutureDate && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl flex items-center gap-3 text-xs font-bold shadow-xs animate-scale-up">
+          <span className="material-symbols-rounded text-lg text-amber-600 select-none animate-pulse">info</span>
+          <span>Viewing future schedule. Payment collections cannot be recorded on future dates. All payments must be recorded on the current or past dates.</span>
+        </div>
+      )}
       {/* Top Header Card */}
       <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-row items-center justify-between gap-4 overflow-x-auto no-scrollbar">
         {activeTab === 'single' ? (
@@ -948,6 +750,13 @@ export default function Collection() {
                                 <span className="material-symbols-rounded text-sm select-none">receipt</span>
                                 Receipt
                               </button>
+                            ) : isFutureDate ? (
+                              <button
+                                disabled
+                                className="px-5 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none mx-auto"
+                              >
+                                Scheduled
+                              </button>
                             ) : (
                               <div className="flex flex-col items-center gap-1">
                                 <button
@@ -1001,10 +810,11 @@ export default function Collection() {
                 <div className="flex flex-col gap-4 flex-1">
                   {/* Select All checkbox */}
                   <div className="flex justify-between items-center bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <label className={`flex items-center gap-2 select-none ${isFutureDate ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={bulkCollectSelected.length === bulkCollectAccounts.length && bulkCollectAccounts.length > 0}
+                        disabled={isFutureDate}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setBulkCollectSelected(bulkCollectAccounts.map(a => a.accNo));
@@ -1012,7 +822,7 @@ export default function Collection() {
                             setBulkCollectSelected([]);
                           }
                         }}
-                        className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                        className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <span className="text-xs font-bold text-[#0F172A]">Select All Pending</span>
                     </label>
@@ -1042,6 +852,7 @@ export default function Collection() {
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
+                                  disabled={isFutureDate}
                                   onChange={(e) => {
                                     if (e.target.checked) {
                                       setBulkCollectSelected(prev => [...prev, acc.accNo]);
@@ -1049,7 +860,7 @@ export default function Collection() {
                                       setBulkCollectSelected(prev => prev.filter(id => id !== acc.accNo));
                                     }
                                   }}
-                                  className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                                  className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -1079,7 +890,7 @@ export default function Collection() {
                     </div>
                     <button
                       onClick={handleBulkCollectSubmit}
-                      disabled={bulkCollectSelected.length === 0}
+                      disabled={bulkCollectSelected.length === 0 || isFutureDate}
                       className="w-full h-11 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1"
                     >
                       <span className="material-symbols-rounded text-sm select-none">payments</span>
@@ -1353,130 +1164,51 @@ export default function Collection() {
               </div>
             </div>
 
-            {receiptTxn.status === 'Awaiting Approval' ? (
-              isAgent ? (
-                <div className="space-y-4">
-                  <div className="space-y-2 text-xs py-2 bg-amber-50/50 p-3 rounded-xl border border-amber-100">
-                    <div className="flex justify-between">
-                      <span className="text-[#64748B]">Amount</span>
-                      <span className="font-bold text-[#1E3A8A]">₹{receiptTxn.amt.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#64748B]">Fine</span>
-                      <span className="font-bold">₹{receiptTxn.fine.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between border-t border-dashed border-amber-200 pt-2 font-bold text-sm text-[#1E3A8A]">
-                      <span>Total</span>
-                      <span>₹{(receiptTxn.amt + receiptTxn.fine).toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-amber-50 text-amber-800 text-[10px] font-bold rounded-lg text-center">
-                    Awaiting Admin Approval
-                  </div>
-
-                  <button
-                    onClick={closeReceipt}
-                    className="w-full px-4 py-2.5 bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
-                  >
-                    Close
-                  </button>
+            <div className="space-y-4">
+              <div className="space-y-2 text-xs py-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                <div className="flex justify-between">
+                  <span className="text-[#64748B]">Amount</span>
+                  <span className="font-bold text-[#16A34A]">₹{receiptTxn.amt.toLocaleString()}</span>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Edit Amount (₹)</label>
-                      <input
-                        type="number"
-                        value={editAmt}
-                        onChange={(e) => setEditAmt(e.target.value)}
-                        className="w-full h-10 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Edit Fine (₹)</label>
-                      <input
-                        type="number"
-                        value={editFine}
-                        onChange={(e) => setEditFine(e.target.value)}
-                        className="w-full h-10 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#E11D48] focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <button
-                      onClick={() => handleRejectWithConfirmation(receiptAccountNo, receiptTxn.refNo)}
-                      className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">close</span>
-                      Reject / Reset
-                    </button>
-                    <button
-                      onClick={() => handleApproveWithEdits(receiptAccountNo, receiptTxn.refNo, parseFloat(editAmt), parseFloat(editFine))}
-                      className="px-4 py-2.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1 shadow-md shadow-green-100"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">check_circle</span>
-                      Approve
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={closeReceipt}
-                    className="w-full px-4 py-2.5 border border-[#E2E8F0] hover:bg-[#E2E8F0] text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer text-center mt-1"
-                  >
-                    Close
-                  </button>
+                <div className="flex justify-between">
+                  <span className="text-[#64748B]">Fine</span>
+                  <span className="font-bold">₹{receiptTxn.fine.toLocaleString()}</span>
                 </div>
-              )
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2 text-xs py-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">Amount</span>
-                    <span className="font-bold text-[#16A34A]">₹{receiptTxn.amt.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#64748B]">Fine</span>
-                    <span className="font-bold">₹{receiptTxn.fine.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#1E3A8A]">
-                    <span>Total Received</span>
-                    <span>₹{(receiptTxn.amt + receiptTxn.fine).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {receiptTxn.status === 'Approved' && !isAgent && (
-                  <button
-                    onClick={() => triggerVoidConfirm(receiptTxn.refNo)}
-                    className="w-full flex items-center justify-center gap-1 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer mt-2"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">delete_forever</span>
-                    Void / Reset Payment
-                  </button>
-                )}
-
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <button
-                    onClick={() => {
-                      alert('Receipt print command sent.');
-                      closeReceipt();
-                    }}
-                    className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">print</span>
-                    Print Receipt
-                  </button>
-                  <button
-                    onClick={closeReceipt}
-                    className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
-                  >
-                    Close
-                  </button>
+                <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#1E3A8A]">
+                  <span>Total Received</span>
+                  <span>₹{(receiptTxn.amt + receiptTxn.fine).toLocaleString()}</span>
                 </div>
               </div>
-            )}
+
+              {receiptTxn.status === 'Approved' && !isAgent && (
+                <button
+                  onClick={() => triggerVoidConfirm(receiptTxn.refNo)}
+                  className="w-full flex items-center justify-center gap-1 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer mt-2"
+                >
+                  <span className="material-symbols-rounded text-sm select-none">delete_forever</span>
+                  Void / Reset Payment
+                </button>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <button
+                  onClick={() => {
+                    alert('Receipt print command sent.');
+                    closeReceipt();
+                  }}
+                  className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
+                >
+                  <span className="material-symbols-rounded text-sm select-none">print</span>
+                  Print Receipt
+                </button>
+                <button
+                  onClick={closeReceipt}
+                  className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

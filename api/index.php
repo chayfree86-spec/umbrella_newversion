@@ -406,6 +406,10 @@ try {
             RoleGuard::check($authUser, 'collections.delete');
             CollectionController::delete($db, $authUser, $m[1]);
         }
+        elseif (preg_match('#^/collections/receipts/([^/]+)$#', $uri, $m) && $method === 'PUT') {
+            RoleGuard::check($authUser, 'collections.create');
+            CollectionController::update($db, $authUser, $m[1], $input);
+        }
 
         // ----------------------------------------------------------
         // FUND MANAGEMENT ROUTES

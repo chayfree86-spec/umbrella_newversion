@@ -343,6 +343,16 @@ class CollectionController {
                 if ($loanColl) {
                     $loanAccountId = $loanColl['loan_account_id'];
 
+                    // Check if there is a newer non-reversed collection for this account (LIFO safety check)
+                    $stmtNewer = $db->prepare("
+                        SELECT COUNT(*) FROM loan_collections 
+                        WHERE loan_account_id = :loan_id AND id > :id AND is_reversal = 0
+                    ");
+                    $stmtNewer->execute(['loan_id' => $loanAccountId, 'id' => $loanColl['id']]);
+                    if ($stmtNewer->fetchColumn() > 0) {
+                        throw new Exception('Cannot reset this collection. Only the most recent collection can be reset first.');
+                    }
+
                     // Delete the loan collection row
                     $db->prepare("DELETE FROM loan_collections WHERE id = :id")->execute(['id' => $loanColl['id']]);
 
@@ -381,6 +391,7 @@ class CollectionController {
                         $stmtInsts->execute(['loan_id' => $loanAccountId]);
                         $installments = $stmtInsts->fetchAll();
 
+                        $allocs = [];
                         foreach ($installments as $inst) {
                             if ($remainingAmount <= 0) break;
 
@@ -390,6 +401,7 @@ class CollectionController {
                             $pending = $totalDue - $paidAmt;
 
                             if ($remainingAmount >= $pending) {
+                                $allocatedForInst = $pending;
                                 $remainingAmount -= $pending;
                                 $db->prepare("
                                     UPDATE loan_installments 
@@ -397,6 +409,7 @@ class CollectionController {
                                     WHERE id = :id
                                 ")->execute(['id' => $instId]);
                             } else {
+                                $allocatedForInst = $remainingAmount;
                                 $db->prepare("
                                     UPDATE loan_installments 
                                     SET paid_amount = paid_amount + :allocated, status = 'Partial' 
@@ -404,7 +417,23 @@ class CollectionController {
                                 ")->execute(['allocated' => $remainingAmount, 'id' => $instId]);
                                 $remainingAmount = 0;
                             }
+
+                            $allocs[] = [
+                                'due_date' => $inst['due_date'],
+                                'amount' => $allocatedForInst
+                            ];
                         }
+
+                        if ($remainingAmount > 0) {
+                            $allocs[] = [
+                                'due_date' => 'Advance',
+                                'amount' => $remainingAmount
+                            ];
+                        }
+
+                        // Update recalculated allocations in database
+                        $db->prepare("UPDATE loan_collections SET installment_allocations = :alloc WHERE id = :id")
+                           ->execute(['alloc' => json_encode($allocs), 'id' => $coll['id']]);
 
                         // Apply penalty to the first unpaid installment if any
                         if ($penaltyAmount > 0) {
@@ -458,6 +487,16 @@ class CollectionController {
                 if ($savingDep) {
                     $savingAccountId = $savingDep['saving_account_id'];
 
+                    // Check if there is a newer non-reversed deposit for this account (LIFO safety check)
+                    $stmtNewer = $db->prepare("
+                        SELECT COUNT(*) FROM saving_deposits 
+                        WHERE saving_account_id = :saving_id AND id > :id AND is_reversal = 0
+                    ");
+                    $stmtNewer->execute(['saving_id' => $savingAccountId, 'id' => $savingDep['id']]);
+                    if ($stmtNewer->fetchColumn() > 0) {
+                        throw new Exception('Cannot reset this deposit. Only the most recent deposit can be reset first.');
+                    }
+
                     // Delete the deposit row
                     $db->prepare("DELETE FROM saving_deposits WHERE id = :id")->execute(['id' => $savingDep['id']]);
 
@@ -491,6 +530,7 @@ class CollectionController {
                         $stmtInsts->execute(['saving_id' => $savingAccountId]);
                         $installments = $stmtInsts->fetchAll();
 
+                        $allocs = [];
                         foreach ($installments as $inst) {
                             if ($remainingAmount <= 0) break;
 
@@ -500,6 +540,7 @@ class CollectionController {
                             $pending = $totalDue - $paidAmt;
 
                             if ($remainingAmount >= $pending) {
+                                $allocatedForInst = $pending;
                                 $remainingAmount -= $pending;
                                 $db->prepare("
                                     UPDATE saving_installments 
@@ -507,6 +548,7 @@ class CollectionController {
                                     WHERE id = :id
                                 ")->execute(['id' => $instId]);
                             } else {
+                                $allocatedForInst = $remainingAmount;
                                 $db->prepare("
                                     UPDATE saving_installments 
                                     SET paid_amount = paid_amount + :allocated, status = 'Partial' 
@@ -514,7 +556,23 @@ class CollectionController {
                                 ")->execute(['allocated' => $remainingAmount, 'id' => $instId]);
                                 $remainingAmount = 0;
                             }
+
+                            $allocs[] = [
+                                'due_date' => $inst['due_date'],
+                                'amount' => $allocatedForInst
+                            ];
                         }
+
+                        if ($remainingAmount > 0) {
+                            $allocs[] = [
+                                'due_date' => 'Advance',
+                                'amount' => $remainingAmount
+                            ];
+                        }
+
+                        // Update recalculated allocations in database
+                        $db->prepare("UPDATE saving_deposits SET installment_allocations = :alloc WHERE id = :id")
+                           ->execute(['alloc' => json_encode($allocs), 'id' => $dep['id']]);
                     }
 
                     // Update saving account balance
@@ -549,6 +607,368 @@ class CollectionController {
 
             $db->commit();
             Response::success(null, 'Collection reset successfully.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 400);
+        }
+    }
+
+    public static function update($db, $authUser, $receiptNo, $data) {
+        $db->beginTransaction();
+        try {
+            // 1. Get receipt from receipts table
+            $stmt = $db->prepare("SELECT * FROM receipts WHERE receipt_no = :receipt_no FOR UPDATE");
+            $stmt->execute(['receipt_no' => $receiptNo]);
+            $receipt = $stmt->fetch();
+            if (!$receipt) {
+                throw new Exception('Receipt not found.');
+            }
+
+            // Parse inputs
+            $newAmount = floatval($data['amount'] ?? 0);
+            $newPenalty = floatval($data['penalty'] ?? 0);
+            $newPaymentMode = $data['payment_mode'] ?? 'Cash';
+            $newRemarks = $data['remarks'] ?? '';
+            $newDate = $data['date'] ?? date('Y-m-d');
+
+            if ($newAmount <= 0) {
+                throw new Exception('Amount must be greater than 0.');
+            }
+
+            // 2. Based on type, update & recalculate
+            if ($receipt['receipt_type'] === 'loan_collection') {
+                // Fetch the loan collection
+                $stmtLC = $db->prepare("SELECT * FROM loan_collections WHERE id = :id FOR UPDATE");
+                $stmtLC->execute(['id' => $receipt['reference_id']]);
+                $loanColl = $stmtLC->fetch();
+                if ($loanColl) {
+                    $loanAccountId = $loanColl['loan_account_id'];
+
+                    // Check LIFO safety: Only the most recent collection can be updated
+                    $stmtNewer = $db->prepare("
+                        SELECT COUNT(*) FROM loan_collections 
+                        WHERE loan_account_id = :loan_id AND id > :id AND is_reversal = 0
+                    ");
+                    $stmtNewer->execute(['loan_id' => $loanAccountId, 'id' => $loanColl['id']]);
+                    if ($stmtNewer->fetchColumn() > 0) {
+                        throw new Exception('Cannot update this collection. Only the most recent collection can be updated first.');
+                    }
+
+                    // Get loan account ratios for split calculation
+                    $stmtAccInfo = $db->prepare("SELECT principal_amount, total_payable FROM loan_accounts WHERE id = :id");
+                    $stmtAccInfo->execute(['id' => $loanAccountId]);
+                    $loanAccInfo = $stmtAccInfo->fetch();
+                    $ratio = $loanAccInfo['total_payable'] > 0 ? ($loanAccInfo['principal_amount'] / $loanAccInfo['total_payable']) : 1;
+                    $newPrincipal = round($newAmount * $ratio, 2);
+                    $newInterest = round($newAmount - $newPrincipal, 2);
+
+                    // Update the loan collection row
+                    $db->prepare("
+                        UPDATE loan_collections 
+                        SET collected_amount = :amount, penalty_amount = :penalty, 
+                            payment_mode = :payment_mode, remarks = :remarks, collection_date = :date,
+                            principal_amount = :principal, interest_amount = :interest
+                        WHERE id = :id
+                    ")->execute([
+                        'amount' => $newAmount,
+                        'penalty' => $newPenalty,
+                        'payment_mode' => $newPaymentMode,
+                        'remarks' => $newRemarks,
+                        'date' => $newDate,
+                        'principal' => $newPrincipal,
+                        'interest' => $newInterest,
+                        'id' => $loanColl['id']
+                    ]);
+
+                    // Reset all installments to Pending
+                    $db->prepare("
+                        UPDATE loan_installments 
+                        SET paid_amount = 0.00, status = 'Pending', paid_at = NULL, penalty_amount = 0.00
+                        WHERE loan_account_id = :loan_id
+                    ")->execute(['loan_id' => $loanAccountId]);
+
+                    // Fetch all collections for this account (including the updated one)
+                    $stmtAllColl = $db->prepare("
+                        SELECT * FROM loan_collections 
+                        WHERE loan_account_id = :loan_id AND is_reversal = 0
+                        ORDER BY id ASC
+                    ");
+                    $stmtAllColl->execute(['loan_id' => $loanAccountId]);
+                    $allCollections = $stmtAllColl->fetchAll();
+
+                    $totalPaid = 0;
+                    $totalPenalty = 0;
+
+                    // Re-apply collections sequentially
+                    foreach ($allCollections as $coll) {
+                        $remainingAmount = $coll['collected_amount'];
+                        $penaltyAmount = $coll['penalty_amount'];
+                        $totalPaid += $remainingAmount;
+                        $totalPenalty += $penaltyAmount;
+
+                        // Fetch unpaid installments
+                        $stmtInsts = $db->prepare("
+                            SELECT * FROM loan_installments 
+                            WHERE loan_account_id = :loan_id AND status != 'Paid'
+                            ORDER BY installment_no ASC
+                        ");
+                        $stmtInsts->execute(['loan_id' => $loanAccountId]);
+                        $installments = $stmtInsts->fetchAll();
+
+                        $allocs = [];
+                        foreach ($installments as $inst) {
+                            if ($remainingAmount <= 0) break;
+
+                            $instId = $inst['id'];
+                            $totalDue = $inst['total_due'];
+                            $paidAmt = $inst['paid_amount'];
+                            $pending = $totalDue - $paidAmt;
+
+                            if ($remainingAmount >= $pending) {
+                                $allocatedForInst = $pending;
+                                $remainingAmount -= $pending;
+                                $db->prepare("
+                                    UPDATE loan_installments 
+                                    SET paid_amount = total_due, status = 'Paid', paid_at = NOW() 
+                                    WHERE id = :id
+                                ")->execute(['id' => $instId]);
+                            } else {
+                                $allocatedForInst = $remainingAmount;
+                                $db->prepare("
+                                    UPDATE loan_installments 
+                                    SET paid_amount = paid_amount + :allocated, status = 'Partial' 
+                                    WHERE id = :id
+                                ")->execute(['allocated' => $remainingAmount, 'id' => $instId]);
+                                $remainingAmount = 0;
+                            }
+
+                            $allocs[] = [
+                                'due_date' => $inst['due_date'],
+                                'amount' => $allocatedForInst
+                            ];
+                        }
+
+                        if ($remainingAmount > 0) {
+                            $allocs[] = [
+                                'due_date' => 'Advance',
+                                'amount' => $remainingAmount
+                            ];
+                        }
+
+                        // Update recalculated allocations in database
+                        $db->prepare("UPDATE loan_collections SET installment_allocations = :alloc WHERE id = :id")
+                           ->execute(['alloc' => json_encode($allocs), 'id' => $coll['id']]);
+
+                        // Apply penalty to the first unpaid installment if any
+                        if ($penaltyAmount > 0) {
+                            $stmtUnpaid = $db->prepare("
+                                SELECT id FROM loan_installments 
+                                WHERE loan_account_id = :loan_id AND status != 'Paid'
+                                ORDER BY installment_no ASC LIMIT 1
+                            ");
+                            $stmtUnpaid->execute(['loan_id' => $loanAccountId]);
+                            $firstUnpaidId = $stmtUnpaid->fetchColumn();
+                            if ($firstUnpaidId) {
+                                $db->prepare("
+                                    UPDATE loan_installments 
+                                    SET penalty_amount = penalty_amount + :penalty 
+                                    WHERE id = :id
+                                ")->execute(['penalty' => $penaltyAmount, 'id' => $firstUnpaidId]);
+                            }
+                        }
+                    }
+
+                    // Update loan account balance
+                    $stmtAccount = $db->prepare("SELECT principal_amount, total_payable, emi_amount FROM loan_accounts WHERE id = :id");
+                    $stmtAccount->execute(['id' => $loanAccountId]);
+                    $loanAcc = $stmtAccount->fetch();
+
+                    $newOutstanding = max(0, $loanAcc['total_payable'] - $totalPaid);
+                    $newStatus = ($newOutstanding <= 0) ? 'Closed' : 'Active';
+
+                    $stmtUpdateAccount = $db->prepare("
+                        UPDATE loan_accounts 
+                        SET total_paid = :total_paid, outstanding_amount = :outstanding_amount, 
+                            penalty_amount = :penalty_amount, account_status = :status,
+                            closed_at = :closed_at, closed_by = :closed_by
+                        WHERE id = :id
+                    ");
+                    $stmtUpdateAccount->execute([
+                        'total_paid' => $totalPaid,
+                        'outstanding_amount' => $newOutstanding,
+                        'penalty_amount' => $totalPenalty,
+                        'status' => $newStatus,
+                        'closed_at' => ($newStatus === 'Closed') ? date('Y-m-d H:i:s') : null,
+                        'closed_by' => ($newStatus === 'Closed') ? $authUser['id'] : null,
+                        'id' => $loanAccountId
+                    ]);
+                }
+            } elseif ($receipt['receipt_type'] === 'saving_deposit') {
+                // Fetch the saving deposit
+                $stmtSD = $db->prepare("SELECT * FROM saving_deposits WHERE id = :id FOR UPDATE");
+                $stmtSD->execute(['id' => $receipt['reference_id']]);
+                $savingDep = $stmtSD->fetch();
+                if ($savingDep) {
+                    $savingAccountId = $savingDep['saving_account_id'];
+
+                    // Check LIFO safety: Only the most recent deposit can be updated
+                    $stmtNewer = $db->prepare("
+                        SELECT COUNT(*) FROM saving_deposits 
+                        WHERE saving_account_id = :saving_id AND id > :id AND is_reversal = 0
+                    ");
+                    $stmtNewer->execute(['saving_id' => $savingAccountId, 'id' => $savingDep['id']]);
+                    if ($stmtNewer->fetchColumn() > 0) {
+                        throw new Exception('Cannot update this deposit. Only the most recent deposit can be updated first.');
+                    }
+
+                    // Update saving_deposits row
+                    $db->prepare("
+                        UPDATE saving_deposits 
+                        SET deposit_amount = :amount, payment_mode = :payment_mode, 
+                            remarks = :remarks, deposit_date = :date
+                        WHERE id = :id
+                    ")->execute([
+                        'amount' => $newAmount,
+                        'payment_mode' => $newPaymentMode,
+                        'remarks' => $newRemarks,
+                        'date' => $newDate,
+                        'id' => $savingDep['id']
+                    ]);
+
+                    // Reset all installments to Pending
+                    $db->prepare("
+                        UPDATE saving_installments 
+                        SET paid_amount = 0.00, status = 'Pending'
+                        WHERE saving_account_id = :saving_id
+                    ")->execute(['saving_id' => $savingAccountId]);
+
+                    // Fetch all deposits (including the updated one)
+                    $stmtAllDep = $db->prepare("
+                        SELECT * FROM saving_deposits 
+                        WHERE saving_account_id = :saving_id AND is_reversal = 0
+                        ORDER BY id ASC
+                    ");
+                    $stmtAllDep->execute(['saving_id' => $savingAccountId]);
+                    $allDeposits = $stmtAllDep->fetchAll();
+
+                    $totalDeposited = 0;
+                    foreach ($allDeposits as $dep) {
+                        $remainingAmount = $dep['deposit_amount'];
+                        $totalDeposited += $remainingAmount;
+
+                        // Fetch unpaid installments
+                        $stmtInsts = $db->prepare("
+                            SELECT * FROM saving_installments 
+                            WHERE saving_account_id = :saving_id AND status != 'Paid'
+                            ORDER BY installment_no ASC
+                        ");
+                        $stmtInsts->execute(['saving_id' => $savingAccountId]);
+                        $installments = $stmtInsts->fetchAll();
+
+                        $allocs = [];
+                        foreach ($installments as $inst) {
+                            if ($remainingAmount <= 0) break;
+
+                            $instId = $inst['id'];
+                            $totalDue = $inst['total_due'];
+                            $paidAmt = $inst['paid_amount'];
+                            $pending = $totalDue - $paidAmt;
+
+                            if ($remainingAmount >= $pending) {
+                                $allocatedForInst = $pending;
+                                $remainingAmount -= $pending;
+                                $db->prepare("
+                                    UPDATE saving_installments 
+                                    SET paid_amount = total_due, status = 'Paid' 
+                                    WHERE id = :id
+                                ")->execute(['id' => $instId]);
+                            } else {
+                                $allocatedForInst = $remainingAmount;
+                                $db->prepare("
+                                    UPDATE saving_installments 
+                                    SET paid_amount = paid_amount + :allocated, status = 'Partial' 
+                                    WHERE id = :id
+                                ")->execute(['allocated' => $remainingAmount, 'id' => $instId]);
+                                $remainingAmount = 0;
+                            }
+
+                            $allocs[] = [
+                                'due_date' => $inst['due_date'],
+                                'amount' => $allocatedForInst
+                            ];
+                        }
+
+                        if ($remainingAmount > 0) {
+                            $allocs[] = [
+                                'due_date' => 'Advance',
+                                'amount' => $remainingAmount
+                            ];
+                        }
+
+                        // Update recalculated allocations in database
+                        $db->prepare("UPDATE saving_deposits SET installment_allocations = :alloc WHERE id = :id")
+                           ->execute(['alloc' => json_encode($allocs), 'id' => $dep['id']]);
+                    }
+
+                    // Update saving account balance
+                    $stmtAccount = $db->prepare("SELECT target_amount FROM saving_accounts WHERE id = :id");
+                    $stmtAccount->execute(['id' => $savingAccountId]);
+                    $savingAcc = $stmtAccount->fetch();
+
+                    $newOutstanding = max(0, $savingAcc['target_amount'] - $totalDeposited);
+
+                    $stmtUpdateAccount = $db->prepare("
+                        UPDATE saving_accounts 
+                        SET total_deposited = :total_deposited, balance = :total_deposited, outstanding_amount = :outstanding_amount
+                        WHERE id = :id
+                    ");
+                    $stmtUpdateAccount->execute([
+                        'total_deposited' => $totalDeposited,
+                        'balance' => $totalDeposited,
+                        'outstanding_amount' => $newOutstanding,
+                        'id' => $savingAccountId
+                    ]);
+                }
+            }
+
+            // 3. Update central receipts table
+            $db->prepare("
+                UPDATE receipts 
+                SET amount = :amount, payment_mode = :payment_mode, created_at = :date
+                WHERE receipt_no = :receipt_no
+            ")->execute([
+                'amount' => $newAmount + $newPenalty,
+                'payment_mode' => $newPaymentMode,
+                'date' => $newDate . ' ' . date('H:i:s'),
+                'receipt_no' => $receiptNo
+            ]);
+
+            // 4. Update cash book entry
+            $stmtTx = $db->prepare("SELECT id, branch_id FROM cash_book WHERE reference_no = :receipt_no");
+            $stmtTx->execute(['receipt_no' => $receiptNo]);
+            $cbTx = $stmtTx->fetch();
+            if ($cbTx) {
+                $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id AND id < :id");
+                $stmtBal->execute(['branch_id' => $cbTx['branch_id'], 'id' => $cbTx['id']]);
+                $balBefore = (float)$stmtBal->fetchColumn();
+                $newBalAfter = $balBefore + $newAmount + $newPenalty;
+                
+                $db->prepare("
+                    UPDATE cash_book 
+                    SET amount = :amount, entry_date = :date, balance_after = :bal_after,
+                        description = :description
+                    WHERE id = :id
+                ")->execute([
+                    'amount' => $newAmount + $newPenalty,
+                    'date' => $newDate,
+                    'bal_after' => $newBalAfter,
+                    'description' => $receipt['receipt_type'] === 'loan_collection' ? "Received EMI payment for Loan: " . $receipt['account_no'] : "Deposit to Saving: " . $receipt['account_no'],
+                    'id' => $cbTx['id']
+                ]);
+            }
+
+            $db->commit();
+            Response::success(null, 'Collection updated successfully.');
         } catch (Exception $e) {
             $db->rollBack();
             Response::error($e->getMessage(), 400);

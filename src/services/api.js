@@ -186,7 +186,8 @@ export const collectionApi = {
   collectSaving: (data) => api.post('/collections/saving', data),
   history: (params) => api.get('/collections/history', { params }),
   receipt: (receiptNo) => api.get(`/receipts/${receiptNo}`),
-  deleteCollection: (receiptNo) => api.delete(`/collections/receipts/${receiptNo}`)
+  deleteCollection: (receiptNo) => api.delete(`/collections/receipts/${receiptNo}`),
+  updateCollection: (receiptNo, data) => api.put(`/collections/receipts/${receiptNo}`, data)
 };
 
 // ============================================================

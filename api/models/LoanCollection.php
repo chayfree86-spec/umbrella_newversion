@@ -45,6 +45,7 @@ class LoanCollection {
             $allocatedPrincipal = 0;
             $allocatedInterest = 0;
             $allocatedPenalty = 0;
+            $allocations = [];
 
             // Apply collected amount to installments sequentially (FIFO)
             foreach ($installments as $inst) {
@@ -93,6 +94,18 @@ class LoanCollection {
                     ");
                     $stmtUpdate->execute(['allocated' => $allocatedForInst, 'id' => $instId]);
                 }
+
+                $allocations[] = [
+                    'due_date' => $inst['due_date'],
+                    'amount' => $allocatedForInst
+                ];
+            }
+
+            if ($remainingAmount > 0) {
+                $allocations[] = [
+                    'due_date' => 'Advance',
+                    'amount' => $remainingAmount
+                ];
             }
 
             // Record penalty if paid
@@ -114,11 +127,11 @@ class LoanCollection {
                 INSERT INTO loan_collections (
                     uuid, receipt_no, loan_account_id, customer_id, branch_id, area_id, agent_id,
                     collection_date, collected_amount, principal_amount, interest_amount, penalty_amount,
-                    payment_mode, remarks, collected_by, is_advance
+                    payment_mode, remarks, collected_by, is_advance, installment_allocations
                 ) VALUES (
                     :uuid, :receipt_no, :loan_account_id, :customer_id, :branch_id, :area_id, :agent_id,
                     :collection_date, :collected_amount, :principal_amount, :interest_amount, :penalty_amount,
-                    :payment_mode, :remarks, :collected_by, :is_advance
+                    :payment_mode, :remarks, :collected_by, :is_advance, :installment_allocations
                 )
             ");
             
@@ -139,7 +152,8 @@ class LoanCollection {
                 'payment_mode' => $paymentMode,
                 'remarks' => $remarks,
                 'collected_by' => $collectedBy,
-                'is_advance' => ($remainingAmount > 0) ? 1 : 0
+                'is_advance' => ($remainingAmount > 0) ? 1 : 0,
+                'installment_allocations' => json_encode($allocations)
             ]);
             $collectionId = $db->lastInsertId();
 

@@ -103,9 +103,20 @@ export default function AccountDetails() {
   const [collectPrevDues, setCollectPrevDues] = useState(0);
   const [collectTodayDue, setCollectTodayDue] = useState(0);
   const [collectTotalDue, setCollectTotalDue] = useState(0);
-  // Month Selection States for Payment Calendar
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [hoveredReceipt, setHoveredReceipt] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateForm, setUpdateForm] = useState({
+    refNo: '',
+    amount: '',
+    penalty: '0',
+    payment_mode: 'Cash',
+    date: '',
+    remarks: ''
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     fetchAccount();
@@ -242,6 +253,43 @@ export default function AccountDetails() {
       .catch(err => alert(err.message || 'Reset failed.'));
   };
 
+  const handleOpenUpdateModal = (row) => {
+    setUpdateForm({
+      refNo: row.refNo,
+      amount: row.amt.toString(),
+      penalty: row.fine.toString(),
+      payment_mode: row.paymentMode || 'Cash',
+      date: row.date,
+      remarks: row.remarks || ''
+    });
+    setIsUpdateModalOpen(true);
+  };
+
+  const handleUpdateCollection = (e) => {
+    e.preventDefault();
+    if (!updateForm.amount || parseFloat(updateForm.amount) <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+    
+    setIsUpdating(true);
+    collectionApi.updateCollection(updateForm.refNo, {
+      amount: parseFloat(updateForm.amount),
+      penalty: parseFloat(updateForm.penalty || 0),
+      payment_mode: updateForm.payment_mode,
+      date: updateForm.date,
+      remarks: updateForm.remarks
+    })
+      .then(() => {
+        alert("Collection updated successfully.");
+        setIsUpdateModalOpen(false);
+        fetchAccount();
+        fetchStatement();
+      })
+      .catch(err => alert(err.message || 'Update failed.'))
+      .finally(() => setIsUpdating(false));
+  };
+
   const handleClearLedger = () => {
     if (!window.confirm("Are you sure you want to clear the entire payment ledger for this account? All collected collections/deposits will be permanently deleted and all installments will be reset to Pending. This action cannot be undone.")) return;
     const api = isLoan ? loanApi : savingApi;
@@ -287,11 +335,19 @@ export default function AccountDetails() {
   };
 
   const handleDayClick = (dayObj) => {
-    setSelectedDayObj(dayObj);
-    
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const clickedDateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+
+    if (clickedDateStr > todayStr) {
+      alert("Collections cannot be recorded on a future date. To make an advance payment, record it on the current or past date.");
+      return;
+    }
+
     const installments = statementData.installments || [];
     const emiAmt = Number(account.emi_amount || account.emiAmt || account.installment_amount || 0);
-    const clickedDateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+
+    setSelectedDayObj(dayObj);
     
     let prevDues = 0;
     let todayDue = 0;
@@ -394,54 +450,399 @@ export default function AccountDetails() {
   };
 
   const handleWhatsAppShare = () => {
-    const txList = statementData.transactions || [];
-    const collected = Number(account.total_paid || account.totalPaid || 0);
-    const remaining = isLoan ? Number(account.outstanding_amount || account.outstanding || 0) : 0;
+    const txList = account.ledger || [];
+    const customerName = account.customer?.name || 'N/A';
+    const customerPhone = account.customer?.phone || 'N/A';
+    const accNumber = account.accNo;
+    const accType = account.type;
+    const status = account.status;
+    const emi = account.emiAmt;
+    const totalPaid = account.totalPaid;
+    const outstanding = account.outstanding;
+    const principal = account.approvedAmt;
+    const interest = account.interestRate;
+    const tenure = account.tenureDays;
+
+    let text = `*Umbrella Finance - Financial Statement Summary*\n\n`;
+    text += `*Customer Details:*\n`;
+    text += `Name: ${customerName}\n`;
+    text += `Phone: ${customerPhone}\n\n`;
     
-    let text = `*Umbrella Finance - Payment Ledger Summary*\n\n`;
-    text += `*Customer:* ${account.customer_name || (account.customer && account.customer.name) || 'N/A'}\n`;
-    text += `*Account No:* ${account.loan_account_no || account.saving_account_no || accNo}\n`;
-    text += `*Status:* ${account.account_status || account.status}\n`;
-    text += `*Total Paid:* ₹${collected.toLocaleString('en-IN')}\n`;
-    text += `*Outstanding/Remaining:* ₹${remaining.toLocaleString('en-IN')}\n\n`;
-    text += `*Recent Payments:*\n`;
-    
-    txList.slice(0, 3).forEach(row => {
-      text += `- ${row.transaction_date}: ₹${row.amount} (${row.transaction_type})\n`;
-    });
-    
-    text += `\nThank you for banking with Umbrella Finance!`;
-    
+    text += `*Account Summary:*\n`;
+    text += `Account No: ${accNumber}\n`;
+    text += `Type: ${accType}\n`;
+    text += `Status: ${status}\n`;
+    text += `Plan Rate: ${interest}\n`;
+    text += `Tenure: ${tenure} Days\n`;
+    text += `Installment / EMI: ₹${emi.toLocaleString('en-IN')}\n`;
+    if (isLoan) {
+      text += `Principal Amount: ₹${principal.toLocaleString('en-IN')}\n`;
+      text += `Total Paid: ₹${totalPaid.toLocaleString('en-IN')}\n`;
+      text += `Outstanding Balance: ₹${outstanding.toLocaleString('en-IN')}\n`;
+    } else {
+      text += `Total Deposited: ₹${totalPaid.toLocaleString('en-IN')}\n`;
+    }
+    text += `\n*Recent Transactions:*\n`;
+
+    if (txList.length === 0) {
+      text += `No transactions recorded yet.\n`;
+    } else {
+      txList.slice(0, 5).forEach((row, i) => {
+        text += `${i + 1}. ${row.date} - ${row.refNo}\n`;
+        text += `   Amt: ₹${row.amt.toLocaleString('en-IN')} | Fine: ₹${row.fine.toLocaleString('en-IN')}\n`;
+        text += `   Mode: ${row.paymentMode || 'Cash'} | Collector: ${row.collector || 'N/A'}\n`;
+      });
+    }
+
+    text += `\nThank you for banking with Umbrella Finance!\n`;
+    text += `_For any queries, please contact your branch manager._`;
+
     const encoded = encodeURIComponent(text);
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   };
 
   const handleExcelExport = () => {
-    const txList = statementData.transactions || [];
-    const headers = ['Date', 'Reference No', 'Payment Type', 'Amount Paid (INR)', 'Late Fine (INR)', 'Collected By'];
-    const rows = txList.map(row => [
-      row.transaction_date,
-      row.receipt_no || row.reference_no || '',
-      row.transaction_type,
-      row.amount,
-      row.penalty_amount || 0,
-      row.agent_name || row.collected_by || ''
-    ]);
+    const txList = account.ledger || [];
+    const customerName = account.customer?.name || 'N/A';
+    const customerPhone = account.customer?.phone || 'N/A';
+    const accNumber = account.accNo;
+    const accType = account.type;
+    const status = account.status;
+    const emi = account.emiAmt;
+    const totalPaid = account.totalPaid;
+    const outstanding = account.outstanding;
+    const principal = account.approvedAmt;
+    const interest = account.interestRate;
+    const tenure = account.tenureDays;
+
+    const csvRows = [];
+    csvRows.push(['UMBRELLA FINANCE - FINANCIAL STATEMENT']);
+    csvRows.push(['Account Statement for: ' + customerName]);
+    csvRows.push([]);
     
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-      
-    const encodedUri = encodeURI(csvContent);
+    csvRows.push(['Customer Name', customerName]);
+    csvRows.push(['Phone Number', customerPhone]);
+    csvRows.push(['Account Number', accNumber]);
+    csvRows.push(['Account Type', accType]);
+    csvRows.push(['Account Status', status]);
+    csvRows.push(['Interest Rate / Plan', interest]);
+    csvRows.push(['Tenure', tenure + ' Days']);
+    csvRows.push(['Installment Amount (INR)', emi]);
+    if (isLoan) {
+      csvRows.push(['Principal Amount (INR)', principal]);
+      csvRows.push(['Total Paid (INR)', totalPaid]);
+      csvRows.push(['Outstanding Balance (INR)', outstanding]);
+    } else {
+      csvRows.push(['Total Deposited (INR)', totalPaid]);
+    }
+    csvRows.push([]);
+    csvRows.push([]);
+
+    csvRows.push(['Date', 'Reference No', 'Payment Type', 'Amount Paid (INR)', 'Late Fine / Charges (INR)', 'Payment Mode', 'Collector', 'Remarks']);
+
+    txList.forEach(row => {
+      csvRows.push([
+        row.date,
+        row.refNo,
+        row.type,
+        row.amt,
+        row.fine,
+        row.paymentMode || 'Cash',
+        row.collector || '',
+        row.remarks || ''
+      ]);
+    });
+
+    const escapeCsvValue = (val) => {
+      if (val === null || val === undefined) return '';
+      const stringVal = String(val);
+      if (stringVal.includes(',') || stringVal.includes('"') || stringVal.includes('\n')) {
+        return '"' + stringVal.replace(/"/g, '""') + '"';
+      }
+      return stringVal;
+    };
+
+    const csvContent = csvRows.map(row => row.map(escapeCsvValue).join(',')).join('\n');
+    
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${accNo}_ledger.csv`);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Statement_${accNumber}_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handlePrint = () => {
-    window.print();
+    const customerName = account.customer?.name || 'N/A';
+    const customerPhone = account.customer?.phone || 'N/A';
+    const accNumber = account.accNo;
+    const accType = account.type;
+    const status = account.status;
+    const emi = account.emiAmt;
+    const totalPaid = account.totalPaid;
+    const outstanding = account.outstanding;
+    const principal = account.approvedAmt;
+    const interest = account.interestRate;
+    const tenure = account.tenureDays;
+    const disbursalDate = account.disbursalDate;
+    const txList = account.ledger || [];
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Please allow popups to print the statement.");
+      return;
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>Account Statement - ${accNumber}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #1e293b;
+              margin: 0;
+              padding: 40px;
+              font-size: 12px;
+              line-height: 1.5;
+            }
+            .header {
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+              font-weight: 800;
+              color: #0f172a;
+              letter-spacing: -0.5px;
+            }
+            .header p {
+              margin: 4px 0 0 0;
+              font-size: 10px;
+              font-weight: 600;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .meta-grid {
+              display: grid;
+              grid-template-cols: repeat(2, 1fr);
+              gap: 20px;
+              margin-bottom: 30px;
+            }
+            .meta-section {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              padding: 16px;
+            }
+            .meta-section h3 {
+              margin: 0 0 12px 0;
+              font-size: 11px;
+              font-weight: 800;
+              text-transform: uppercase;
+              color: #475569;
+              letter-spacing: 0.5px;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 6px;
+            }
+            .meta-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            }
+            .meta-row:last-child {
+              margin-bottom: 0;
+            }
+            .meta-label {
+              font-weight: 600;
+              color: #64748b;
+            }
+            .meta-value {
+              font-weight: 700;
+              color: #0f172a;
+            }
+            .ledger-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+            .ledger-table th {
+              background: #f8fafc;
+              border-bottom: 2px solid #e2e8f0;
+              font-weight: 800;
+              text-transform: uppercase;
+              font-size: 9px;
+              color: #475569;
+              letter-spacing: 0.5px;
+              text-align: left;
+              padding: 10px 12px;
+            }
+            .ledger-table td {
+              border-bottom: 1px solid #e2e8f0;
+              padding: 10px 12px;
+              font-size: 11px;
+            }
+            .ledger-table tr:hover {
+              background: #f8fafc;
+            }
+            .text-right {
+              text-align: right !important;
+            }
+            .amount-positive {
+              color: #16a34a;
+              font-weight: 700;
+            }
+            .amount-negative {
+              color: #dc2626;
+              font-weight: 700;
+            }
+            .footer {
+              margin-top: 50px;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 15px;
+              text-align: center;
+              font-size: 9px;
+              color: #94a3b8;
+              font-weight: 600;
+            }
+            @media print {
+              body {
+                padding: 0;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>UMBRELLA FINANCE</h1>
+              <p>Chhote Kadam, Bade Sapne</p>
+            </div>
+            <div style="text-align: right;">
+              <h2 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">ACCOUNT STATEMENT</h2>
+              <p>Statement Date: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            </div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-section">
+              <h3>Customer Details</h3>
+              <div class="meta-row">
+                <span class="meta-label">Customer Name:</span>
+                <span class="meta-value">${customerName}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Phone Number:</span>
+                <span class="meta-value">${customerPhone}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Account No:</span>
+                <span class="meta-value">${accNumber}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Disbursal Date:</span>
+                <span class="meta-value">${disbursalDate !== 'N/A' ? new Date(disbursalDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}</span>
+              </div>
+            </div>
+
+            <div class="meta-section">
+              <h3>Financial Summary</h3>
+              <div class="meta-row">
+                <span class="meta-label">Account Status:</span>
+                <span class="meta-value" style="color: ${status === 'Active' ? '#16a34a' : '#dc2626'}">${status}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Interest Rate / Plan:</span>
+                <span class="meta-value">${interest} (${accType})</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">EMI / Deposit Amount:</span>
+                <span class="meta-value">₹${Number(emi).toLocaleString('en-IN')}</span>
+              </div>
+              ${accType === 'Loan' ? `
+                <div class="meta-row">
+                  <span class="meta-label">Principal Amount:</span>
+                  <span class="meta-value">₹${Number(principal).toLocaleString('en-IN')}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Total Paid to Date:</span>
+                  <span class="meta-value" style="color: #16a34a;">₹${Number(totalPaid).toLocaleString('en-IN')}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Outstanding Balance:</span>
+                  <span class="meta-value" style="color: #dc2626;">₹${Number(outstanding).toLocaleString('en-IN')}</span>
+                </div>
+              ` : `
+                <div class="meta-row">
+                  <span class="meta-label">Total Deposited:</span>
+                  <span class="meta-value" style="color: #16a34a;">₹${Number(totalPaid).toLocaleString('en-IN')}</span>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <h2 style="font-size: 13px; font-weight: 800; text-transform: uppercase; color: #0f172a; margin: 30px 0 10px 0; border-bottom: 1px solid #0f172a; padding-bottom: 6px;">
+            Transaction History
+          </h2>
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Reference No</th>
+                <th>Payment Type</th>
+                <th>Payment Mode</th>
+                <th>Collector</th>
+                <th class="text-right">Late Fine (₹)</th>
+                <th class="text-right">Amount Paid (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${txList.length === 0 ? `
+                <tr>
+                  <td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No transaction records found.</td>
+                </tr>
+              ` : txList.map(row => `
+                <tr>
+                  <td>${new Date(row.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                  <td style="font-weight: 700;">${row.refNo}</td>
+                  <td>${row.type}</td>
+                  <td>${row.paymentMode || 'Cash'}</td>
+                  <td>${row.collector || 'N/A'}</td>
+                  <td class="text-right amount-negative">${Number(row.fine) > 0 ? '₹' + Number(row.fine).toLocaleString('en-IN') : '₹0'}</td>
+                  <td class="text-right amount-positive">₹${Number(row.amt).toLocaleString('en-IN')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            This is a computer-generated account statement and does not require a physical signature.<br>
+            Umbrella Finance - Head Office: Umbrella Plaza, New Delhi.
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const accStatus = account.status;
@@ -605,7 +1006,7 @@ export default function AccountDetails() {
                 </button>
               )}
             </>
-          ) : accStatus === 'Account Closed' ? (
+          ) : (accStatus === 'Closed' || accStatus === 'Account Closed') ? (
             <span className="px-4 py-2 bg-slate-100 text-slate-500 text-xs font-extrabold rounded-xl border border-slate-200 flex items-center gap-1.5 select-none">
               <span className="material-symbols-rounded text-sm">lock_clock</span>
               Account Settled & Closed
@@ -808,6 +1209,7 @@ export default function AccountDetails() {
         const installmentsList = statementData.installments || [];
         const transactionsList = statementData.transactions || [];
 
+        const isClosed = account.account_status === 'Closed';
         const dateMap = {};
         installmentsList.forEach(inst => {
           if (!inst.due_date) return;
@@ -815,11 +1217,17 @@ export default function AccountDetails() {
           const totalDue = Number(inst.total_due || 0);
           const paid = Number(inst.paid_amount || 0);
           let status;
-          if (inst.status === 'Paid') status = 'Paid';
-          else if (paid > 0) status = 'Partial';
-          else if (key < todayStr) status = 'Unpaid';
-          else status = 'Schedule';
-          dateMap[key] = { status, amt: status === 'Paid' || status === 'Partial' ? paid : totalDue, total_due: totalDue, paid };
+          if (inst.status === 'Paid') {
+            status = (key > todayStr && !isClosed) ? 'Advance' : 'Paid';
+          } else if (paid > 0) {
+            status = (key > todayStr && !isClosed) ? 'Advance' : 'Partial';
+          } else if (key < todayStr) {
+            status = 'Unpaid';
+          } else {
+            status = 'Schedule';
+          }
+          const displayAmt = (status === 'Paid' || status === 'Partial' || status === 'Advance') ? paid : totalDue;
+          dateMap[key] = { status, amt: displayAmt, total_due: totalDue, paid };
         });
         // Advance payments: transactions on dates that have no installment scheduled
         transactionsList.forEach(t => {
@@ -827,7 +1235,7 @@ export default function AccountDetails() {
           if (!td) return;
           const key = td.slice(0, 10);
           if (!dateMap[key]) {
-            dateMap[key] = { status: 'Advance', amt: Number(t.amt || t.amount || 0) };
+            dateMap[key] = { status: isClosed ? 'Paid' : 'Advance', amt: Number(t.amt || t.amount || 0) };
           }
         });
 
@@ -1047,6 +1455,208 @@ export default function AccountDetails() {
           </div>
         );
       })()}
+
+      {/* Detailed Transaction Ledger (Full Width) */}
+      <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <h3 className="text-sm font-extrabold text-[#0F172A]">Detailed Transaction Ledger</h3>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* WhatsApp Share Button */}
+            <button
+              onClick={handleWhatsAppShare}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
+            >
+              <svg className="w-3.5 h-3.5 fill-[#25D366]" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+              </svg>
+              WhatsApp Share
+            </button>
+            {/* Excel Export Button */}
+            <button
+              onClick={handleExcelExport}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
+            >
+              <span className="material-symbols-rounded text-sm text-[#107C41] select-none font-bold">download</span>
+              Excel Export
+            </button>
+            {/* Print Button */}
+            <button
+              onClick={handlePrint}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
+            >
+              <span className="material-symbols-rounded text-sm text-slate-500 select-none font-bold">print</span>
+              Print
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto -mx-6">
+          <table className="min-w-full divide-y divide-[#E2E8F0]">
+            <thead className="bg-[#F8FAFC]">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Date</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Reference No</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Payment Type</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Amount Paid</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Late Fine / Charges</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected By</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#0F172A]">
+              {(account.ledger || []).map((row, index) => {
+                let allocationText = '';
+                let parsedAllocations = [];
+                if (row.allocations) {
+                  try {
+                    const list = typeof row.allocations === 'string' ? JSON.parse(row.allocations) : row.allocations;
+                    if (Array.isArray(list) && list.length > 0) {
+                      parsedAllocations = list;
+                      const regularAllocs = list.filter(a => a.due_date !== 'Advance');
+                      const advanceAllocs = list.filter(a => a.due_date === 'Advance');
+                      
+                      const dates = regularAllocs.map(a => a.due_date).sort();
+                      if (dates.length > 0) {
+                        const minDate = new Date(dates[0]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const maxDate = new Date(dates[dates.length - 1]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                        
+                        if (dates.length === 1) {
+                          allocationText = `Covered: ${minDate}`;
+                        } else {
+                          allocationText = `Covered: ${minDate} - ${maxDate} (${dates.length} Days)`;
+                        }
+                      } else if (advanceAllocs.length > 0) {
+                        allocationText = 'Covered: Advance Payment';
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Failed to parse allocations", e);
+                  }
+                }
+
+                return (
+                  <tr key={row.id || row.refNo || Math.random()} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.date}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5 font-bold">{row.refNo}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5">
+                      <div className="font-bold text-[#0F172A] flex items-center gap-1.5">
+                        {row.type}
+                        {Number(row.isAdvance) === 1 && (
+                          <span className="bg-[#7C3AED]/10 text-[#7C3AED] text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase select-none">
+                            Advance
+                          </span>
+                        )}
+                      </div>
+                      {allocationText && (
+                        <div 
+                          className="inline-flex items-center"
+                          onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTooltipPos({
+                              top: rect.bottom,
+                              left: rect.left + rect.width / 2
+                            });
+                            setHoveredReceipt(row.refNo);
+                          }}
+                          onMouseLeave={() => setHoveredReceipt(null)}
+                        >
+                          <div 
+                            className="text-[10px] text-[#64748B] mt-0.5 cursor-help hover:text-[#1E3A8A] transition-colors flex items-center gap-0.5 select-none"
+                          >
+                            <span className="material-symbols-rounded text-xs select-none">info</span>
+                            {allocationText}
+                          </div>
+                          
+                          {/* Custom UI Themed Tooltip (Light Theme - Viewport Fixed to Prevent Clipping) */}
+                          {hoveredReceipt === row.refNo && (
+                            <div 
+                              className="fixed z-[9999] pt-2 w-52 pointer-events-auto"
+                              style={{
+                                top: `${tooltipPos.top}px`,
+                                left: `${tooltipPos.left}px`,
+                                transform: 'translateX(-50%)'
+                              }}
+                            >
+                              <div className="bg-white text-slate-800 text-[11px] rounded-xl shadow-xl border border-slate-200 p-3 select-none text-left relative">
+                                <div className="font-extrabold text-slate-400 mb-2 border-b border-slate-100 pb-1.5 text-[9px] uppercase tracking-wider">
+                                  Due Date Breakdowns
+                                </div>
+                                <div className="space-y-1.5 font-semibold max-h-48 overflow-y-auto pr-1">
+                                  {parsedAllocations.map((a, i) => (
+                                    <div key={i} className="flex justify-between items-center gap-3">
+                                      <span className="text-slate-600">
+                                        {a.due_date === 'Advance' 
+                                          ? 'Advance Payment' 
+                                          : new Date(a.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                      </span>
+                                      <span className="font-extrabold text-[#0F172A]">
+                                        ₹{Number(a.amount).toLocaleString('en-IN')}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                                {/* Tiny Arrow pointing up */}
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-white"></div>
+                                {/* Tiny Arrow Shadow Border */}
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-[3px] border-4 border-transparent border-b-slate-200 -z-10"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#16A34A] font-bold">₹{row.amt.toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#E11D48]">₹{row.fine.toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.collector}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5">
+                      {(userRole === 'Super Admin' || userRole === 'Admin') && (
+                        index === 0 ? (
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleOpenUpdateModal(row)}
+                              className="text-[#3B82F6] hover:text-[#2563EB] font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              title="Update this collection's details"
+                            >
+                              <span className="material-symbols-rounded text-sm">edit</span>
+                              Update
+                            </button>
+                            <button
+                              onClick={() => handleResetCollection(row.refNo)}
+                              className="text-[#E11D48] hover:text-[#BE123C] font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              title="Delete/Reset this collection"
+                            >
+                              <span className="material-symbols-rounded text-sm">delete</span>
+                              Reset
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <button
+                              disabled
+                              className="text-slate-400 font-bold flex items-center gap-1 cursor-not-allowed select-none opacity-60"
+                              title="Only the most recent transaction can be updated to prevent breaking the ledger order."
+                            >
+                              <span className="material-symbols-rounded text-sm">lock</span>
+                              Update
+                            </button>
+                            <button
+                              disabled
+                              className="text-slate-400 font-bold flex items-center gap-1 cursor-not-allowed select-none opacity-60"
+                              title="Only the most recent transaction can be reset to prevent breaking the ledger order."
+                            >
+                              <span className="material-symbols-rounded text-sm">lock</span>
+                              Reset
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Official Documents & Passbook Card (Horizontal below Calendar) */}
       <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
@@ -1513,80 +2123,6 @@ export default function AccountDetails() {
               <span>Account is currently {account.status.toUpperCase()}</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Detailed Transaction Ledger (Full Width) */}
-      <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <h3 className="text-sm font-extrabold text-[#0F172A]">Detailed Transaction Ledger</h3>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {/* WhatsApp Share Button */}
-            <button
-              onClick={handleWhatsAppShare}
-              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
-            >
-              <svg className="w-3.5 h-3.5 fill-[#25D366]" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
-              </svg>
-              WhatsApp Share
-            </button>
-            {/* Excel Export Button */}
-            <button
-              onClick={handleExcelExport}
-              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
-            >
-              <span className="material-symbols-rounded text-sm text-[#107C41] select-none font-bold">download</span>
-              Excel Export
-            </button>
-            {/* Print Button */}
-            <button
-              onClick={handlePrint}
-              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
-            >
-              <span className="material-symbols-rounded text-sm text-slate-500 select-none font-bold">print</span>
-              Print
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto -mx-6">
-          <table className="min-w-full divide-y divide-[#E2E8F0]">
-            <thead className="bg-[#F8FAFC]">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Reference No</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Payment Type</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Amount Paid</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Late Fine / Charges</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected By</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#0F172A]">
-              {(account.ledger || []).map((row) => (
-                <tr key={row.id || row.refNo || Math.random()} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.date}</td>
-                  <td className="whitespace-nowrap px-6 py-3.5 font-bold">{row.refNo}</td>
-                  <td className="whitespace-nowrap px-6 py-3.5">{row.type}</td>
-                  <td className="whitespace-nowrap px-6 py-3.5 text-[#16A34A] font-bold">₹{row.amt.toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-6 py-3.5 text-[#E11D48]">₹{row.fine.toLocaleString()}</td>
-                  <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.collector}</td>
-                  <td className="whitespace-nowrap px-6 py-3.5">
-                    {(userRole === 'Super Admin' || userRole === 'Admin') && (
-                      <button
-                        onClick={() => handleResetCollection(row.refNo)}
-                        className="text-[#E11D48] hover:text-[#BE123C] font-bold hover:underline cursor-pointer flex items-center gap-1"
-                        title="Delete/Reset this collection"
-                      >
-                        <span className="material-symbols-rounded text-sm">delete</span>
-                        Reset
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -2077,6 +2613,140 @@ export default function AccountDetails() {
             </div>
           </div>
         </div>
+      </div>
+    )}
+
+    {/* Update Transaction Modal */}
+    {isUpdateModalOpen && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setIsUpdateModalOpen(false)}>
+        <form 
+          onSubmit={handleUpdateCollection}
+          className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl w-full max-w-md p-5 space-y-4 animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-rounded text-base text-[#3B82F6] select-none">edit_document</span>
+              <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
+                Update Transaction Details
+              </h3>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setIsUpdateModalOpen(false)}
+              className="text-[#64748B] hover:text-[#0F172A] p-1 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-sm select-none">close</span>
+            </button>
+          </div>
+
+          <div className="space-y-3.5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Receipt No</label>
+              <input 
+                type="text"
+                disabled
+                value={updateForm.refNo}
+                className="w-full h-11 px-3.5 bg-slate-50 border border-[#E2E8F0] rounded-xl text-xs font-semibold text-[#64748B] cursor-not-allowed select-none outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Amount Paid (₹)</label>
+                <input 
+                  type="number"
+                  required
+                  min="1"
+                  step="0.01"
+                  value={updateForm.amount}
+                  onChange={(e) => setUpdateForm({ ...updateForm, amount: e.target.value })}
+                  className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                />
+              </div>
+
+              {isLoan ? (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Late Fine (₹)</label>
+                  <input 
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={updateForm.penalty}
+                    onChange={(e) => setUpdateForm({ ...updateForm, penalty: e.target.value })}
+                    className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Charges (₹)</label>
+                  <input 
+                    type="number"
+                    disabled
+                    value="0"
+                    className="w-full h-11 px-3.5 bg-slate-50 border border-[#E2E8F0] rounded-xl text-xs font-semibold text-[#64748B] cursor-not-allowed select-none outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Payment Mode</label>
+                <select 
+                  value={updateForm.payment_mode}
+                  onChange={(e) => setUpdateForm({ ...updateForm, payment_mode: e.target.value })}
+                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Online">Online</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collection Date</label>
+                <input 
+                  type="date"
+                  required
+                  value={updateForm.date}
+                  onChange={(e) => setUpdateForm({ ...updateForm, date: e.target.value })}
+                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Remarks</label>
+              <textarea 
+                rows="2"
+                value={updateForm.remarks}
+                onChange={(e) => setUpdateForm({ ...updateForm, remarks: e.target.value })}
+                className="w-full p-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all resize-none"
+                placeholder="Add optional remarks..."
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2 border-t border-slate-100">
+              <button 
+                type="button"
+                onClick={() => setIsUpdateModalOpen(false)}
+                className="flex-1 h-11 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center flex items-center justify-center"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                disabled={isUpdating}
+                className="flex-1 h-11 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     )}
     </div>

@@ -5,57 +5,76 @@
 class Report {
 
     public static function dailyCollection($db, $startDate, $endDate, $branchId = null, $agentId = null) {
-        $where = ["lc.is_reversal = 0"];
-        $bind = [];
-
+        $whereL = ["lc.is_reversal = 0"];
+        $bindL = [];
         if ($startDate) {
-            $where[] = "lc.collection_date >= :start_date";
-            $bind['start_date'] = $startDate;
+            $whereL[] = "lc.collection_date >= :start_date";
+            $bindL['start_date'] = $startDate;
         }
         if ($endDate) {
-            $where[] = "lc.collection_date <= :end_date";
-            $bind['end_date'] = $endDate;
+            $whereL[] = "lc.collection_date <= :end_date";
+            $bindL['end_date'] = $endDate;
         }
         if ($branchId) {
-            $where[] = "lc.branch_id = :branch_id";
-            $bind['branch_id'] = $branchId;
+            $whereL[] = "lc.branch_id = :branch_id";
+            $bindL['branch_id'] = $branchId;
         }
         if ($agentId) {
-            $where[] = "lc.agent_id = :agent_id";
-            $bind['agent_id'] = $agentId;
+            $whereL[] = "lc.agent_id = :agent_id";
+            $bindL['agent_id'] = $agentId;
         }
-
-        $whereSql = implode(" AND ", $where);
-
-        $stmt = $db->prepare("
+        $whereSqlL = implode(" AND ", $whereL);
+        $stmtL = $db->prepare("
             SELECT lc.collection_date as Date, la.loan_account_no as AccountNo, c.full_name as CustomerName,
-            lc.collected_amount as AmountCollected, ag.name as AgentName, lc.payment_mode as PaymentMode
+            lc.collected_amount as AmountCollected, ag.name as AgentName, lc.payment_mode as PaymentMode,
+            lc.receipt_no as ReceiptNo, lc.penalty_amount as PenaltyAmount, 'Loan' as type
             FROM loan_collections lc
             JOIN customers c ON lc.customer_id = c.id
             JOIN loan_accounts la ON lc.loan_account_id = la.id
             JOIN agents ag ON lc.agent_id = ag.id
-            WHERE $whereSql
-            
-            UNION ALL
-            
+            WHERE $whereSqlL
+        ");
+        $stmtL->execute($bindL);
+        $loans = $stmtL->fetchAll();
+
+        $whereS = ["sd.is_reversal = 0"];
+        $bindS = [];
+        if ($startDate) {
+            $whereS[] = "sd.deposit_date >= :start_date";
+            $bindS['start_date'] = $startDate;
+        }
+        if ($endDate) {
+            $whereS[] = "sd.deposit_date <= :end_date";
+            $bindS['end_date'] = $endDate;
+        }
+        if ($branchId) {
+            $whereS[] = "sd.branch_id = :branch_id";
+            $bindS['branch_id'] = $branchId;
+        }
+        if ($agentId) {
+            $whereS[] = "sd.agent_id = :agent_id";
+            $bindS['agent_id'] = $agentId;
+        }
+        $whereSqlS = implode(" AND ", $whereS);
+        $stmtS = $db->prepare("
             SELECT sd.deposit_date as Date, sa.saving_account_no as AccountNo, c.full_name as CustomerName,
-            sd.deposit_amount as AmountCollected, ag.name as AgentName, sd.payment_mode as PaymentMode
+            sd.deposit_amount as AmountCollected, ag.name as AgentName, sd.payment_mode as PaymentMode,
+            sd.receipt_no as ReceiptNo, 0 as PenaltyAmount, 'Saving' as type
             FROM saving_deposits sd
             JOIN customers c ON sd.customer_id = c.id
             JOIN saving_accounts sa ON sd.saving_account_id = sa.id
             JOIN agents ag ON sd.agent_id = ag.id
-            WHERE " . str_replace('lc.', 'sd.', str_replace('collection_date', 'deposit_date', $whereSql)) . "
-            ORDER BY Date DESC
+            WHERE $whereSqlS
         ");
-        
-        $bindKeys = array_keys($bind);
-        foreach ($bind as $k => $v) {
-            $stmt->bindValue(":$k", $v);
-            $stmt->bindValue(":".str_replace('lc.', 'sd.', $k), $v);
-        }
-        
-        $stmt->execute($bind);
-        return $stmt->fetchAll();
+        $stmtS->execute($bindS);
+        $savings = $stmtS->fetchAll();
+
+        $merged = array_merge($loans, $savings);
+        usort($merged, function($a, $b) {
+            return strcmp($b['Date'], $a['Date']);
+        });
+
+        return $merged;
     }
 
     public static function branchWise($db, $startDate = null, $endDate = null) {

@@ -150,7 +150,9 @@ class SavingAccount {
     public static function getStatement($db, $savingAccountId) {
         $stmt = $db->prepare("
             SELECT sd.receipt_no as refNo, sd.deposit_date as date, 'Savings Deposit' as type,
-            sd.deposit_amount as amt, 0.00 as fine, u.name as collector
+            sd.deposit_amount as amt, 0.00 as fine, u.name as collector,
+            sd.installment_allocations as allocations, sd.payment_mode as paymentMode, sd.remarks,
+            sd.is_advance as isAdvance
             FROM saving_deposits sd
             JOIN users u ON sd.collected_by = u.id
             WHERE sd.saving_account_id = :saving_id AND sd.is_reversal = 0
