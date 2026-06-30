@@ -151,7 +151,7 @@ export const loanApi = {
   reset: (id) => api.post(`/loan-accounts/${id}/reset`),
   collect: (id, collected_amount, penalty_amount, payment_mode, remarks, collection_date) =>
     api.post(`/loan-accounts/${id}/collect`, { collected_amount, penalty_amount, payment_mode, remarks, collection_date }),
-  close: (id) => api.post(`/loan-accounts/${id}/close`),
+  close: (id, data) => api.post(`/loan-accounts/${id}/close`, data),
   delete: (id) => api.delete(`/loan-accounts/${id}`),
   clearLedger: (id) => api.post(`/loan-accounts/${id}/clear-ledger`)
 };

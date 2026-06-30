@@ -243,7 +243,11 @@ class LoanAccount {
 
     public static function getStatement($db, $loanAccountId) {
         $stmt = $db->prepare("
-            SELECT lc.receipt_no as refNo, lc.collection_date as date, 'EMI Payment' as type,
+            SELECT lc.receipt_no as refNo, lc.collection_date as date, 
+            CASE 
+                WHEN lc.remarks LIKE '%Settlement Payment%' THEN 'Loan Settlement'
+                ELSE 'EMI Payment'
+            END as type,
             lc.collected_amount as amt, lc.penalty_amount as fine, u.name as collector,
             lc.installment_allocations as allocations, lc.payment_mode as paymentMode, lc.remarks,
             lc.is_advance as isAdvance

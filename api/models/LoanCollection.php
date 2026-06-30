@@ -46,6 +46,7 @@ class LoanCollection {
             $allocatedInterest = 0;
             $allocatedPenalty = 0;
             $allocations = [];
+            $isAdvance = 0;
 
             // Apply collected amount to installments sequentially (FIFO)
             foreach ($installments as $inst) {
@@ -95,6 +96,10 @@ class LoanCollection {
                     $stmtUpdate->execute(['allocated' => $allocatedForInst, 'id' => $instId]);
                 }
 
+                if ($inst['due_date'] > $collectionDate && $allocatedForInst > 0) {
+                    $isAdvance = 1;
+                }
+
                 $allocations[] = [
                     'due_date' => $inst['due_date'],
                     'amount' => $allocatedForInst
@@ -102,6 +107,7 @@ class LoanCollection {
             }
 
             if ($remainingAmount > 0) {
+                $isAdvance = 1;
                 $allocations[] = [
                     'due_date' => 'Advance',
                     'amount' => $remainingAmount
@@ -152,7 +158,7 @@ class LoanCollection {
                 'payment_mode' => $paymentMode,
                 'remarks' => $remarks,
                 'collected_by' => $collectedBy,
-                'is_advance' => ($remainingAmount > 0) ? 1 : 0,
+                'is_advance' => $isAdvance,
                 'installment_allocations' => json_encode($allocations)
             ]);
             $collectionId = $db->lastInsertId();

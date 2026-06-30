@@ -3,7 +3,124 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import Chart from 'react-apexcharts';
-import { loanApi, savingApi, customerApi, collectionApi } from '../services/api';
+import { loanApi, savingApi, customerApi, collectionApi, planApi } from '../services/api';
+
+const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType) => {
+  if (!principal || !rate || !durationVal) return '';
+
+  let totalDays = 0;
+  let totalMonths = 0;
+  if (durationUnit === 'Days') {
+    totalDays = durationVal;
+    totalMonths = durationVal / 30;
+  } else if (durationUnit === 'Months') {
+    totalDays = durationVal * 30;
+    totalMonths = durationVal;
+  } else if (durationUnit === 'Years') {
+    totalDays = durationVal * 365;
+    totalMonths = durationVal * 12;
+  }
+
+  let N = 0;
+  if (frequency === 'Daily') {
+    N = Math.round(totalDays);
+  } else if (frequency === 'Weekly') {
+    N = Math.round(totalDays / 7);
+  } else if (frequency === 'Monthly') {
+    N = Math.round(totalMonths);
+  }
+  if (N <= 0) N = 1;
+
+  if (interestType === 'Flat') {
+    const interest = principal * (rate / 100);
+    const totalPayable = principal + interest;
+    return Math.round(totalPayable / N);
+  } else {
+    let R = 0;
+    if (frequency === 'Daily') {
+      R = (rate / 100) / 365;
+    } else if (frequency === 'Weekly') {
+      R = (rate / 100) / 52;
+    } else if (frequency === 'Monthly') {
+      R = (rate / 100) / 12;
+    }
+
+    if (R === 0) return Math.round(principal / N);
+
+    const onePlusRToN = Math.pow(1 + R, N);
+    const emi = (principal * R * onePlusRToN) / (onePlusRToN - 1);
+    return isNaN(emi) || !isFinite(emi) ? Math.round(principal / N) : Math.round(emi);
+  }
+};
+
+const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency) => {
+  const dAmt = parseFloat(depositAmt) || 0;
+  const rVal = parseFloat(rate) || 0;
+  const dur = parseFloat(durationVal) || 0;
+  if (!dAmt || !dur) return '';
+
+  let totalDays = 0;
+  let totalMonths = 0;
+  if (durationUnit === 'Days') {
+    totalDays = dur;
+    totalMonths = dur / 30;
+  } else if (durationUnit === 'Months') {
+    totalDays = dur * 30;
+    totalMonths = dur;
+  } else if (durationUnit === 'Years') {
+    totalDays = dur * 360;
+    totalMonths = dur * 12;
+  }
+
+  let instPerYear = 0;
+  if (frequency === 'Daily') {
+    instPerYear = 360;
+  } else if (frequency === 'Weekly') {
+    instPerYear = 52;
+  } else if (frequency === 'Monthly') {
+    instPerYear = 12;
+  }
+
+  let totalInstallments = 0;
+  if (frequency === 'Daily') {
+    totalInstallments = Math.round(totalDays);
+  } else if (frequency === 'Weekly') {
+    totalInstallments = Math.round(totalDays / 7);
+  } else if (frequency === 'Monthly') {
+    totalInstallments = Math.round(totalMonths);
+  }
+  if (totalInstallments <= 0) totalInstallments = 1;
+
+  const fullYears = Math.floor(totalMonths / 12);
+  const remainingMonths = totalMonths % 12;
+
+  let balance = 0;
+  let remainingInstallments = totalInstallments;
+
+  // Process full years
+  for (let i = 0; i < fullYears; i++) {
+    const installmentsThisYear = Math.min(instPerYear, remainingInstallments);
+    remainingInstallments -= installmentsThisYear;
+
+    const principalAdded = dAmt * installmentsThisYear;
+    const interestOnNew = principalAdded * (rVal / 100);
+    const interestOnBalance = balance * (rVal / 100);
+
+    balance = balance + interestOnBalance + principalAdded + interestOnNew;
+  }
+
+  // Process remaining fractional year
+  if (remainingMonths > 0 && remainingInstallments > 0) {
+    const fracYear = remainingMonths / 12;
+    const principalAdded = dAmt * remainingInstallments;
+    const interestOnNew = principalAdded * (rVal / 100) * fracYear;
+    const interestOnBalance = balance * (rVal / 100) * fracYear;
+
+    balance = balance + interestOnBalance + principalAdded + interestOnNew;
+  }
+
+  return Math.round(balance);
+};
 
 export default function AccountDetails() {
   const { accNo } = useParams();
@@ -24,15 +141,24 @@ export default function AccountDetails() {
             const fullAddr = permAddr 
               ? `${permAddr.address_line1}${permAddr.address_line2 ? ', ' + permAddr.address_line2 : ''}, ${permAddr.city}, ${permAddr.state} - ${permAddr.pincode}`
               : 'N/A';
+            const currAddrObj = (custData.addresses || []).find(a => a.address_type === 'Current');
+            const currentAddr = currAddrObj
+              ? `${currAddrObj.address_line1}${currAddrObj.address_line2 ? ', ' + currAddrObj.address_line2 : ''}, ${currAddrObj.city}, ${currAddrObj.state} - ${currAddrObj.pincode}`
+              : null;
             
             accData.customer = {
               name: custData.full_name || 'N/A',
               occupation: custData.occupation || 'Business',
               phone: custData.mobile || 'N/A',
+              alternatePhone: custData.alternate_mobile || 'N/A',
+              dob: custData.dob ? new Date(custData.dob).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+              gender: custData.gender || 'N/A',
+              fatherOrHusbandName: custData.father_or_husband_name || 'N/A',
               aadhaar: custData.kyc?.aadhaar_no || 'N/A',
               pan: custData.kyc?.pan_no || 'N/A',
               monthlyIncome: custData.monthly_income ? `₹${Number(custData.monthly_income).toLocaleString('en-IN')}` : '₹0',
               address: fullAddr,
+              currentAddress: currentAddr,
               bank: {
                 name: custData.kyc?.bank_name || 'N/A',
                 accountNo: custData.kyc?.bank_account_no || 'N/A',
@@ -48,6 +174,26 @@ export default function AccountDetails() {
               monthlyIncome: guarantorObj.monthly_income ? `₹${Number(guarantorObj.monthly_income).toLocaleString('en-IN')}` : '₹0',
               address: guarantorObj.address || 'N/A'
             } : null;
+
+            // Build customer accounts list
+            const accountsList = [];
+            const loans = custData.loans || custData.loan_accounts || [];
+            const savings = custData.savings || custData.saving_accounts || [];
+            loans.forEach(la => {
+              accountsList.push({
+                accNo: la.loan_account_no,
+                type: 'Loan',
+                status: la.account_status || la.status
+              });
+            });
+            savings.forEach(sa => {
+              accountsList.push({
+                accNo: sa.saving_account_no,
+                type: 'Saving',
+                status: sa.saving_account_status || sa.status
+              });
+            });
+            setCustomerAccounts(accountsList);
           }
         } catch (err) {
           console.error("Failed to load customer profile", err);
@@ -92,6 +238,42 @@ export default function AccountDetails() {
   const [closePrincipal, setClosePrincipal] = useState(0);
   const [closeInterestFine, setCloseInterestFine] = useState(0);
   const [closeDiscountCharges, setCloseDiscountCharges] = useState(0);
+  const [closeDate, setCloseDate] = useState(new Date().toLocaleDateString('sv-SE'));
+  const [closeRemarks, setCloseRemarks] = useState('Loan Settlement');
+  const [isNocModalOpen, setIsNocModalOpen] = useState(false);
+  const [isPassbookModalOpen, setIsPassbookModalOpen] = useState(false);
+
+  // Add Account Switcher and Creator States
+  const [customerAccounts, setCustomerAccounts] = useState([]);
+  const [isAddLoanModalOpen, setIsAddLoanModalOpen] = useState(false);
+  const [isAddSavingModalOpen, setIsAddSavingModalOpen] = useState(false);
+  const [loanPlans, setLoanPlans] = useState([]);
+  const [savingPlans, setSavingPlans] = useState([]);
+  const [loanForm, setLoanForm] = useState({
+    loan_plan_id: '',
+    principal_amount: '',
+    interest_rate: '',
+    interest_type: 'Flat',
+    duration_value: '',
+    duration_unit: 'Days',
+    collection_frequency: 'Daily',
+    emi_amount: '',
+    processing_fee: '0',
+    penalty_per_day: '0',
+    start_date: new Date().toLocaleDateString('sv-SE')
+  });
+  const [savingForm, setSavingForm] = useState({
+    saving_plan_id: '',
+    deposit_amount: '',
+    interest_rate: '',
+    duration_value: '',
+    duration_unit: 'Days',
+    collection_frequency: 'Daily',
+    maturity_amount: '',
+    start_date: new Date().toLocaleDateString('sv-SE')
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [infoTab, setInfoTab] = useState('profile');
 
   // Collection Entry Modal States
   const [isCollectModalOpen, setIsCollectModalOpen] = useState(false);
@@ -117,6 +299,83 @@ export default function AccountDetails() {
     remarks: ''
   });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Live calculations for Custom Loan
+  useEffect(() => {
+    if (loanForm.loan_plan_id === 'custom') {
+      const calculatedEmi = calculateCustomEmi(
+        Number(loanForm.principal_amount) || 0,
+        Number(loanForm.interest_rate) || 0,
+        Number(loanForm.duration_value) || 0,
+        loanForm.duration_unit,
+        loanForm.collection_frequency,
+        loanForm.interest_type
+      );
+      setLoanForm(prev => ({ ...prev, emi_amount: String(calculatedEmi) }));
+    }
+  }, [
+    loanForm.loan_plan_id,
+    loanForm.principal_amount,
+    loanForm.interest_rate,
+    loanForm.duration_value,
+    loanForm.duration_unit,
+    loanForm.collection_frequency,
+    loanForm.interest_type
+  ]);
+
+  // Live calculations for Custom Savings
+  useEffect(() => {
+    if (savingForm.saving_plan_id === 'custom') {
+      const calculatedMaturity = calculateCustomMaturity(
+        Number(savingForm.deposit_amount) || 0,
+        Number(savingForm.interest_rate) || 0,
+        Number(savingForm.duration_value) || 0,
+        savingForm.duration_unit,
+        savingForm.collection_frequency
+      );
+      setSavingForm(prev => ({ ...prev, maturity_amount: String(calculatedMaturity) }));
+    }
+  }, [
+    savingForm.saving_plan_id,
+    savingForm.deposit_amount,
+    savingForm.interest_rate,
+    savingForm.duration_value,
+    savingForm.duration_unit,
+    savingForm.collection_frequency
+  ]);
+
+  // Derived plan details for review card
+  const selectedLoanPlanObj = loanForm.loan_plan_id === 'custom'
+    ? {
+        name: 'Custom Loan Plan',
+        min_amount: Number(loanForm.principal_amount) || 0,
+        interest_rate: Number(loanForm.interest_rate) || 0,
+        interest_type: loanForm.interest_type || 'Flat',
+        duration_value: Number(loanForm.duration_value) || 0,
+        duration_unit: loanForm.duration_unit || 'Days',
+        collection_frequency: loanForm.collection_frequency || 'Daily',
+        emi_amount: Number(loanForm.emi_amount) || 0,
+        processing_fee: Number(loanForm.processing_fee) || 0,
+        penalty_per_day: Number(loanForm.penalty_per_day) || 0
+      }
+    : loanPlans.find(p => String(p.id) === String(loanForm.loan_plan_id)) || null;
+
+  const selectedSavingPlanObj = savingForm.saving_plan_id === 'custom'
+    ? {
+        name: 'Custom Savings Plan',
+        deposit_amount: Number(savingForm.deposit_amount) || 0,
+        interest_rate: Number(savingForm.interest_rate) || 0,
+        duration_value: Number(savingForm.duration_value) || 0,
+        duration_unit: savingForm.duration_unit || 'Days',
+        collection_frequency: savingForm.collection_frequency || 'Daily',
+        maturity_amount: Number(savingForm.maturity_amount) || 0
+      }
+    : savingPlans.find(p => String(p.id) === String(savingForm.saving_plan_id)) || null;
+
+  useEffect(() => {
+    planApi.loanPlans.list().then(res => setLoanPlans(res.data || [])).catch(() => {});
+    planApi.savingPlans.list().then(res => setSavingPlans(res.data || [])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetchAccount();
@@ -163,10 +422,15 @@ export default function AccountDetails() {
     name: account.customer_name || 'N/A',
     occupation: account.occupation || 'Business',
     phone: account.customer_mobile || 'N/A',
+    alternatePhone: 'N/A',
+    dob: 'N/A',
+    gender: 'N/A',
+    fatherOrHusbandName: 'N/A',
     aadhaar: 'N/A',
     pan: 'N/A',
     monthlyIncome: '₹0',
     address: 'N/A',
+    currentAddress: null,
     bank: { name: 'N/A', accountNo: 'N/A', ifsc: 'N/A' }
   };
 
@@ -190,9 +454,6 @@ export default function AccountDetails() {
 
   // Map ledger from statementData.transactions
   account.ledger = statementData.transactions || [];
-
-  // Build account shape from API data for compatibility
-  const customerAccounts = [];
 
   // Approval / Reset Handlers
   const handleApproveAccount = () => {
@@ -240,6 +501,117 @@ export default function AccountDetails() {
         navigate('/collection');
       })
       .catch(err => alert(err.message || 'Deletion failed.'));
+  };
+
+  const handleAddLoan = (e) => {
+    e.preventDefault();
+    if (!loanForm.loan_plan_id) {
+      alert("Please select a plan.");
+      return;
+    }
+    if (loanForm.loan_plan_id === 'custom') {
+      if (!loanForm.principal_amount || !loanForm.interest_rate || !loanForm.duration_value || !loanForm.emi_amount) {
+        alert("Please fill in all custom loan details (Amount, Rate, Duration, EMI).");
+        return;
+      }
+    } else {
+      if (!loanForm.principal_amount) {
+        alert("Please enter a principal amount.");
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    const payload = {
+      customer_id: account.customer_id,
+      loan_plan_id: loanForm.loan_plan_id,
+      principal_amount: parseFloat(loanForm.principal_amount),
+      interest_rate: loanForm.loan_plan_id === 'custom' ? parseFloat(loanForm.interest_rate) : undefined,
+      interest_type: loanForm.loan_plan_id === 'custom' ? loanForm.interest_type : undefined,
+      duration_value: loanForm.loan_plan_id === 'custom' ? parseInt(loanForm.duration_value) : undefined,
+      duration_unit: loanForm.loan_plan_id === 'custom' ? loanForm.duration_unit : undefined,
+      collection_frequency: loanForm.loan_plan_id === 'custom' ? loanForm.collection_frequency : undefined,
+      emi_amount: loanForm.loan_plan_id === 'custom' ? parseFloat(loanForm.emi_amount) : undefined,
+      processing_fee: loanForm.loan_plan_id === 'custom' ? parseFloat(loanForm.processing_fee) : undefined,
+      penalty_amount: loanForm.loan_plan_id === 'custom' ? parseFloat(loanForm.penalty_per_day) : undefined,
+      start_date: loanForm.start_date
+    };
+
+    loanApi.create(payload)
+      .then((res) => {
+        alert(`Loan application created successfully under Acc No: ${res.data.account_no || res.data.loan_account_no}. Awaiting approval.`);
+        setIsAddLoanModalOpen(false);
+        setLoanForm({
+          loan_plan_id: '',
+          principal_amount: '',
+          interest_rate: '',
+          interest_type: 'Flat',
+          duration_value: '',
+          duration_unit: 'Days',
+          collection_frequency: 'Daily',
+          emi_amount: '',
+          processing_fee: '0',
+          penalty_per_day: '0',
+          start_date: new Date().toLocaleDateString('sv-SE')
+        });
+        fetchAccount();
+      })
+      .catch(err => {
+        alert(err.message || 'Failed to apply for loan.');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  };
+
+  const handleAddSaving = (e) => {
+    e.preventDefault();
+    if (!savingForm.saving_plan_id) {
+      alert("Please select a plan.");
+      return;
+    }
+    if (savingForm.saving_plan_id === 'custom') {
+      if (!savingForm.deposit_amount || !savingForm.interest_rate || !savingForm.duration_value || !savingForm.maturity_amount) {
+        alert("Please fill in all custom savings details (Deposit, Rate, Duration, Maturity).");
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    const payload = {
+      customer_id: account.customer_id,
+      saving_plan_id: savingForm.saving_plan_id,
+      deposit_amount: parseFloat(savingForm.deposit_amount),
+      interest_rate: parseFloat(savingForm.interest_rate),
+      duration_value: savingForm.saving_plan_id === 'custom' ? parseInt(savingForm.duration_value) : undefined,
+      duration_unit: savingForm.saving_plan_id === 'custom' ? savingForm.duration_unit : undefined,
+      collection_frequency: savingForm.saving_plan_id === 'custom' ? savingForm.collection_frequency : undefined,
+      maturity_amount: parseFloat(savingForm.maturity_amount),
+      start_date: savingForm.start_date
+    };
+
+    savingApi.create(payload)
+      .then((res) => {
+        alert(`Savings account application created successfully under Acc No: ${res.data.account_no || res.data.saving_account_no}. Awaiting approval.`);
+        setIsAddSavingModalOpen(false);
+        setSavingForm({
+          saving_plan_id: '',
+          deposit_amount: '',
+          interest_rate: '',
+          duration_value: '',
+          duration_unit: 'Days',
+          collection_frequency: 'Daily',
+          maturity_amount: '',
+          start_date: new Date().toLocaleDateString('sv-SE')
+        });
+        fetchAccount();
+      })
+      .catch(err => {
+        alert(err.message || 'Failed to apply for savings.');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   const handleResetCollection = (receiptNo) => {
@@ -305,6 +677,8 @@ export default function AccountDetails() {
 
   // Helper to open modal and set defaults
   const openClosureModal = () => {
+    setCloseDate(new Date().toLocaleDateString('sv-SE'));
+    setCloseRemarks('Loan Settlement');
     if (account.type === 'Loan') {
       setClosePrincipal(account.outstanding);
       setCloseInterestFine(0); // Accrued Interest / Fine
@@ -322,7 +696,13 @@ export default function AccountDetails() {
   const handleCloseAccount = () => {
     if (!confirmClosure) return;
     const apiCall = isLoan
-      ? loanApi.close(accNo)
+      ? loanApi.close(accNo, {
+          close_date: closeDate,
+          settlement_amount: Math.max(0, (Number(closePrincipal) + Number(closeInterestFine)) - Number(closeDiscountCharges)),
+          waiver_amount: Number(closeDiscountCharges),
+          payment_mode: closePayMode,
+          remarks: closeRemarks
+        })
       : savingApi.mature(accNo, closePayMode);
     apiCall
       .then(() => {
@@ -335,6 +715,12 @@ export default function AccountDetails() {
   };
 
   const handleDayClick = (dayObj) => {
+    const accStatus = account.account_status || account.status;
+    if (accStatus === 'Closed') {
+      alert("This account is Closed. No further payments can be collected.");
+      return;
+    }
+
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const clickedDateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
@@ -845,6 +1231,31 @@ export default function AccountDetails() {
     printWindow.document.close();
   };
 
+  const installmentsListForClose = statementData.installments || [];
+  let totalPrincipalForClose = 0;
+  let totalInterestForClose = 0;
+  let paidPrincipalForClose = 0;
+  let paidInterestForClose = 0;
+
+  installmentsListForClose.forEach(inst => {
+    const pComp = Number(inst.principal_component || 0);
+    const iComp = Number(inst.interest_component || 0);
+    const tot = pComp + iComp;
+    const paid = Number(inst.paid_amount || 0);
+    
+    totalPrincipalForClose += pComp;
+    totalInterestForClose += iComp;
+
+    if (tot > 0) {
+      const ratio = paid / tot;
+      paidPrincipalForClose += pComp * ratio;
+      paidInterestForClose += iComp * ratio;
+    }
+  });
+
+  const remainingPrincipalForClose = Math.max(0, totalPrincipalForClose - paidPrincipalForClose);
+  const remainingInterestForClose = Math.max(0, totalInterestForClose - paidInterestForClose);
+
   const accStatus = account.status;
 
   return (
@@ -999,7 +1410,7 @@ export default function AccountDetails() {
               ) : (
                 <button
                   onClick={openClosureModal}
-                  className="px-4 py-2 bg-[#EA580C] hover:bg-[#EA580C]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+                  className="px-4 py-2 bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
                 >
                   <span className="material-symbols-rounded text-sm select-none">auto_awesome</span>
                   Maturity Close
@@ -1106,6 +1517,53 @@ export default function AccountDetails() {
         </div>
       )}
 
+      {/* Customer Portfolio Switcher & Account Creator (Above Financial Summaries) */}
+      <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider mr-2 select-none">
+            Linked Accounts:
+          </span>
+          {customerAccounts.map(acc => {
+            const isActive = acc.accNo === account.accNo;
+            return (
+              <Link
+                key={acc.accNo}
+                to={`/account/${acc.accNo}`}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-[#1E3A8A] border-[#1E3A8A] text-white shadow-xs'
+                    : 'bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span className="material-symbols-rounded text-sm">
+                  {acc.type === 'Loan' ? 'payments' : 'savings'}
+                </span>
+                {acc.accNo} ({acc.type})
+                {acc.status === 'Closed' && (
+                  <span className="text-[8px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded font-extrabold uppercase ml-1">Closed</span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0">
+          <button
+            onClick={() => setIsAddLoanModalOpen(true)}
+            className="flex-1 md:flex-none px-4 py-2 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-rounded text-sm">add_circle</span>
+            Add Loan
+          </button>
+          <button
+            onClick={() => setIsAddSavingModalOpen(true)}
+            className="flex-1 md:flex-none px-4 py-2 bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-rounded text-sm">add_circle</span>
+            Add Savings
+          </button>
+        </div>
+      </div>
+
       {/* Financial summaries (Full Width) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {account.type === 'Loan' ? (
@@ -1128,7 +1586,7 @@ export default function AccountDetails() {
             <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] shadow-sm">
               <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Outstanding</span>
               <strong className="text-base font-black text-[#E11D48] mt-1 block">₹{account.outstanding.toLocaleString()}</strong>
-              <span className="text-[9px] text-[#EA580C] font-semibold block mt-0.5">Next: {account.nextDueDate}</span>
+              <span className="text-[9px] text-[#F59E0B] font-semibold block mt-0.5">Next: {account.nextDueDate}</span>
             </div>
           </>
         ) : (
@@ -1157,36 +1615,6 @@ export default function AccountDetails() {
         )}
       </div>
 
-      {/* Customer Portfolio Switcher (Full Width above Calendar) */}
-      {customerAccounts.length > 1 && (
-        <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] shadow-sm flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider mr-2 select-none">
-            Linked Accounts:
-          </span>
-            {customerAccounts.map(acc => {
-              const isActive = acc.accNo === account.accNo;
-              return (
-                <Link
-                  key={acc.accNo}
-                  to={`/account/${acc.accNo}`}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? 'bg-[#1E3A8A] border-[#1E3A8A] text-white shadow-xs'
-                      : 'bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="material-symbols-rounded text-sm">
-                    {acc.type === 'Loan' ? 'payments' : 'savings'}
-                  </span>
-                  {acc.accNo} ({acc.type})
-                  {acc.status === 'Closed' && (
-                    <span className="text-[8px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded font-extrabold uppercase ml-1">Closed</span>
-                  )}
-                </Link>
-              );
-            })}
-        </div>
-      )}
 
       {/* Payment Calendar Ledger (Full Width) */}
       {(() => {
@@ -1216,8 +1644,12 @@ export default function AccountDetails() {
           const key = inst.due_date.slice(0, 10);
           const totalDue = Number(inst.total_due || 0);
           const paid = Number(inst.paid_amount || 0);
+          const isSettledInst = (inst.remarks && (inst.remarks.includes('Waived') || inst.remarks.includes('closure')))
+            || (isClosed && inst.status !== 'Paid');
           let status;
-          if (inst.status === 'Paid') {
+          if (isSettledInst) {
+            status = 'Settled';
+          } else if (inst.status === 'Paid') {
             status = (key > todayStr && !isClosed) ? 'Advance' : 'Paid';
           } else if (paid > 0) {
             status = (key > todayStr && !isClosed) ? 'Advance' : 'Partial';
@@ -1226,7 +1658,7 @@ export default function AccountDetails() {
           } else {
             status = 'Schedule';
           }
-          const displayAmt = (status === 'Paid' || status === 'Partial' || status === 'Advance') ? paid : totalDue;
+          const displayAmt = (status === 'Paid' || status === 'Partial' || status === 'Advance' || status === 'Settled') ? paid : totalDue;
           dateMap[key] = { status, amt: displayAmt, total_due: totalDue, paid };
         });
         // Advance payments: transactions on dates that have no installment scheduled
@@ -1366,8 +1798,9 @@ export default function AccountDetails() {
                 const isStart = d.dateStr === account.start_date;
                 const isEnd = d.dateStr === (isLoan ? account.end_date : account.maturity_date);
                 const isApproved = account.approved_at && d.dateStr === account.approved_at.slice(0, 10);
+                const isClosedDate = account.closed_at && d.dateStr === account.closed_at.slice(0, 10);
 
-                if (isEmpty) {
+                if (d.empty || d.status === null) {
                   return (
                     <div
                       key={index}
@@ -1378,14 +1811,17 @@ export default function AccountDetails() {
                   );
                 }
 
+                const isSettled = d.status === 'Settled';
+
                 return (
                     <div
                       key={index}
                       onClick={() => handleDayClick(d)}
                       className={`h-20 flex flex-col justify-between p-2 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
-                        isToday ? 'ring-2 ring-amber-500 border-amber-500 shadow-md z-10' : ''
+                        isClosedDate ? 'ring-2 ring-[#DC2626] border-[#DC2626] shadow-md z-10' : isToday ? 'ring-2 ring-amber-500 border-amber-500 shadow-md z-10' : ''
                       } ${
                         isPaid ? 'bg-[#16A34A]/5 border-[#16A34A]/25 text-[#16A34A] hover:bg-[#16A34A]/10' :
+                        isSettled ? 'bg-[#6366F1]/5 border-[#6366F1]/25 text-[#6366F1] hover:bg-[#6366F1]/10' :
                         isUnpaid ? 'bg-[#E11D48]/5 border-[#E11D48]/25 text-[#E11D48] hover:bg-[#E11D48]/10' :
                         isPartial ? 'bg-[#F59E0B]/5 border-[#F59E0B]/25 text-[#D97706] hover:bg-[#F59E0B]/10' :
                         isAdvance ? 'bg-[#7C3AED]/5 border-[#7C3AED]/25 text-[#7C3AED] hover:bg-[#7C3AED]/10' :
@@ -1408,9 +1844,15 @@ export default function AccountDetails() {
                           {isEnd && (
                             <span className="text-[7px] md:text-[8px] bg-[#E11D48] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">End</span>
                           )}
+                          {isClosedDate && (
+                            <span className="text-[7px] md:text-[8px] bg-[#DC2626] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">Closed</span>
+                          )}
                         </div>
                         {isPaid && (
                           <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#16A34A]">check_circle</span>
+                        )}
+                        {isSettled && (
+                          <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#6366F1]">handshake</span>
                         )}
                         {isUnpaid && (
                           <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#E11D48]">cancel</span>
@@ -1428,7 +1870,11 @@ export default function AccountDetails() {
 
                       {/* Middle/Bottom: Display Amount */}
                       <div className="text-center w-full pb-0.5">
-                        {isPartial ? (
+                        {isSettled ? (
+                          <span className="text-[10px] sm:text-xs font-black block tracking-wider text-[#6366F1] uppercase">
+                            Settled
+                          </span>
+                        ) : isPartial ? (
                           <span className="text-xs sm:text-sm font-black block tracking-tight">
                             <span className="text-[#D97706]">₹{(d.amt || 0).toLocaleString()}</span>
                             <span className="text-slate-300 mx-0.5 sm:mx-1">/</span>
@@ -1445,7 +1891,6 @@ export default function AccountDetails() {
                           </span>
                         )}
                       </div>
-
                     </div>
                 );
               })}
@@ -1533,14 +1978,23 @@ export default function AccountDetails() {
                   }
                 }
 
+                const isAdvancePayment = Number(row.isAdvance) === 1 || 
+                  parsedAllocations.some(alloc => alloc.due_date === 'Advance' || (alloc.due_date && alloc.due_date > row.date));
+
                 return (
                   <tr key={row.id || row.refNo || Math.random()} className="hover:bg-slate-50/50 transition-colors">
                     <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.date}</td>
                     <td className="whitespace-nowrap px-6 py-3.5 font-bold">{row.refNo}</td>
                     <td className="whitespace-nowrap px-6 py-3.5">
                       <div className="font-bold text-[#0F172A] flex items-center gap-1.5">
-                        {row.type}
-                        {Number(row.isAdvance) === 1 && (
+                        {row.type === 'Loan Settlement' ? (
+                          <span className="bg-[#6366F1]/10 text-[#6366F1] text-[10px] font-extrabold px-2.5 py-0.5 rounded uppercase select-none tracking-wider">
+                            Settlement
+                          </span>
+                        ) : (
+                          row.type
+                        )}
+                        {isAdvancePayment && (
                           <span className="bg-[#7C3AED]/10 text-[#7C3AED] text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase select-none">
                             Advance
                           </span>
@@ -1680,24 +2134,26 @@ export default function AccountDetails() {
             </div>
             <div className="flex gap-2 pt-2 flex-wrap sm:flex-nowrap">
               <button 
-                onClick={() => alert(`Downloading Passbook PDF for Account: ${account.accNo}...`)}
+                onClick={() => setIsPassbookModalOpen(true)}
                 className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
               >
-                <span className="material-symbols-rounded text-sm">download</span>
-                PDF
+                <span className="material-symbols-rounded text-sm">visibility</span>
+                View Passbook
               </button>
               <button 
-                onClick={() => window.print()}
+                onClick={() => setIsPassbookModalOpen(true)}
                 className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
               >
                 <span className="material-symbols-rounded text-sm">print</span>
                 Print
               </button>
               <button 
-                onClick={() => window.open(`https://api.whatsapp.com/send?text=Hello, sharing my Passbook for Account ${account.accNo}`)}
-                className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, sharing my Passbook for Account ${account.accNo}`)}`)}
+                className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
               >
-                <span className="material-symbols-rounded text-sm flex items-center justify-center gap-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" className="w-3 h-3 select-none filter invert brightness-200" alt="" /></span>
+                <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+                </svg>
                 WhatsApp
               </button>
             </div>
@@ -1712,36 +2168,38 @@ export default function AccountDetails() {
                     <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">assignment_turned_in</span>
                     NOC Certificate
                   </span>
-                  {account.status === 'Closed' ? (
+                  {account.account_status === 'Closed' || account.status === 'Closed' ? (
                     <span className="bg-[#16A34A]/10 text-[#16A34A] text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">Issued</span>
                   ) : (
-                    <span className="bg-[#EA580C]/10 text-[#EA580C] text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">On Closure</span>
+                    <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">On Closure</span>
                   )}
                 </div>
                 <p className="text-[10px] text-[#64748B] mt-1">No Objection Certificate issued by Umbrella Finance upon full clearance.</p>
               </div>
               
-              {account.status === 'Closed' ? (
+              {account.account_status === 'Closed' || account.status === 'Closed' ? (
                 <div className="flex gap-2 pt-2 flex-wrap sm:flex-nowrap">
                   <button 
-                    onClick={() => alert(`Downloading Loan NOC Certificate for Account: ${account.accNo}...`)}
+                    onClick={() => setIsNocModalOpen(true)}
                     className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                   >
-                    <span className="material-symbols-rounded text-sm">download</span>
-                    PDF
+                    <span className="material-symbols-rounded text-sm">visibility</span>
+                    View NOC
                   </button>
                   <button 
-                    onClick={() => window.print()}
+                    onClick={() => setIsNocModalOpen(true)}
                     className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                   >
                     <span className="material-symbols-rounded text-sm">print</span>
                     Print
                   </button>
                   <button 
-                    onClick={() => window.open(`https://api.whatsapp.com/send?text=Hello, sharing my Loan NOC Certificate for Account ${account.accNo}`)}
-                    className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                    onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, I am sharing my Loan No Objection Certificate (NOC) for Account No: ${account.accNo} issued by Umbrella Finance. Status: Fully Settled & Closed.`)}`)}
+                    className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                   >
-                    <span className="material-symbols-rounded text-sm flex items-center justify-center gap-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" className="w-3 h-3 select-none filter invert brightness-200" alt="" /></span>
+                    <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+                    </svg>
                     WhatsApp
                   </button>
                 </div>
@@ -1788,10 +2246,12 @@ export default function AccountDetails() {
                   Print
                 </button>
                 <button 
-                  onClick={() => window.open(`https://api.whatsapp.com/send?text=Hello, sharing my Savings Maturity Bond Certificate for Account ${account.accNo}`)}
-                  className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                  onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, sharing my Savings Maturity Bond Certificate for Account ${account.accNo}`)}`)}
+                  className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                 >
-                  <span className="material-symbols-rounded text-sm flex items-center justify-center gap-0.5"><img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" className="w-3 h-3 select-none filter invert brightness-200" alt="" /></span>
+                  <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+                  </svg>
                   WhatsApp
                 </button>
               </div>
@@ -1802,223 +2262,316 @@ export default function AccountDetails() {
 
       {/* Profile, Guarantor/Nominee, and Tenure Progress Grid (Below Calendar & Documents) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Customer Profile Card */}
-        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
-          <div className="flex items-center gap-3.5 border-b border-[#F1F5F9] pb-4">
-            <div className="w-12 h-12 rounded-full bg-[#1E3A8A] text-white flex items-center justify-center font-black text-sm uppercase select-none">
-              {(account.customer?.name || '').split(' ').filter(Boolean).map(n => n[0]).join('')}
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-[#0F172A]">{account.customer?.name || 'N/A'}</h4>
-              <span className="text-[10px] text-[#64748B] font-bold tracking-wider block uppercase">{account.customer?.occupation || 'Business'}</span>
-            </div>
+        {/* Tabbed Info Card (Left & Middle spanned across 2/3 width) */}
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm md:col-span-2 flex flex-col space-y-6">
+          {/* Tab Navigation header */}
+          <div className="flex border-b border-[#E2E8F0] space-x-6 pb-0.5 shrink-0">
+            <button
+              onClick={() => setInfoTab('profile')}
+              className={`flex items-center gap-2 pb-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                infoTab === 'profile'
+                  ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                  : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+              }`}
+            >
+              <span className="material-symbols-rounded text-sm select-none">person</span>
+              Customer Details
+            </button>
+            <button
+              onClick={() => setInfoTab('guarantor_nominee')}
+              className={`flex items-center gap-2 pb-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                infoTab === 'guarantor_nominee'
+                  ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                  : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
+              }`}
+            >
+              <span className="material-symbols-rounded text-sm select-none">
+                {account.type === 'Loan' ? 'supervisor_account' : 'person_add'}
+              </span>
+              {account.type === 'Loan' ? 'Loan Guarantor Profile' : 'Savings Nominee Profile'}
+            </button>
           </div>
 
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-              <span className="text-[#64748B]">Mobile Number</span>
-              <span className="font-bold text-[#0F172A]">{account.customer.phone}</span>
-            </div>
-            <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-              <span className="text-[#64748B]">Aadhaar Card No</span>
-              <span className="font-bold text-[#0F172A]">{account.customer.aadhaar}</span>
-            </div>
-            <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-              <span className="text-[#64748B]">PAN Card No</span>
-              <span className="font-bold text-[#0F172A]">{account.customer.pan}</span>
-            </div>
-            <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-              <span className="text-[#64748B]">Monthly Income</span>
-              <span className="font-bold text-[#16A34A]">{account.customer.monthlyIncome}</span>
-            </div>
-            <div>
-              <span className="text-[#64748B] block mb-1">Residential Address</span>
-              <p className="font-medium text-[#0F172A] leading-relaxed bg-[#F8FAFC] p-2.5 rounded-xl border border-slate-100 text-[11px]">
-                {account.customer.address}
-              </p>
-            </div>
-            {/* Bank details block */}
-            <div className="pt-3 border-t border-[#F1F5F9] space-y-1.5">
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block mb-1">Bank Account Details</span>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Bank Name</span>
-                <span className="font-bold text-[#0F172A]">{account.customer.bank?.name || 'State Bank of India'}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Account Number</span>
-                <span className="font-bold text-[#0F172A]">{account.customer.bank?.accountNo || '30291049281'}</span>
-              </div>
-              <div className="flex justify-between pb-1">
-                <span className="text-[#64748B]">IFSC Code</span>
-                <span className="font-bold text-[#0F172A]">{account.customer.bank?.ifsc || 'SBIN0001234'}</span>
-              </div>
-            </div>
+          {/* Active Tab Content */}
+          <div className="flex-1">
+            {infoTab === 'profile' ? (
+              /* Customer Details Tab */
+              <div className="space-y-6">
+                <div className="flex items-center gap-3.5 border-b border-[#F1F5F9] pb-4">
+                  <div className="w-12 h-12 rounded-full bg-[#1E3A8A] text-white flex items-center justify-center font-black text-sm uppercase select-none">
+                    {(account.customer?.name || '').split(' ').filter(Boolean).map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-[#0F172A]">{account.customer?.name || 'N/A'}</h4>
+                    <span className="text-[10px] text-[#64748B] font-bold tracking-wider block uppercase">{account.customer?.occupation || 'Business'}</span>
+                  </div>
+                </div>
 
-            {/* Customer Documents */}
-            <div className="pt-3 border-t border-[#F1F5F9] space-y-2">
-              <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Customer Documents</span>
-              <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-[#1E3A8A]">
-                <a 
-                  href="#view-aadhaar" 
-                  onClick={(e) => { e.preventDefault(); alert("Opening Customer Aadhaar Card Front & Back..."); }}
-                  className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                >
-                  <span className="material-symbols-rounded text-sm select-none">badge</span>
-                  Aadhaar
-                </a>
-                <a 
-                  href="#view-pan" 
-                  onClick={(e) => { e.preventDefault(); alert("Opening Customer PAN Card..."); }}
-                  className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                >
-                  <span className="material-symbols-rounded text-sm select-none">credit_card</span>
-                  PAN
-                </a>
-                <a 
-                  href="#view-cheque" 
-                  onClick={(e) => { e.preventDefault(); alert("Opening Bank Cheque / Passbook..."); }}
-                  className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                >
-                  <span className="material-symbols-rounded text-sm select-none">payments</span>
-                  Cheque
-                </a>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs">
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Father / Husband Name</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.fatherOrHusbandName}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Date of Birth</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.dob}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Gender</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.gender}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Mobile Number</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.phone}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Alternate Mobile</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.alternatePhone}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Aadhaar Card No</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.aadhaar}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">PAN Card No</span>
+                    <span className="font-bold text-[#0F172A]">{account.customer.pan}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                    <span className="text-[#64748B]">Monthly Income</span>
+                    <span className="font-bold text-[#16A34A]">{account.customer.monthlyIncome}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-[#F1F5F9]">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block mb-1">Permanent Address</span>
+                    <p className="font-medium text-[#0F172A] leading-relaxed bg-[#F8FAFC] p-2.5 rounded-xl border border-slate-100 text-[11px]">
+                      {account.customer.address}
+                    </p>
+                  </div>
+                  {account.customer.currentAddress ? (
+                    <div>
+                      <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block mb-1">Current Address</span>
+                      <p className="font-medium text-[#0F172A] leading-relaxed bg-[#F8FAFC] p-2.5 rounded-xl border border-slate-100 text-[11px]">
+                        {account.customer.currentAddress}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block mb-1">Current Address</span>
+                      <p className="font-medium text-[#64748B] leading-relaxed bg-[#F8FAFC] p-2.5 rounded-xl border border-slate-100 text-[11px] italic">
+                        Same as Permanent Address
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-[#F1F5F9]">
+                  {/* Bank details block */}
+                  <div className="space-y-1.5 text-xs">
+                    <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block mb-1">Bank Account Details</span>
+                    <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                      <span className="text-[#64748B]">Bank Name</span>
+                      <span className="font-bold text-[#0F172A]">{account.customer.bank?.name || 'State Bank of India'}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                      <span className="text-[#64748B]">Account Number</span>
+                      <span className="font-bold text-[#0F172A]">{account.customer.bank?.accountNo || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between pb-1">
+                      <span className="text-[#64748B]">IFSC Code</span>
+                      <span className="font-bold text-[#0F172A]">{account.customer.bank?.ifsc || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  {/* Customer Documents */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Customer Documents</span>
+                    <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-[#1E3A8A]">
+                      <a 
+                        href="#view-aadhaar" 
+                        onClick={(e) => { e.preventDefault(); alert("Opening Customer Aadhaar Card Front & Back..."); }}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                      >
+                        <span className="material-symbols-rounded text-base select-none">badge</span>
+                        Aadhaar
+                      </a>
+                      <a 
+                        href="#view-pan" 
+                        onClick={(e) => { e.preventDefault(); alert("Opening Customer PAN Card..."); }}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                      >
+                        <span className="material-symbols-rounded text-base select-none">credit_card</span>
+                        PAN
+                      </a>
+                      <a 
+                        href="#view-cheque" 
+                        onClick={(e) => { e.preventDefault(); alert("Opening Bank Cheque / Passbook..."); }}
+                        className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                      >
+                        <span className="material-symbols-rounded text-base select-none">payments</span>
+                        Cheque
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Guarantor / Nominee Tab */
+              account.type === 'Loan' ? (
+                /* Guarantor Details */
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 border-b border-[#F1F5F9] pb-4">
+                    <div className="w-10 h-10 rounded-full bg-[#1E3A8A]/10 text-[#1E3A8A] flex items-center justify-center font-bold">
+                      <span className="material-symbols-rounded">supervisor_account</span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0F172A]">{account.guarantor.name || 'N/A'}</h4>
+                      <span className="text-[10px] text-[#64748B] font-bold tracking-wider block uppercase">{account.guarantor.relation || 'Relation'}</span>
+                    </div>
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+                    {/* Left Column: Details */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Full Name</span>
+                        <span className="font-bold text-[#0F172A]">{account.guarantor.name}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Phone Number</span>
+                        <span className="font-bold text-[#0F172A]">{account.guarantor.phone}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Relationship</span>
+                        <span className="font-bold text-[#0F172A]">{account.guarantor.relation}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Aadhaar Card No</span>
+                        <span className="font-bold text-[#0F172A]">{account.guarantor.aadhaar}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Verified Income</span>
+                        <span className="font-bold text-[#16A34A]">{account.guarantor.income}</span>
+                      </div>
+                    </div>
 
+                    {/* Right Column: Address and Documents */}
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-[#64748B] block mb-1">Guarantor Address</span>
+                        <p className="font-medium text-[#0F172A] leading-relaxed bg-[#F8FAFC] p-2.5 rounded-xl border border-slate-100 text-[11px]">
+                          {account.guarantor.address}
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Guarantor Documents</span>
+                        <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-[#1E3A8A]">
+                          <a 
+                            href="#view-g-photo" 
+                            onClick={(e) => { e.preventDefault(); alert("Opening Guarantor Photo..."); }}
+                            className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                          >
+                            <span className="material-symbols-rounded text-base select-none">account_box</span>
+                            Photo
+                          </a>
+                          <a 
+                            href="#view-g-aadhaar-front" 
+                            onClick={(e) => { e.preventDefault(); alert("Opening Guarantor Aadhaar Front..."); }}
+                            className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                          >
+                            <span className="material-symbols-rounded text-base select-none">badge</span>
+                            Aadhaar F
+                          </a>
+                          <a 
+                            href="#view-g-aadhaar-back" 
+                            onClick={(e) => { e.preventDefault(); alert("Opening Guarantor Aadhaar Back..."); }}
+                            className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                          >
+                            <span className="material-symbols-rounded text-base select-none">badge</span>
+                            Aadhaar B
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Nominee Details */
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 border-b border-[#F1F5F9] pb-4">
+                    <div className="w-10 h-10 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center font-bold">
+                      <span className="material-symbols-rounded">person_add</span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-[#0F172A]">{account.nominee.name || 'N/A'}</h4>
+                      <span className="text-[10px] text-[#64748B] font-bold tracking-wider block uppercase">{account.nominee.relation || 'Relation'}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+                    {/* Left Column: Details */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Nominee Name</span>
+                        <span className="font-bold text-[#0F172A]">{account.nominee.name}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Phone Number</span>
+                        <span className="font-bold text-[#0F172A]">{account.nominee.phone}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Relationship</span>
+                        <span className="font-bold text-[#0F172A]">{account.nominee.relation}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Nominee Age</span>
+                        <span className="font-bold text-[#0F172A]">{account.nominee.age}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
+                        <span className="text-[#64748B]">Share Percentage</span>
+                        <span className="font-bold text-[#1E3A8A]">{account.nominee.share}</span>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Documents */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Nominee Documents</span>
+                        <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-[#1E3A8A]">
+                          <a 
+                            href="#view-n-photo" 
+                            onClick={(e) => { e.preventDefault(); alert("Opening Nominee Photo..."); }}
+                            className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                          >
+                            <span className="material-symbols-rounded text-base select-none">account_box</span>
+                            Photo
+                          </a>
+                          <a 
+                            href="#view-n-aadhaar-front" 
+                            onClick={(e) => { e.preventDefault(); alert("Opening Nominee Aadhaar Front..."); }}
+                            className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                          >
+                            <span className="material-symbols-rounded text-base select-none">badge</span>
+                            Aadhaar F
+                          </a>
+                          <a 
+                            href="#view-n-aadhaar-back" 
+                            onClick={(e) => { e.preventDefault(); alert("Opening Nominee Aadhaar Back..."); }}
+                            className="flex flex-col items-center justify-center gap-1.5 p-3 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center cursor-pointer"
+                          >
+                            <span className="material-symbols-rounded text-base select-none">badge</span>
+                            Aadhaar B
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            )}
           </div>
         </div>
-
-        {/* Guarantor / Nominee Card */}
-        {account.type === 'Loan' ? (
-          /* Guarantor Details */
-          <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#F1F5F9] pb-3.5">
-              <span className="material-symbols-rounded text-lg text-[#1E3A8A] select-none">supervisor_account</span>
-              <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Loan Guarantor Profile</h3>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Full Name</span>
-                <span className="font-bold text-[#0F172A]">{account.guarantor.name}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Phone Number</span>
-                <span className="font-bold text-[#0F172A]">{account.guarantor.phone}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Relationship</span>
-                <span className="font-bold text-[#0F172A]">{account.guarantor.relation}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Aadhaar Card No</span>
-                <span className="font-bold text-[#0F172A]">{account.guarantor.aadhaar}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Verified Income</span>
-                <span className="font-bold text-[#16A34A]">{account.guarantor.income}</span>
-              </div>
-              <div>
-                <span className="text-[#64748B] block mb-1">Guarantor Address</span>
-                <p className="font-medium text-[#0F172A] leading-relaxed bg-[#F8FAFC] p-2.5 rounded-xl border border-slate-100 text-[11px]">
-                  {account.guarantor.address}
-                </p>
-              </div>
-              {/* Guarantor Documents */}
-              <div className="pt-3 border-t border-[#F1F5F9] space-y-2">
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Guarantor Documents</span>
-                <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-[#1E3A8A]">
-                  <a 
-                    href="#view-g-photo" 
-                    onClick={(e) => { e.preventDefault(); alert("Opening Guarantor Photo..."); }}
-                    className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">account_box</span>
-                    Photo
-                  </a>
-                  <a 
-                    href="#view-g-aadhaar-front" 
-                    onClick={(e) => { e.preventDefault(); alert("Opening Guarantor Aadhaar Front..."); }}
-                    className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">badge</span>
-                    Aadhaar F
-                  </a>
-                  <a 
-                    href="#view-g-aadhaar-back" 
-                    onClick={(e) => { e.preventDefault(); alert("Opening Guarantor Aadhaar Back..."); }}
-                    className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">badge</span>
-                    Aadhaar B
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Nominee Details */
-          <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#F1F5F9] pb-3.5">
-              <span className="material-symbols-rounded text-lg text-[#F59E0B] select-none">person_add</span>
-              <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Savings Nominee Profile</h3>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Nominee Name</span>
-                <span className="font-bold text-[#0F172A]">{account.nominee.name}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Phone Number</span>
-                <span className="font-bold text-[#0F172A]">{account.nominee.phone}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Relationship</span>
-                <span className="font-bold text-[#0F172A]">{account.nominee.relation}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Nominee Age</span>
-                <span className="font-bold text-[#0F172A]">{account.nominee.age}</span>
-              </div>
-              <div className="flex justify-between border-b border-[#F8FAFC] pb-1.5">
-                <span className="text-[#64748B]">Share Percentage</span>
-                <span className="font-bold text-[#1E3A8A]">{account.nominee.share}</span>
-              </div>
-              {/* Nominee Documents */}
-              <div className="pt-3 border-t border-[#F1F5F9] space-y-2">
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Nominee Documents</span>
-                <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-[#1E3A8A]">
-                  <a 
-                    href="#view-n-photo" 
-                    onClick={(e) => { e.preventDefault(); alert("Opening Nominee Photo..."); }}
-                    className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">account_box</span>
-                    Photo
-                  </a>
-                  <a 
-                    href="#view-n-aadhaar-front" 
-                    onClick={(e) => { e.preventDefault(); alert("Opening Nominee Aadhaar Front..."); }}
-                    className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">badge</span>
-                    Aadhaar F
-                  </a>
-                  <a 
-                    href="#view-n-aadhaar-back" 
-                    onClick={(e) => { e.preventDefault(); alert("Opening Nominee Aadhaar Back..."); }}
-                    className="flex items-center justify-center gap-1 p-2 bg-[#1E3A8A]/5 hover:bg-[#1E3A8A]/10 border border-[#1E3A8A]/10 rounded-xl transition-all text-center"
-                  >
-                    <span className="material-symbols-rounded text-sm select-none">badge</span>
-                    Aadhaar B
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Collection Progress Timeline */}
         <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-3 flex flex-col justify-between">
@@ -2129,9 +2682,9 @@ export default function AccountDetails() {
     {/* Closure Modal Dialog Overlay */}
     {isCloseModalOpen && (
       <div className="fixed inset-0 bg-[#0F172A]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-        <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-5 animate-scale-up">
+        <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden animate-scale-up">
           {/* Modal Header */}
-          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div className="flex justify-between items-center border-b border-slate-100 p-5 pb-3 shrink-0">
             <h3 className="text-base font-extrabold text-[#0F172A] flex items-center gap-1.5">
               <span className="material-symbols-rounded text-lg text-[#1E3A8A] select-none">
                 {account.type === 'Loan' ? 'cancel_presentation' : 'auto_awesome'}
@@ -2147,7 +2700,7 @@ export default function AccountDetails() {
           </div>
 
           {/* Modal Body */}
-          <div className="space-y-4 text-xs text-[#0F172A]">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs text-[#0F172A] no-scrollbar">
             <div className="p-4 bg-[#F8FAFC] border border-slate-100 rounded-2xl space-y-2">
               <div className="flex justify-between font-bold text-slate-500">
                 <span>Account Number</span>
@@ -2166,9 +2719,52 @@ export default function AccountDetails() {
             {account.type === 'Loan' ? (
               // Loan Close details
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                {/* Details Breakdown Grid */}
+                <div className="bg-[#F8FAFC] border border-slate-100 p-3 rounded-2xl space-y-2.5">
+                  <span className="font-extrabold text-[10px] uppercase tracking-wider text-[#64748B] block mb-1">
+                    Principal & Interest Breakdown
+                  </span>
+                  
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 text-xs">
+                    {/* Principal Col */}
+                    <div className="bg-white border border-slate-150 p-2.5 rounded-xl space-y-1.5 shadow-2xs">
+                      <strong className="text-[10px] font-black text-[#1E3A8A] uppercase tracking-wider block">Principal</strong>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Disbursed:</span>
+                        <span className="font-bold text-[#0F172A]">₹{Math.round(totalPrincipalForClose).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Paid:</span>
+                        <span className="font-bold text-emerald-600">₹{Math.round(paidPrincipalForClose).toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-dashed border-slate-100 pt-1.5 flex justify-between text-[11px] font-extrabold">
+                        <span className="text-slate-600">Outstanding:</span>
+                        <span className="text-[#E11D48]">₹{Math.round(remainingPrincipalForClose).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Interest Col */}
+                    <div className="bg-white border border-slate-150 p-2.5 rounded-xl space-y-1.5 shadow-2xs">
+                      <strong className="text-[10px] font-black text-amber-600 uppercase tracking-wider block">Interest</strong>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Expected:</span>
+                        <span className="font-bold text-[#0F172A]">₹{Math.round(totalInterestForClose).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Paid:</span>
+                        <span className="font-bold text-emerald-600">₹{Math.round(paidInterestForClose).toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-dashed border-slate-100 pt-1.5 flex justify-between text-[11px] font-extrabold">
+                        <span className="text-slate-600">Remaining:</span>
+                        <span className="text-[#E11D48]">₹{Math.round(remainingInterestForClose).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500 block">Principal Outstanding (₹)</label>
+                    <label className="font-bold text-[#64748B] block text-[10px] uppercase">Principal Outstanding (₹)</label>
                     <input 
                       type="number"
                       value={closePrincipal}
@@ -2177,7 +2773,7 @@ export default function AccountDetails() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500 block">Late Fine / Charges (₹)</label>
+                    <label className="font-bold text-[#64748B] block text-[10px] uppercase">Late Fine / Charges (₹)</label>
                     <input 
                       type="number"
                       value={closeInterestFine}
@@ -2187,20 +2783,42 @@ export default function AccountDetails() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-[#64748B] block text-[10px] uppercase">Waiver / Discount (₹)</label>
+                    <input 
+                      type="number"
+                      value={closeDiscountCharges}
+                      onChange={(e) => setCloseDiscountCharges(Number(e.target.value))}
+                      className="w-full p-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-[#64748B] block text-[10px] uppercase">Settlement Date</label>
+                    <input 
+                      type="date"
+                      value={closeDate}
+                      max={new Date().toLocaleDateString('sv-SE')}
+                      onChange={(e) => setCloseDate(e.target.value)}
+                      className="w-full p-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#1E3A8A]"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">Waiver / Discount (₹)</label>
+                  <label className="font-bold text-[#64748B] block text-[10px] uppercase">Remarks / Notes</label>
                   <input 
-                    type="number"
-                    value={closeDiscountCharges}
-                    onChange={(e) => setCloseDiscountCharges(Number(e.target.value))}
-                    className="w-full p-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
+                    type="text"
+                    value={closeRemarks}
+                    onChange={(e) => setCloseRemarks(e.target.value)}
+                    className="w-full p-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
 
                 <div className="flex justify-between items-center p-3 bg-red-50/50 border border-red-100 rounded-xl">
                   <span className="font-bold text-[#0F172A]">Net Settlement Amount:</span>
                   <span className="text-sm font-black text-[#E11D48]">
-                    ₹{((Number(closePrincipal) + Number(closeInterestFine)) - Number(closeDiscountCharges)).toLocaleString()}
+                    ₹{Math.max(0, ((Number(closePrincipal) + Number(closeInterestFine)) - Number(closeDiscountCharges))).toLocaleString()}
                   </span>
                 </div>
 
@@ -2217,7 +2835,7 @@ export default function AccountDetails() {
             ) : (
               // Savings Maturity details
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="font-bold text-slate-500 block">Deposited Principal (₹)</label>
                     <input 
@@ -2285,7 +2903,7 @@ export default function AccountDetails() {
           </div>
 
           {/* Modal Footer */}
-          <div className="flex gap-3 pt-3 border-t border-slate-100">
+          <div className="flex gap-3 p-5 pt-3 border-t border-slate-100 bg-white shrink-0">
             <button 
               onClick={() => setIsCloseModalOpen(false)}
               className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center"
@@ -2297,7 +2915,7 @@ export default function AccountDetails() {
               disabled={!confirmClosure}
               className={`flex-1 py-2.5 text-xs font-bold text-white rounded-xl transition-all text-center shadow-sm ${
                 confirmClosure 
-                  ? (account.type === 'Loan' ? 'bg-[#E11D48] hover:bg-[#E11D48]/90 cursor-pointer' : 'bg-[#EA580C] hover:bg-[#EA580C]/90 cursor-pointer')
+                  ? (account.type === 'Loan' ? 'bg-[#E11D48] hover:bg-[#E11D48]/90 cursor-pointer' : 'bg-[#F59E0B] hover:bg-[#F59E0B]/90 cursor-pointer')
                   : 'bg-slate-200 text-slate-400 cursor-not-allowed'
               }`}
             >
@@ -2747,6 +3365,921 @@ export default function AccountDetails() {
             </div>
           </div>
         </form>
+      </div>
+    )}
+
+    {/* No Objection Certificate (NOC) Viewer Modal */}
+    {isNocModalOpen && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in noc-no-print" onClick={() => setIsNocModalOpen(false)}>
+        <div 
+          className="bg-white rounded-2xl border border-[#E2E8F0] shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh] overflow-hidden animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-[#F8FAFC] shrink-0">
+            <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-1.5">
+              <span className="material-symbols-rounded text-lg text-[#16A34A] select-none">verified</span>
+              Official No Objection Certificate (NOC)
+            </h3>
+            <button 
+              onClick={() => setIsNocModalOpen(false)}
+              className="text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 p-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-lg select-none block">close</span>
+            </button>
+          </div>
+
+          {/* Modal Body: Scrollable certificate container */}
+          <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-slate-50">
+            {/* Printable Certificate Board */}
+            <div 
+              id="noc-print-area"
+              className="bg-white p-10 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between"
+              style={{ minHeight: '600px', backgroundImage: 'radial-gradient(#1e3a8a03 1px, transparent 1px)', backgroundSize: '16px 16px' }}
+            >
+              {/* Border decoration */}
+              <div className="absolute inset-2 border-2 border-double border-slate-200 rounded-lg pointer-events-none"></div>
+              
+              {/* Letterhead Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-5 gap-4 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-[#1E3A8A] flex items-center justify-center text-white shadow-md shrink-0">
+                    <span className="material-symbols-rounded text-2xl select-none font-bold">umbrella</span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight text-[#0F172A]">UMBRELLA FINANCE</h2>
+                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">Chhote Kadam, Bade Sapne</p>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right">
+                  <h3 className="text-xs font-black text-slate-800 tracking-wider">NO OBJECTION CERTIFICATE</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Ref: NOC/{account.accNo}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Date: {account.closed_at ? new Date(account.closed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                </div>
+              </div>
+
+              {/* Certificate Watermark Logo */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.025] select-none z-0">
+                <span className="material-symbols-rounded text-[240px] font-bold">umbrella</span>
+              </div>
+
+              {/* Certificate Contents */}
+              <div className="py-8 space-y-6 text-xs text-slate-700 leading-relaxed relative z-10">
+                <p className="font-bold text-slate-900">TO WHOM IT MAY CONCERN</p>
+                
+                <p className="text-justify font-medium">
+                  This is to certify that the borrower <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has availed a Loan under Account Number <strong className="font-extrabold text-[#1E3A8A]">{account.accNo}</strong> from Umbrella Finance.
+                </p>
+
+                <p className="text-justify font-medium">
+                  We hereby confirm that the borrower has fully paid all due installments, principal, interest, and any applicable charges under this loan account. As of <strong className="font-bold text-slate-800">{account.closed_at ? new Date(account.closed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>, the outstanding dues under the said loan account stand at <strong className="text-green-600 font-extrabold">NIL (₹0.00)</strong>.
+                </p>
+
+                <p className="text-justify font-medium">
+                  Umbrella Finance has received the complete settlement amount and has **No Objection** whatsoever against the borrower. We declare that the said loan account has been **Fully Closed & Settled** in our books of accounts, and there are no liabilities, claims, or dues outstanding against the borrower under this account.
+                </p>
+              </div>
+
+              {/* Letterhead Signatures */}
+              <div className="flex justify-between items-end pt-8 border-t border-slate-200 mt-auto relative z-10">
+                <div className="space-y-2">
+                  <div className="w-16 h-16 bg-[#1e3a8a]/5 border border-dashed border-[#1e3a8a]/20 rounded-full flex flex-col items-center justify-center text-[7px] font-bold text-[#1e3a8a]/60 select-none uppercase tracking-widest text-center leading-tight">
+                    <span>OFFICIAL</span>
+                    <span>SEAL</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Umbrella Finance Seal</p>
+                </div>
+                <div className="text-right space-y-1.5">
+                  <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
+                    <span className="font-serif text-[#1e3a8a] border-b border-slate-300 pb-1.5 w-36 text-center tracking-widest">Sandeep Kumar</span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">Authorized Signatory</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-[#F8FAFC] shrink-0">
+            <button 
+              onClick={() => setIsNocModalOpen(false)}
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center"
+            >
+              Close Preview
+            </button>
+            <button 
+              onClick={() => window.print()}
+              className="flex-1 py-2.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-xs font-bold rounded-xl transition-all text-center shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-rounded text-sm">print</span>
+              Print Certificate
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic stylesheet injection for high fidelity printing */}
+        <style dangerouslySetInnerHTML={{__html: `
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            #noc-print-area, #noc-print-area * {
+              visibility: visible !important;
+            }
+            #noc-print-area {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              border: none !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+              padding: 50px !important;
+              background: white !important;
+              font-family: inherit !important;
+            }
+            .noc-no-print {
+              display: none !important;
+            }
+          }
+        `}} />
+      </div>
+    )}
+
+    {/* Account Passbook Viewer Modal */}
+    {isPassbookModalOpen && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in passbook-no-print" onClick={() => setIsPassbookModalOpen(false)}>
+        <div 
+          className="bg-white rounded-2xl border border-[#E2E8F0] shadow-2xl w-full max-w-4xl flex flex-col h-[92vh] overflow-hidden animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-[#F8FAFC] shrink-0">
+            <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-1.5">
+              <span className="material-symbols-rounded text-lg text-[#1E3A8A] select-none">book_5</span>
+              Official Account Passbook & Statement
+            </h3>
+            <button 
+              onClick={() => setIsPassbookModalOpen(false)}
+              className="text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 p-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-lg select-none block">close</span>
+            </button>
+          </div>
+
+          {/* Modal Body: Scrollable statement container */}
+          <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-slate-50">
+            {/* Printable Passbook Board */}
+            <div 
+              id="passbook-print-area"
+              className="bg-white p-10 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col gap-6"
+              style={{ minHeight: '100%', backgroundImage: 'radial-gradient(#1e3a8a03 1px, transparent 1px)', backgroundSize: '16px 16px' }}
+            >
+              {/* Border decoration */}
+              <div className="absolute inset-2 border-2 border-double border-slate-200 rounded-lg pointer-events-none"></div>
+              
+              {/* Letterhead Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-5 gap-4 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-[#1E3A8A] flex items-center justify-center text-white shadow-md shrink-0">
+                    <span className="material-symbols-rounded text-2xl select-none font-bold">umbrella</span>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight text-[#0F172A]">UMBRELLA FINANCE</h2>
+                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">Chhote Kadam, Bade Sapne</p>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right">
+                  <h3 className="text-xs font-black text-slate-800 tracking-wider">ACCOUNT PASSBOOK STATEMENT</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Acc No: {account.accNo}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Statement Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                </div>
+              </div>
+
+              {/* Customer and Account details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-200/60 relative z-10 text-[11px]">
+                {/* Column 1: Customer Details */}
+                <div className="space-y-2">
+                  <h4 className="font-extrabold text-slate-800 uppercase tracking-wide border-b border-slate-200 pb-1 text-[10px]">Customer Information</h4>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Name:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.name}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Aadhaar:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.aadhaar}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">PAN:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.pan || 'N/A'}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Phone:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.phone}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Address:</span>
+                    <span className="col-span-2 text-slate-800 font-medium leading-tight">{account.customer?.address}</span>
+                  </div>
+                </div>
+
+                {/* Column 2: Account Details */}
+                <div className="space-y-2">
+                  <h4 className="font-extrabold text-slate-800 uppercase tracking-wide border-b border-slate-200 pb-1 text-[10px]">Account Summary</h4>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Account Type:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold uppercase">{account.type} Account</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Approved Amt:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">₹{(account.approvedAmt || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">ROI Rate:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.roi}% p.a.</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Tenure Days:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.tenure} Days</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Start Date:</span>
+                    <span className="col-span-2 text-slate-800 font-extrabold">{account.start_date}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-slate-400 font-bold">Status:</span>
+                    <span className={`col-span-2 font-extrabold uppercase ${account.account_status === 'Closed' ? 'text-rose-600' : 'text-[#16A34A]'}`}>
+                      {account.account_status || account.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transactions Ledger Table */}
+              <div className="relative z-10 overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-200 text-[10px]">
+                  <thead>
+                    <tr className="bg-slate-50 font-bold text-slate-500 text-left border-b border-slate-200">
+                      <th className="px-3 py-2">Date</th>
+                      <th className="px-3 py-2">Reference No</th>
+                      <th className="px-3 py-2">Type</th>
+                      <th className="px-3 py-2">Mode</th>
+                      <th className="px-3 py-2 text-right">Penalty</th>
+                      <th className="px-3 py-2 text-right">Amount Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {(statementData.transactions || []).length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-3 py-4 text-center text-slate-400 font-bold">No transactions logged on this account.</td>
+                      </tr>
+                    ) : (
+                      (statementData.transactions || []).map((t, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="px-3 py-2.5 whitespace-nowrap">{t.date}</td>
+                          <td className="px-3 py-2.5 font-bold whitespace-nowrap">{t.refNo}</td>
+                          <td className="px-3 py-2.5 whitespace-nowrap">{t.type}</td>
+                          <td className="px-3 py-2.5 whitespace-nowrap">{t.paymentMode || 'Cash'}</td>
+                          <td className="px-3 py-2.5 text-right whitespace-nowrap text-rose-500">₹{Number(t.fine || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2.5 text-right font-extrabold whitespace-nowrap text-slate-900">₹{Number(t.amt || 0).toLocaleString()}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Stamp and Signatures Footer */}
+              <div className="flex justify-between items-end pt-8 border-t border-slate-200 mt-auto relative z-10">
+                <div className="space-y-2">
+                  <div className="w-16 h-16 bg-[#1e3a8a]/5 border border-dashed border-[#1e3a8a]/20 rounded-full flex flex-col items-center justify-center text-[7px] font-bold text-[#1e3a8a]/60 select-none uppercase tracking-widest text-center leading-tight">
+                    <span>OFFICIAL</span>
+                    <span>SEAL</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Umbrella Finance Seal</p>
+                </div>
+                <div className="text-right space-y-1.5">
+                  <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
+                    <span className="font-serif text-[#1e3a8a] border-b border-slate-300 pb-1.5 w-36 text-center tracking-widest">Sandeep Kumar</span>
+                  </div>
+                  <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">Authorized Signatory</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-[#F8FAFC] shrink-0">
+            <button 
+              onClick={() => setIsPassbookModalOpen(false)}
+              className="flex-1 py-2.5 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-slate-100 text-center"
+            >
+              Close Preview
+            </button>
+            <button 
+              onClick={() => window.print()}
+              className="flex-1 py-2.5 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all text-center shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-rounded text-sm">print</span>
+              Print Statement
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic stylesheet injection for high fidelity printing */}
+        <style dangerouslySetInnerHTML={{__html: `
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            #passbook-print-area, #passbook-print-area * {
+              visibility: visible !important;
+            }
+            #passbook-print-area {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              border: none !important;
+              box-shadow: none !important;
+              margin: 0 !important;
+              padding: 50px !important;
+              background: white !important;
+              font-family: inherit !important;
+            }
+            .passbook-no-print {
+              display: none !important;
+            }
+          }
+        `}} />
+      </div>
+    )}
+
+    {/* Add Loan Modal */}
+    {isAddLoanModalOpen && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setIsAddLoanModalOpen(false)}>
+        <div 
+          className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl w-full max-w-4xl overflow-hidden animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-[#F1F5F9] px-6 py-4 bg-[#F8FAFC]">
+            <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-1.5">
+              <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">credit_score</span>
+              Apply for New Loan
+            </h3>
+            <button 
+              onClick={() => setIsAddLoanModalOpen(false)}
+              className="text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 p-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-lg select-none block">close</span>
+            </button>
+          </div>
+
+          <form onSubmit={handleAddLoan} className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[80vh] overflow-y-auto">
+            {/* Form Inputs (Left) */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Select Loan Plan</label>
+                <select 
+                  required
+                  value={loanForm.loan_plan_id}
+                  onChange={(e) => {
+                    const planId = e.target.value;
+                    if (planId === 'custom') {
+                      setLoanForm(prev => ({
+                        ...prev,
+                        loan_plan_id: planId,
+                        principal_amount: '',
+                        interest_rate: '12',
+                        interest_type: 'Flat',
+                        duration_value: '100',
+                        duration_unit: 'Days',
+                        collection_frequency: 'Daily',
+                        emi_amount: '',
+                        processing_fee: '0',
+                        penalty_per_day: '0'
+                      }));
+                    } else {
+                      const selected = loanPlans.find(p => String(p.id) === planId);
+                      setLoanForm(prev => ({
+                        ...prev,
+                        loan_plan_id: planId,
+                        principal_amount: selected ? String(selected.min_amount) : ''
+                      }));
+                    }
+                  }}
+                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                >
+                  <option value="">-- Choose a Plan --</option>
+                  {loanPlans.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (₹{Number(p.min_amount || 0).toLocaleString()} - {p.interest_rate}% {p.interest_type} / {p.duration_value} {p.duration_unit})
+                    </option>
+                  ))}
+                  <option value="custom">Custom Loan Plan (Enter Manually)</option>
+                </select>
+              </div>
+
+              {loanForm.loan_plan_id === 'custom' && (
+                <div className="border-t border-[#F1F5F9] pt-4 mt-2 space-y-4">
+                  <h4 className="text-[11px] font-bold text-[#1E3A8A] uppercase tracking-wider">Custom Loan Details</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Principal Amount (₹) *</label>
+                      <input 
+                        type="number"
+                        required
+                        min="1"
+                        value={loanForm.principal_amount}
+                        onChange={(e) => setLoanForm({ ...loanForm, principal_amount: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="E.g., 10000"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Rate (%) *</label>
+                      <input 
+                        type="number"
+                        required
+                        step="0.01"
+                        min="0"
+                        value={loanForm.interest_rate}
+                        onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="E.g., 12"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Type *</label>
+                      <select 
+                        required
+                        value={loanForm.interest_type}
+                        onChange={(e) => setLoanForm({ ...loanForm, interest_type: e.target.value })}
+                        className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                      >
+                        <option value="Flat">Flat Interest</option>
+                        <option value="Reducing">Reducing Interest</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration *</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="number"
+                          required
+                          min="1"
+                          value={loanForm.duration_value}
+                          onChange={(e) => setLoanForm({ ...loanForm, duration_value: e.target.value })}
+                          className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          placeholder="E.g., 100"
+                        />
+                        <select 
+                          value={loanForm.duration_unit}
+                          onChange={(e) => setLoanForm({ ...loanForm, duration_unit: e.target.value })}
+                          className="w-28 h-11 px-2 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                        >
+                          <option value="Days">Days</option>
+                          <option value="Months">Months</option>
+                          <option value="Years">Years</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Collection Frequency *</label>
+                      <select 
+                        required
+                        value={loanForm.collection_frequency}
+                        onChange={(e) => setLoanForm({ ...loanForm, collection_frequency: e.target.value })}
+                        className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                      >
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Installment / EMI (₹) *</label>
+                      <input 
+                        type="number"
+                        required
+                        min="1"
+                        value={loanForm.emi_amount}
+                        onChange={(e) => setLoanForm({ ...loanForm, emi_amount: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="Calculated automatically..."
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Processing Fee (₹)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        value={loanForm.processing_fee}
+                        onChange={(e) => setLoanForm({ ...loanForm, processing_fee: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="E.g., 200"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Penalty per Day (₹)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        value={loanForm.penalty_per_day}
+                        onChange={(e) => setLoanForm({ ...loanForm, penalty_per_day: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="E.g., 10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {loanForm.loan_plan_id && loanForm.loan_plan_id !== 'custom' && (
+                <div className="space-y-1 pt-2">
+                  <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Principal Amount (₹) *</label>
+                  <input 
+                    type="number"
+                    required
+                    min="1"
+                    value={loanForm.principal_amount}
+                    onChange={(e) => setLoanForm({ ...loanForm, principal_amount: e.target.value })}
+                    className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                    placeholder="Enter principal amount"
+                  />
+                </div>
+              )}
+
+              {loanForm.loan_plan_id && (
+                <DatePicker
+                  label="Account Opening Date *"
+                  required={true}
+                  value={loanForm.start_date}
+                  onChange={(val) => setLoanForm({ ...loanForm, start_date: val })}
+                />
+              )}
+            </div>
+
+            {/* Calculations Card (Right) */}
+            <div className="md:col-span-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 flex flex-col justify-between min-h-[300px]">
+              <div>
+                <h4 className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider border-b border-[#E2E8F0] pb-2 mb-3">
+                  Calculation Summary
+                </h4>
+                
+                {selectedLoanPlanObj ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#64748B] font-semibold">Plan Name</span>
+                      <strong className="text-[#0F172A] font-extrabold">{selectedLoanPlanObj.name}</strong>
+                    </div>
+
+                    {(() => {
+                      const principal = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.principal_amount) || 0) : (Number(loanForm.principal_amount) || 0);
+                      const rate = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.interest_rate) || 0) : (Number(selectedLoanPlanObj.interest_rate) || 0);
+                      const type = loanForm.loan_plan_id === 'custom' ? loanForm.interest_type : selectedLoanPlanObj.interest_type;
+                      const duration = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.duration_value) || 0) : (Number(selectedLoanPlanObj.duration_value) || 0);
+                      const durationUnit = loanForm.loan_plan_id === 'custom' ? loanForm.duration_unit : selectedLoanPlanObj.duration_unit;
+                      const frequency = loanForm.loan_plan_id === 'custom' ? loanForm.collection_frequency : selectedLoanPlanObj.collection_frequency;
+                      const emi = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.emi_amount) || 0) : Math.round((principal + (type === 'Flat' ? (principal * (rate / 100)) : (principal * (rate / 100) * 0.7))) / (duration || 1));
+                      const totalInterest = type === 'Flat' ? (principal * (rate / 100)) : (principal * (rate / 100) * 0.7);
+                      const totalPayable = principal + totalInterest;
+
+                      return (
+                        <>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[#64748B] font-semibold">Principal</span>
+                            <strong className="text-[#0F172A] font-extrabold">₹{principal.toLocaleString()}</strong>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[#64748B] font-semibold">Rate ({type})</span>
+                            <strong className="text-[#0F172A] font-extrabold">{rate}%</strong>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
+                            <span className="text-[#1E3A8A] font-bold">Duration</span>
+                            <span className="font-extrabold text-[#0F172A] bg-white px-2 py-0.5 rounded border border-[#E2E8F0]">
+                              {duration} {durationUnit}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs bg-[#1E3A8A]/5 border border-[#1E3A8A]/10 px-3 py-2 rounded-xl">
+                            <span className="text-[#1E3A8A] font-bold">Installment (EMI)</span>
+                            <span className="font-extrabold text-[#1E3A8A] bg-white px-2 py-0.5 rounded border border-[#1E3A8A]/10">
+                              ₹{emi.toLocaleString()} ({frequency})
+                            </span>
+                          </div>
+
+                          <div className="border-t border-dashed border-slate-300 pt-3 mt-2 space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[#64748B] font-semibold">Total Interest</span>
+                              <strong className="text-[#0F172A] font-extrabold">₹{Math.round(totalInterest).toLocaleString()}</strong>
+                            </div>
+                            <div className="flex justify-between text-xs text-[#16A34A] pt-1">
+                              <span className="font-bold">Total Payable</span>
+                              <strong className="font-black text-[13px]">₹{Math.round(totalPayable).toLocaleString()}</strong>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[#64748B] text-center pt-8">Select a loan plan to view calculation details.</p>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-200 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsAddLoanModalOpen(false)}
+                  className="flex-1 h-10 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-[#E2E8F0] text-center"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 h-10 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Apply Loan'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    {/* Add Savings Modal */}
+    {isAddSavingModalOpen && (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setIsAddSavingModalOpen(false)}>
+        <div 
+          className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl w-full max-w-4xl overflow-hidden animate-scale-up"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-[#F1F5F9] px-6 py-4 bg-[#F8FAFC]">
+            <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-1.5">
+              <span className="material-symbols-rounded text-base text-[#F59E0B] select-none">savings</span>
+              Open New Savings Account
+            </h3>
+            <button 
+              onClick={() => setIsAddSavingModalOpen(false)}
+              className="text-[#64748B] hover:text-[#0F172A] hover:bg-slate-100 p-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-lg select-none block">close</span>
+            </button>
+          </div>
+
+          <form onSubmit={handleAddSaving} className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[80vh] overflow-y-auto">
+            {/* Form Inputs (Left) */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Select Savings Plan</label>
+                <select 
+                  required
+                  value={savingForm.saving_plan_id}
+                  onChange={(e) => {
+                    const planId = e.target.value;
+                    if (planId === 'custom') {
+                      setSavingForm(prev => ({
+                        ...prev,
+                        saving_plan_id: planId,
+                        deposit_amount: '',
+                        interest_rate: '6.5',
+                        duration_value: '365',
+                        duration_unit: 'Days',
+                        collection_frequency: 'Daily',
+                        maturity_amount: ''
+                      }));
+                    } else {
+                      const selected = savingPlans.find(p => String(p.id) === planId);
+                      setSavingForm(prev => ({
+                        ...prev,
+                        saving_plan_id: planId,
+                        deposit_amount: selected ? String(selected.deposit_amount) : '',
+                        interest_rate: selected ? String(selected.interest_rate) : '',
+                        duration_value: selected ? String(selected.duration_value) : '',
+                        duration_unit: selected ? String(selected.duration_unit) : 'Days',
+                        collection_frequency: selected ? String(selected.collection_frequency) : 'Daily',
+                        maturity_amount: selected ? String(selected.maturity_amount) : ''
+                      }));
+                    }
+                  }}
+                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                >
+                  <option value="">-- Choose a Plan --</option>
+                  {savingPlans.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} (Deposit: ₹{p.deposit_amount} / Rate: {p.interest_rate}% / {p.duration_value} {p.duration_unit})
+                    </option>
+                  ))}
+                  <option value="custom">Custom Savings Plan (Enter Manually)</option>
+                </select>
+              </div>
+
+              {savingForm.saving_plan_id && (
+                <div className="border-t border-[#F1F5F9] pt-4 mt-2 space-y-4">
+                  <h4 className="text-[11px] font-bold text-[#F59E0B] uppercase tracking-wider">
+                    {savingForm.saving_plan_id === 'custom' ? 'Custom Savings Details' : 'Savings Plan Parameters'}
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Deposit Amount (₹) *</label>
+                      <input 
+                        type="number"
+                        required
+                        min="1"
+                        value={savingForm.deposit_amount}
+                        onChange={(e) => setSavingForm({ ...savingForm, deposit_amount: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="E.g., 100"
+                        readOnly={savingForm.saving_plan_id !== 'custom' && selectedSavingPlanObj?.deposit_amount > 0}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Rate (%) *</label>
+                      <input 
+                        type="number"
+                        required
+                        step="0.01"
+                        min="0"
+                        value={savingForm.interest_rate}
+                        onChange={(e) => setSavingForm({ ...savingForm, interest_rate: e.target.value })}
+                        className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                        placeholder="E.g., 6.5"
+                        readOnly={savingForm.saving_plan_id !== 'custom'}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration *</label>
+                      {savingForm.saving_plan_id === 'custom' ? (
+                        <div className="flex gap-2">
+                          <input 
+                            type="number"
+                            required
+                            min="1"
+                            value={savingForm.duration_value}
+                            onChange={(e) => setSavingForm({ ...savingForm, duration_value: e.target.value })}
+                            className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                            placeholder="E.g., 365"
+                          />
+                          <select 
+                            value={savingForm.duration_unit}
+                            onChange={(e) => setSavingForm({ ...savingForm, duration_unit: e.target.value })}
+                            className="w-28 h-11 px-2 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                          >
+                            <option value="Days">Days</option>
+                            <option value="Months">Months</option>
+                            <option value="Years">Years</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="w-full h-11 px-3.5 bg-slate-50 border border-[#E2E8F0] rounded-xl text-xs font-bold text-slate-500 flex items-center select-none cursor-not-allowed">
+                          {savingForm.duration_value} {savingForm.duration_unit}
+                        </div>
+                      )}
+                    </div>
+
+                    {savingForm.saving_plan_id === 'custom' ? (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Frequency *</label>
+                        <select 
+                          required
+                          value={savingForm.collection_frequency}
+                          onChange={(e) => setSavingForm({ ...savingForm, collection_frequency: e.target.value })}
+                          className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
+                        >
+                          <option value="Daily">Daily</option>
+                          <option value="Weekly">Weekly</option>
+                          <option value="Monthly">Monthly</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Frequency</label>
+                        <div className="w-full h-11 px-3.5 bg-slate-50 border border-[#E2E8F0] rounded-xl text-xs font-bold text-slate-500 flex items-center select-none cursor-not-allowed">
+                          {savingForm.collection_frequency}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="sm:col-span-2 space-y-1">
+                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Estimated Maturity Amount (₹)</label>
+                      <input 
+                        type="number"
+                        placeholder="Calculated automatically..."
+                        value={savingForm.maturity_amount}
+                        readOnly
+                        className="w-full h-11 px-3.5 bg-slate-50 border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#16A34A] focus:outline-none select-none cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {savingForm.saving_plan_id && (
+                <DatePicker
+                  label="Account Opening Date *"
+                  required={true}
+                  value={savingForm.start_date}
+                  onChange={(val) => setSavingForm({ ...savingForm, start_date: val })}
+                />
+              )}
+            </div>
+
+            {/* Calculations Card (Right) */}
+            <div className="md:col-span-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 flex flex-col justify-between min-h-[300px]">
+              <div>
+                <h4 className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider border-b border-[#E2E8F0] pb-2 mb-3">
+                  Calculation Summary
+                </h4>
+                
+                {selectedSavingPlanObj ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#64748B] font-semibold">Plan Name</span>
+                      <strong className="text-[#0F172A] font-extrabold">{selectedSavingPlanObj.name}</strong>
+                    </div>
+
+                    {(() => {
+                      const deposit = savingForm.saving_plan_id === 'custom' ? (Number(savingForm.deposit_amount) || 0) : (Number(savingForm.deposit_amount) || 0);
+                      const rate = savingForm.saving_plan_id === 'custom' ? (Number(savingForm.interest_rate) || 0) : (Number(selectedSavingPlanObj.interest_rate) || 0);
+                      const duration = savingForm.saving_plan_id === 'custom' ? (Number(savingForm.duration_value) || 0) : (Number(selectedSavingPlanObj.duration_value) || 0);
+                      const durationUnit = savingForm.saving_plan_id === 'custom' ? savingForm.duration_unit : selectedSavingPlanObj.duration_unit;
+                      const frequency = savingForm.saving_plan_id === 'custom' ? savingForm.collection_frequency : selectedSavingPlanObj.collection_frequency;
+                      const maturity = savingForm.saving_plan_id === 'custom' ? (Number(savingForm.maturity_amount) || 0) : (Number(savingForm.maturity_amount) || 0);
+
+                      return (
+                        <>
+                          <div className="flex justify-between items-center text-xs bg-[#F59E0B]/5 border border-[#F59E0B]/10 px-3 py-2 rounded-xl">
+                            <span className="text-[#F59E0B] font-bold">Deposit ({frequency})</span>
+                            <span className="font-extrabold text-[#F59E0B] bg-white px-2 py-0.5 rounded border border-[#F59E0B]/10">
+                              ₹{deposit.toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[#64748B] font-semibold">Interest Rate</span>
+                            <strong className="text-[#0F172A] font-extrabold">{rate}%</strong>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
+                            <span className="text-[#F59E0B] font-bold">Duration</span>
+                            <span className="font-extrabold text-[#0F172A] bg-white px-2 py-0.5 rounded border border-[#E2E8F0]">
+                              {duration} {durationUnit}
+                            </span>
+                          </div>
+
+                          <div className="border-t border-dashed border-slate-300 pt-3 mt-2 space-y-2">
+                            <div className="flex justify-between text-xs text-[#16A34A] pt-1">
+                              <span className="font-bold">Est. Maturity Amount</span>
+                              <strong className="font-black text-[13px]">₹{Math.round(maturity).toLocaleString()}</strong>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[#64748B] text-center pt-8">Select a savings plan to view calculation details.</p>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-200 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsAddSavingModalOpen(false)}
+                  className="flex-1 h-10 bg-white hover:bg-slate-50 text-xs font-bold text-slate-600 rounded-xl transition-all cursor-pointer border border-[#E2E8F0] text-center"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 h-10 bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Opening...' : 'Open Account'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     )}
     </div>

@@ -41,6 +41,7 @@ class SavingDeposit {
 
             $remaining = $depositAmount;
             $allocations = [];
+            $isAdvance = 0;
             foreach ($pendingInstallments as $inst) {
                 if ($remaining <= 0) break;
                 $pending = (float)$inst['total_due'] - (float)$inst['paid_amount'];
@@ -58,6 +59,10 @@ class SavingDeposit {
                     $remaining = 0;
                 }
 
+                if ($inst['due_date'] > $depositDate && $allocatedForInst > 0) {
+                    $isAdvance = 1;
+                }
+
                 $allocations[] = [
                     'due_date' => $inst['due_date'],
                     'amount' => $allocatedForInst
@@ -65,6 +70,7 @@ class SavingDeposit {
             }
 
             if ($remaining > 0) {
+                $isAdvance = 1;
                 $allocations[] = [
                     'due_date' => 'Advance',
                     'amount' => $remaining
@@ -75,10 +81,10 @@ class SavingDeposit {
             $stmt = $db->prepare("
                 INSERT INTO saving_deposits (
                     uuid, receipt_no, saving_account_id, customer_id, branch_id, area_id, agent_id,
-                    deposit_date, deposit_amount, payment_mode, remarks, collected_by, installment_allocations
+                    deposit_date, deposit_amount, payment_mode, remarks, collected_by, is_advance, installment_allocations
                 ) VALUES (
                     :uuid, :receipt_no, :saving_account_id, :customer_id, :branch_id, :area_id, :agent_id,
-                    :deposit_date, :deposit_amount, :payment_mode, :remarks, :collected_by, :installment_allocations
+                    :deposit_date, :deposit_amount, :payment_mode, :remarks, :collected_by, :is_advance, :installment_allocations
                 )
             ");
             
@@ -96,6 +102,7 @@ class SavingDeposit {
                 'payment_mode' => $paymentMode,
                 'remarks' => $remarks,
                 'collected_by' => $collectedBy,
+                'is_advance' => $isAdvance,
                 'installment_allocations' => json_encode($allocations)
             ]);
             $depositId = $db->lastInsertId();

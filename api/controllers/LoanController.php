@@ -45,12 +45,28 @@ class LoanController {
             Response::error('Validation error', 422, $errors);
         }
 
+        // Resolve custom plan
+        if ($input['loan_plan_id'] === 'custom') {
+            $stmtCustom = $db->prepare("SELECT id FROM loan_plans WHERE name = 'Custom Loan Plan' LIMIT 1");
+            $stmtCustom->execute();
+            $customPlanId = $stmtCustom->fetchColumn();
+            if (!$customPlanId) {
+                $stmtInsert = $db->prepare("
+                    INSERT INTO loan_plans (uuid, name, min_amount, max_amount, interest_rate, interest_type, duration_value, duration_unit, collection_frequency, processing_fee, penalty_per_day, status, created_by)
+                    VALUES (UUID(), 'Custom Loan Plan', 0.00, 0.00, 0.00, 'Flat', 0, 'Days', 'Daily', 0.00, 0.00, 'Active', :created_by)
+                ");
+                $stmtInsert->execute(['created_by' => $authUser['id']]);
+                $customPlanId = $db->lastInsertId();
+            }
+            $input['loan_plan_id'] = $customPlanId;
+        }
+
         // Validate plan & customer
         $plan = LoanPlan::getById($db, $input['loan_plan_id']);
         if (!$plan) {
             Response::error('Invalid loan plan selected.', 422);
         }
-        if ((int)$plan['duration_value'] <= 0) {
+        if ($plan['name'] !== 'Custom Loan Plan' && (int)$plan['duration_value'] <= 0) {
             Response::error('Selected loan plan has invalid duration (' . $plan['duration_value'] . '). Update the plan first.', 422);
         }
 
@@ -63,33 +79,46 @@ class LoanController {
         $input['area_id'] = $customer['area_id'];
         $input['agent_id'] = $customer['agent_id'];
         $input['created_by'] = $authUser['id'];
-        $input['interest_rate'] = $plan['interest_rate'];
-        $input['interest_type'] = $plan['interest_type'];
-        $input['collection_frequency'] = $plan['collection_frequency'];
+
+        $isCustom = ($plan['name'] === 'Custom Loan Plan');
+
+        $input['interest_rate'] = $isCustom ? (isset($input['interest_rate']) ? floatval($input['interest_rate']) : floatval($plan['interest_rate'])) : floatval($plan['interest_rate']);
+        $input['interest_type'] = $isCustom ? ($input['interest_type'] ?? $plan['interest_type']) : $plan['interest_type'];
+        $input['collection_frequency'] = $isCustom ? ($input['collection_frequency'] ?? $plan['collection_frequency']) : $plan['collection_frequency'];
 
         $durationDays = 0;
         $durationMonths = 0;
-        if ($plan['duration_unit'] === 'Days') {
-            $durationDays = $plan['duration_value'];
-        } elseif ($plan['duration_unit'] === 'Months') {
-            $durationMonths = $plan['duration_value'];
-            $durationDays = $plan['duration_value'] * 30;
+        $durVal = $isCustom ? (isset($input['duration_value']) ? intval($input['duration_value']) : intval($plan['duration_value'])) : intval($plan['duration_value']);
+        $durUnit = $isCustom ? ($input['duration_unit'] ?? $plan['duration_unit']) : $plan['duration_unit'];
+
+        if ($durUnit === 'Days') {
+            $durationDays = $durVal;
+        } elseif ($durUnit === 'Months') {
+            $durationMonths = $durVal;
+            $durationDays = $durVal * 30;
+        } elseif ($durUnit === 'Years') {
+            $durationMonths = $durVal * 12;
+            $durationDays = $durVal * 365;
         }
+
         $input['duration_days'] = $durationDays;
         $input['duration_months'] = $durationMonths;
 
         // Interest amount calculation
-        $pAmt = $input['principal_amount'];
-        $rate = $plan['interest_rate'];
-        $interestAmount = ($plan['interest_type'] === 'Flat') ? ($pAmt * ($rate / 100)) : ($pAmt * ($rate / 100) * 0.7);
+        $pAmt = floatval($input['principal_amount']);
+        $rate = floatval($input['interest_rate']);
+        $interestAmount = ($input['interest_type'] === 'Flat') ? ($pAmt * ($rate / 100)) : ($pAmt * ($rate / 100) * 0.7);
         $totalPayable = $pAmt + $interestAmount;
 
         $input['interest_amount'] = $interestAmount;
         $input['total_payable'] = $totalPayable;
-        $input['processing_fee'] = $plan['processing_fee'];
-        $input['emi_amount'] = round($totalPayable / ($plan['duration_value'] ?: 1), 2);
-        $input['start_date'] = date('Y-m-d');
-        $input['end_date'] = date('Y-m-d', strtotime("+$durationDays days"));
+        $input['processing_fee'] = $isCustom ? (isset($input['processing_fee']) ? floatval($input['processing_fee']) : floatval($plan['processing_fee'])) : floatval($plan['processing_fee']);
+        
+        $divisible = $isCustom ? ($durVal ?: 1) : ($plan['duration_value'] ?: 1);
+        $input['emi_amount'] = $isCustom ? (isset($input['emi_amount']) ? floatval($input['emi_amount']) : round($totalPayable / $divisible, 2)) : round($totalPayable / $divisible, 2);
+        
+        $input['start_date'] = $input['start_date'] ?? date('Y-m-d');
+        $input['end_date'] = date('Y-m-d', strtotime("+$durationDays days", strtotime($input['start_date'])));
         $input['account_status'] = 'Processing'; // Awaiting approval by default
 
         $id = LoanAccount::create($db, $input);
@@ -164,18 +193,68 @@ class LoanController {
             }
         }
 
+        $closeDate = !empty($input['close_date']) ? $input['close_date'] : date('Y-m-d');
+        $settlementAmount = !empty($input['settlement_amount']) ? (float)$input['settlement_amount'] : 0.0;
+        $waiverAmount = !empty($input['waiver_amount']) ? (float)$input['waiver_amount'] : 0.0;
+        $paymentMode = !empty($input['payment_mode']) ? $input['payment_mode'] : 'Cash';
+        $remarks = !empty($input['remarks']) ? $input['remarks'] : 'Loan Settlement';
+
+        // 1. If settlement amount is collected, record a collection first
+        $receiptNo = null;
+        if ($settlementAmount > 0) {
+            $receiptNo = LoanCollection::collect($db, [
+                'loan_account_id' => $account['id'],
+                'collected_amount' => $settlementAmount,
+                'penalty_amount' => 0,
+                'payment_mode' => $paymentMode,
+                'remarks' => $remarks . " (Settlement Payment)",
+                'collected_by' => $authUser['id'],
+                'collection_date' => $closeDate
+            ]);
+        }
+
+        // 2. Fetch all remaining unpaid installments
+        $stmtInsts = $db->prepare("
+            SELECT * FROM loan_installments 
+            WHERE loan_account_id = :loan_id AND status != 'Paid'
+            ORDER BY installment_no ASC
+        ");
+        $stmtInsts->execute(['loan_id' => $account['id']]);
+        $remainingInsts = $stmtInsts->fetchAll();
+
+        // 3. Mark all remaining installments as Paid (paid_amount = total_due)
+        $stmtUpdateInst = $db->prepare("
+            UPDATE loan_installments 
+            SET status = 'Paid', paid_amount = total_due, paid_at = :closed_at,
+                remarks = CONCAT(COALESCE(remarks, ''), ' (Waived during closure)')
+            WHERE id = :id
+        ");
+        foreach ($remainingInsts as $inst) {
+            $stmtUpdateInst->execute([
+                'closed_at' => $closeDate . ' ' . date('H:i:s'),
+                'id' => $inst['id']
+            ]);
+        }
+
+        // 4. Update the loan account status to Closed
         $stmt = $db->prepare("
             UPDATE loan_accounts
-            SET account_status = 'Closed', closed_at = NOW(), closed_by = :closed_by
+            SET account_status = 'Closed', 
+                outstanding_amount = 0.00,
+                closed_at = :closed_at, 
+                closed_by = :closed_by,
+                remarks = CONCAT(COALESCE(remarks, ''), :close_remarks)
             WHERE id = :id
         ");
         $stmt->execute([
+            'closed_at' => $closeDate . ' ' . date('H:i:s'),
             'closed_by' => $authUser['id'],
+            'close_remarks' => "\nClosed on " . $closeDate . " with settlement: ₹" . $settlementAmount . ", waiver: ₹" . $waiverAmount . ".",
             'id' => $account['id']
         ]);
 
         AuditLog::log($db, $authUser['id'], 'close_loan_account', 'loan_accounts', $account['id']);
-        Response::success(null, 'Loan account closed successfully.');
+        Response::success(['receipt_no' => $receiptNo], 'Loan account closed successfully.');
     }
 
     public static function approve($db, $authUser, $id, $input) {

@@ -44,6 +44,22 @@ class SavingController {
             Response::error('Validation error', 422, $errors);
         }
 
+        // Resolve custom plan
+        if ($input['saving_plan_id'] === 'custom') {
+            $stmtCustom = $db->prepare("SELECT id FROM saving_plans WHERE name = 'Custom Savings Plan' LIMIT 1");
+            $stmtCustom->execute();
+            $customPlanId = $stmtCustom->fetchColumn();
+            if (!$customPlanId) {
+                $stmtInsert = $db->prepare("
+                    INSERT INTO saving_plans (uuid, name, deposit_amount, interest_rate, duration_value, duration_unit, collection_frequency, maturity_amount, status, created_by)
+                    VALUES (UUID(), 'Custom Savings Plan', 0.00, 0.00, 0, 'Days', 'Daily', 0.00, 'Active', :created_by)
+                ");
+                $stmtInsert->execute(['created_by' => $authUser['id']]);
+                $customPlanId = $db->lastInsertId();
+            }
+            $input['saving_plan_id'] = $customPlanId;
+        }
+
         // Validate plan & customer
         $plan = SavingPlan::getById($db, $input['saving_plan_id']);
         if (!$plan) {
@@ -55,24 +71,32 @@ class SavingController {
             Response::error('Invalid customer selected.', 422);
         }
 
+        $isCustom = ($plan['name'] === 'Custom Savings Plan');
+
+        $durVal = $isCustom ? (isset($input['duration_value']) ? intval($input['duration_value']) : intval($plan['duration_value'])) : intval($plan['duration_value']);
+        $durUnit = $isCustom ? ($input['duration_unit'] ?? $plan['duration_unit']) : $plan['duration_unit'];
+
         $durationMonths = 12;
-        if ($plan['duration_unit'] === 'Days') {
-            $durationMonths = ceil($plan['duration_value'] / 30);
-        } elseif ($plan['duration_unit'] === 'Years') {
-            $durationMonths = $plan['duration_value'] * 12;
+        if ($durUnit === 'Days') {
+            $durationMonths = ceil($durVal / 30);
+        } elseif ($durUnit === 'Months') {
+            $durationMonths = $durVal;
+        } elseif ($durUnit === 'Years') {
+            $durationMonths = $durVal * 12;
         }
 
         $input['branch_id'] = $customer['branch_id'];
         $input['area_id'] = $customer['area_id'];
         $input['agent_id'] = $customer['agent_id'];
         $input['created_by'] = $authUser['id'];
+        
         $input['deposit_amount'] = isset($input['deposit_amount']) ? floatval($input['deposit_amount']) : floatval($plan['deposit_amount']);
         $input['interest_rate'] = isset($input['interest_rate']) ? floatval($input['interest_rate']) : floatval($plan['interest_rate']);
         $input['duration_months'] = $durationMonths;
         $input['maturity_amount'] = isset($input['maturity_amount']) ? floatval($input['maturity_amount']) : floatval($plan['maturity_amount']);
-        $input['collection_frequency'] = $plan['collection_frequency'];
-        $input['start_date'] = date('Y-m-d');
-        $input['maturity_date'] = date('Y-m-d', strtotime("+$durationMonths months"));
+        $input['collection_frequency'] = $isCustom ? ($input['collection_frequency'] ?? $plan['collection_frequency']) : $plan['collection_frequency'];
+        $input['start_date'] = $input['start_date'] ?? date('Y-m-d');
+        $input['maturity_date'] = date('Y-m-d', strtotime("+$durationMonths months", strtotime($input['start_date'])));
         $input['account_status'] = 'Processing';
 
         $id = SavingAccount::create($db, $input);
