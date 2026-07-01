@@ -30,8 +30,39 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 15000);
-    return () => clearInterval(interval);
+    
+    let intervalId = null;
+
+    const startPolling = () => {
+      if (!intervalId) {
+        // Poll every 10 seconds as per PWA specifications
+        intervalId = setInterval(fetchDashboardData, 10000);
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchDashboardData();
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const fetchDashboardData = () => {
@@ -167,6 +198,42 @@ export default function Dashboard() {
   };
 
   const activeFilterData = filterData[activeFilter] || filterData["Today's Collection"];
+
+  const renderCellValue = (val, colHeader, row) => {
+    const s = String(val ?? '');
+    if (colHeader === 'Amount') {
+      return (row[1] === 'Credit' || row[1] === 'Capital Injection') ? (
+        <span className="text-success-fin font-black">{s}</span>
+      ) : (
+        <span className="text-danger-fin font-black">{s}</span>
+      );
+    }
+    if (colHeader === 'Amount Received' || colHeader === 'Deposited' || colHeader === 'Maturity Value' || colHeader === 'Interest Amount' || colHeader === 'Pending Interest' || colHeader === 'Due Amount') {
+      return <span className="text-success-fin font-black">{s}</span>;
+    }
+    if (colHeader === 'Receipt No') {
+      const accNo = row[5] || (row[1] && String(row[1]).match(/^(LN-|SV-)/) ? row[1] : null);
+      return accNo ? (
+        <Link to={`/account/${accNo}`} className="text-primary font-black hover:underline">
+          {s}
+        </Link>
+      ) : s;
+    }
+    if (s.includes('High Risk') || s.includes('Debit')) {
+      return <span className="text-danger-fin font-bold">{s}</span>;
+    }
+    if (s.includes('Credit') || s.includes('Paid')) {
+      return <span className="text-success-fin font-bold">{s}</span>;
+    }
+    if (/^(LN-|SV-)/.test(s)) {
+      return (
+        <Link to={`/account/${s}`} className="text-primary font-extrabold hover:underline">
+          {s}
+        </Link>
+      );
+    }
+    return s;
+  };
 
   // Chart 1: Collection Trend — backend driven
   const trendPoints = d?.collection_trend || [];
@@ -330,7 +397,8 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <div className="overflow-x-auto -mx-6">
+        {/* Desktop Table (Hidden on Mobile) */}
+        <div className="hidden lg:block overflow-x-auto -mx-6">
           <div className="inline-block min-w-full align-middle">
             <table className="min-w-full divide-y divide-border-fin">
               <thead className="bg-background-fin">
@@ -362,48 +430,63 @@ export default function Dashboard() {
 
                   return paginatedRows.map((row, rowIdx) => (
                     <tr key={rowIdx} className="hover:bg-slate-50/50 transition-colors">
-                      {row.slice(0, activeFilterData.columns.length).map((val, colIdx) => {
-                        const s = String(val ?? '');
-                        const colHeader = activeFilterData.columns[colIdx];
-                        return (
-                          <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
-                            {colHeader === 'Amount' ? (
-                              (row[1] === 'Credit' || row[1] === 'Capital Injection') ? (
-                                <span className="text-success-fin font-black">{s}</span>
-                              ) : (
-                                <span className="text-danger-fin font-black">{s}</span>
-                              )
-                            ) : (colHeader === 'Amount Received' || colHeader === 'Deposited') ? (
-                              <span className="text-success-fin font-black">{s}</span>
-                            ) : colHeader === 'Receipt No' ? (
-                              (() => {
-                                const accNo = row[5] || (row[1] && String(row[1]).match(/^(LN-|SV-)/) ? row[1] : null);
-                                return accNo ? (
-                                  <Link to={`/account/${accNo}`} className="text-primary font-black hover:underline">
-                                    {s}
-                                  </Link>
-                                ) : s;
-                              })()
-                            ) : s.includes('High Risk') || s.includes('Debit') ? (
-                              <span className="text-danger-fin font-bold">{s}</span>
-                            ) : s.includes('Credit') || s.includes('Paid') ? (
-                              <span className="text-success-fin font-bold">{s}</span>
-                            ) : /^(LN-|SV-)/.test(s) ? (
-                              <Link to={`/account/${s}`} className="text-primary font-extrabold hover:underline">
-                                {s}
-                              </Link>
-                            ) : (
-                              s
-                            )}
-                          </td>
-                        );
-                      })}
+                      {row.slice(0, activeFilterData.columns.length).map((val, colIdx) => (
+                        <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
+                          {renderCellValue(val, activeFilterData.columns[colIdx], row)}
+                        </td>
+                      ))}
                     </tr>
                   ));
                 })()}
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
+        <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+          {(() => {
+            const paginatedRows = activeFilterData.rows.slice((currentPage - 1) * 20, currentPage * 20);
+
+            if (paginatedRows.length === 0) {
+              return (
+                <div className="text-center py-8 text-secondary-text font-bold text-xs">
+                  {loading ? 'Loading…' : error ? error : 'No records available'}
+                </div>
+              );
+            }
+
+            return paginatedRows.map((row, rowIdx) => (
+              <div key={rowIdx} className="bg-[#F8FAFC]/80 border border-border-fin rounded-xl p-4.5 space-y-3 shadow-sm">
+                {/* Header: Customer / Date */}
+                <div className="flex justify-between items-start border-b border-border-fin/50 pb-2.5">
+                  <span className="font-extrabold text-[#0F172A] text-xs truncate max-w-[170px]">
+                    {row[0]}
+                  </span>
+                  <span className="text-[10px] font-black text-[#0A3598] bg-[#0A3598]/5 px-2.5 py-0.5 rounded-full select-all">
+                    {renderCellValue(row[1], activeFilterData.columns[1], row)}
+                  </span>
+                </div>
+
+                {/* Details (Columns index 2 and onward) */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[11px]">
+                  {activeFilterData.columns.slice(2).map((col, colIdx) => {
+                    const val = row[colIdx + 2];
+                    return (
+                      <div key={colIdx} className="space-y-0.5">
+                        <span className="text-[9.5px] text-secondary-text font-bold uppercase tracking-wider block">
+                          {col}
+                        </span>
+                        <div className="text-[#0F172A] font-extrabold break-all">
+                          {renderCellValue(val, col, row)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
         <Pagination 
           currentPage={currentPage}

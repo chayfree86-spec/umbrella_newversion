@@ -393,6 +393,7 @@ export default function DailyCollection() {
                 <label className="block text-xs font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Amount Collected (₹) <span className="text-danger-fin">*</span></label>
                 <input
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   required
                   value={collectionAmount}
@@ -418,6 +419,7 @@ export default function DailyCollection() {
                   <label className="block text-xs font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Fine / Penalty (₹)</label>
                   <input
                     type="number"
+                    inputMode="decimal"
                     min="0"
                     value={fineAmount}
                     onChange={(e) => setFineAmount(e.target.value)}

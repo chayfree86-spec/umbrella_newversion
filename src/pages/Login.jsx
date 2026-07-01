@@ -11,14 +11,29 @@ export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
 
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     const handleMouseMove = (e) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 2; // -1 to 1
-      const y = (e.clientY / window.innerHeight - 0.5) * 2; // -1 to 1
-      setMouseOffset({ x, y });
+      if (window.innerWidth >= 768) {
+        const x = (e.clientX / window.innerWidth - 0.5) * 2; // -1 to 1
+        const y = (e.clientY / window.innerHeight - 0.5) * 2; // -1 to 1
+        setMouseOffset({ x, y });
+      }
     };
+
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('resize', checkMobile);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', checkMobile);
+    };
   }, []);
 
   const [showResetModal, setShowResetModal] = useState(false);
@@ -269,175 +284,199 @@ export default function Login({ onLogin }) {
           stroke-dasharray: 180;
           animation: glowFlow 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
         }
+
+        .logo-gradient-wrapper {
+          background: linear-gradient(135deg, #0A3598, #FFC107, #0A3598, #FFC107);
+          background-size: 300% 300%;
+          animation: logoGradientShift 4s ease infinite;
+        }
+
+        @keyframes logoGradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        .bg-radial-glow {
+          background: radial-gradient(circle, rgba(255, 193, 7, 0.2) 0%, rgba(10, 53, 152, 0.08) 70%, transparent 100%);
+        }
       `}</style>
 
       {/* SVG Animated Background */}
-      <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none flex items-center justify-center">
-        <svg 
-          viewBox="0 0 1672 941" 
-          className="w-full h-auto opacity-95 transition-opacity duration-700"
-          preserveAspectRatio="xMidYMid meet"
-        >
-          {/* Static Base Image */}
-          <image href="/login-bg.png" x="0" y="0" width="1672" height="941" style={{ mixBlendMode: 'multiply' }} />
-
-          {/* Bottom Wave Animations */}
-          <path 
-            d="M 0 941 L 0 862 Q 418 830 836 875 T 1672 850 L 1672 941 Z" 
-            fill="none" 
-            stroke="#0A3598" 
-            strokeWidth="2.5" 
-            opacity="0.35" 
-            className="animate-wave-slow" 
+      <div className="absolute inset-0 w-full h-full z-0 select-none pointer-events-none">
+        {isMobile ? (
+          <img 
+            src="/mobile-bg.png" 
+            className="w-full h-full object-cover opacity-95" 
+            alt="Mobile Background" 
           />
-          <path 
-            d="M 0 941 L 0 878 Q 418 862 836 845 T 1672 870 L 1672 941 Z" 
-            fill="none" 
-            stroke="#FFC107" 
-            strokeWidth="3" 
-            opacity="0.45" 
-            className="animate-wave-fast" 
-          />
+        ) : (
+          <svg 
+            viewBox="0 0 1672 941" 
+            className="w-full h-full opacity-95 transition-opacity duration-700 object-cover"
+            preserveAspectRatio="xMidYMid slice"
+          >
+            {/* Static Base Image */}
+            <image href="/login-bg.png" x="0" y="0" width="1672" height="941" style={{ mixBlendMode: 'multiply' }} />
 
-          {/* Floating Rupee Coin */}
-          <g className="animate-float" style={{ transformOrigin: '270px 820px' }}>
-            <circle cx="270" cy="820" r="38" fill="#FFFFFF" stroke="#FFC107" strokeWidth="4" />
-            <circle cx="270" cy="820" r="31" fill="none" stroke="#FFC107" strokeWidth="1" strokeDasharray="3 3" />
-            <text 
-              x="270" 
-              y="833" 
-              fontFamily="Manrope, sans-serif" 
-              fontSize="38" 
-              fontWeight="900" 
-              fill="#FFC107" 
-              textAnchor="middle"
-            >
-              ₹
-            </text>
-          </g>
-
-          {/* Growth Chart Arrow */}
-          <g>
+            {/* Bottom Wave Animations */}
             <path 
-              d="M 1370 550 Q 1450 540 1530 460" 
+              d="M 0 941 L 0 862 Q 418 830 836 875 T 1672 850 L 1672 941 Z" 
               fill="none" 
               stroke="#0A3598" 
-              strokeWidth="5" 
-              strokeLinecap="round"
-              className="animate-chart-arrow"
+              strokeWidth="2.5" 
+              opacity="0.35" 
+              className="animate-wave-slow" 
             />
             <path 
-              d="M 1518 458 L 1534 456 L 1528 472" 
-              fill="none" 
-              stroke="#0A3598" 
-              strokeWidth="5" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-            />
-            {/* Travelling glowing amber dot along the arrow */}
-            <circle r="7" fill="#FFC107" className="shadow-lg">
-              <animateMotion 
-                path="M 1370 550 Q 1450 540 1530 460" 
-                dur="4.5s" 
-                repeatCount="indefinite" 
-                rotate="auto" 
-              />
-            </circle>
-          </g>
-
-          {/* Umbrella Line Drawing Glow Overlay */}
-          <g className="animate-sway" style={{ transformOrigin: '210px 380px' }}>
-            <path 
-              d="M 60 485 C 60 485 60 380 210 380 C 360 380 360 485 360 485" 
+              d="M 0 941 L 0 878 Q 418 862 836 845 T 1672 870 L 1672 941 Z" 
               fill="none" 
               stroke="#FFC107" 
-              strokeWidth="4" 
-              strokeLinecap="round"
-              className="animate-umbrella-glow"
+              strokeWidth="3" 
+              opacity="0.45" 
+              className="animate-wave-fast" 
             />
-          </g>
 
-          {/* Sparkles Fading In/Out */}
-          {/* Sparkle 1 (Top Left) */}
-          <g transform="translate(170, 100)" className="animate-sparkle-1">
-            <path d="M 0 -12 L 0 12 M -12 0 L 12 0" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="3.5" fill="#0A3598" />
-          </g>
-
-          {/* Sparkle 2 (Top Right) */}
-          <g transform="translate(1580, 210)" className="animate-sparkle-2">
-            <path d="M 0 -15 L 0 15 M -15 0 L 15 0" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="4" fill="#0A3598" />
-          </g>
-
-          {/* Sparkle 3 (Center Right) */}
-          <g transform="translate(1140, 530)" className="animate-sparkle-3">
-            <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="2.5" fill="#0A3598" />
-          </g>
-
-          {/* Sparkle 4 (Near wallet) */}
-          <g transform="translate(1410, 680)" className="animate-sparkle-2">
-            <path d="M 0 -11 L 0 11 M -11 0 L 11 0" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="3" fill="#0A3598" />
-          </g>
-
-          {/* Sparkle 5 (Near family) */}
-          <g transform="translate(80, 610)" className="animate-sparkle-1">
-            <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#0A3598" strokeWidth="2" strokeLinecap="round" />
-          </g>
-          {/* Interactive Parallax Clouds */}
-          {/* Cloud A (Left-center) */}
-          <g style={{ transform: `translate(${mouseOffset.x * 28}px, ${mouseOffset.y * 16}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <path 
-              d="M 620 180 L 700 180 A 12 12 0 0 0 712 168 A 16 16 0 0 0 696 152 A 22 22 0 0 0 654 136 A 16 16 0 0 0 622 152 A 12 12 0 0 0 608 168 A 12 12 0 0 0 620 180 Z" 
-              fill="none" 
-              stroke="#0A3598" 
-              strokeWidth="2.5" 
-              opacity="0.35" 
-            />
-          </g>
-
-          {/* Cloud B (Right-center) */}
-          <g style={{ transform: `translate(${mouseOffset.x * -20}px, ${mouseOffset.y * -12}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <path 
-              d="M 930 140 L 1010 140 A 12 12 0 0 0 1022 128 A 16 16 0 0 0 1006 112 A 22 22 0 0 0 964 96 A 16 16 0 0 0 932 112 A 12 12 0 0 0 918 128 A 12 12 0 0 0 930 140 Z" 
-              fill="none" 
-              stroke="#0A3598" 
-              strokeWidth="2.5" 
-              opacity="0.35" 
-            />
-          </g>
-          {/* Interactive Parallax Particles (+ and Circles) */}
-          {/* Left Yellow Cross */}
-          <g style={{ transform: `translate(${mouseOffset.x * 35}px, ${mouseOffset.y * 20}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <g transform="translate(120, 280)">
-              <path d="M -7 0 L 7 0 M 0 -7 L 0 7" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Floating Rupee Coin */}
+            <g className="animate-float" style={{ transformOrigin: '270px 820px' }}>
+              <circle cx="270" cy="820" r="38" fill="#FFFFFF" stroke="#FFC107" strokeWidth="4" />
+              <circle cx="270" cy="820" r="31" fill="none" stroke="#FFC107" strokeWidth="1" strokeDasharray="3 3" />
+              <text 
+                x="270" 
+                y="833" 
+                fontFamily="Manrope, sans-serif" 
+                fontSize="38" 
+                fontWeight="900" 
+                fill="#FFC107" 
+                textAnchor="middle"
+              >
+                ₹
+              </text>
             </g>
-          </g>
 
-          {/* Left Blue Circle */}
-          <g style={{ transform: `translate(${mouseOffset.x * -18}px, ${mouseOffset.y * -12}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <circle cx="240" cy="160" r="6" fill="none" stroke="#0A3598" strokeWidth="2" />
-          </g>
-
-          {/* Right Blue Cross */}
-          <g style={{ transform: `translate(${mouseOffset.x * 40}px, ${mouseOffset.y * 25}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <g transform="translate(1420, 260)">
-              <path d="M -8 0 L 8 0 M 0 -8 L 0 8" stroke="#0A3598" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Growth Chart Arrow */}
+            <g>
+              <path 
+                d="M 1370 550 Q 1450 540 1530 460" 
+                fill="none" 
+                stroke="#0A3598" 
+                strokeWidth="5" 
+                strokeLinecap="round"
+                className="animate-chart-arrow"
+              />
+              <path 
+                d="M 1518 458 L 1534 456 L 1528 472" 
+                fill="none" 
+                stroke="#0A3598" 
+                strokeWidth="5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+              />
+              {/* Travelling glowing amber dot along the arrow */}
+              <circle r="7" fill="#FFC107" className="shadow-lg">
+                <animateMotion 
+                  path="M 1370 550 Q 1450 540 1530 460" 
+                  dur="4.5s" 
+                  repeatCount="indefinite" 
+                  rotate="auto" 
+                />
+              </circle>
             </g>
-          </g>
 
-          {/* Right Yellow Circle */}
-          <g style={{ transform: `translate(${mouseOffset.x * -25}px, ${mouseOffset.y * -15}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <circle cx="1550" cy="140" r="7" fill="none" stroke="#FFC107" strokeWidth="2" />
-          </g>
+            {/* Umbrella Line Drawing Glow Overlay */}
+            <g className="animate-sway" style={{ transformOrigin: '210px 380px' }}>
+              <path 
+                d="M 60 485 C 60 485 60 380 210 380 C 360 380 360 485 360 485" 
+                fill="none" 
+                stroke="#FFC107" 
+                strokeWidth="4" 
+                strokeLinecap="round"
+                className="animate-umbrella-glow"
+              />
+            </g>
 
-          {/* Center-Right Yellow Dot */}
-          <g style={{ transform: `translate(${mouseOffset.x * 22}px, ${mouseOffset.y * 14}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <circle cx="1280" cy="380" r="4.5" fill="#FFC107" />
-          </g>
-        </svg>
+            {/* Sparkles Fading In/Out */}
+            {/* Sparkle 1 (Top Left) */}
+            <g transform="translate(170, 100)" className="animate-sparkle-1">
+              <path d="M 0 -12 L 0 12 M -12 0 L 12 0" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="0" cy="0" r="3.5" fill="#0A3598" />
+            </g>
+
+            {/* Sparkle 2 (Top Right) */}
+            <g transform="translate(1580, 210)" className="animate-sparkle-2">
+              <path d="M 0 -15 L 0 15 M -15 0 L 15 0" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="0" cy="0" r="4" fill="#0A3598" />
+            </g>
+
+            {/* Sparkle 3 (Center Right) */}
+            <g transform="translate(1140, 530)" className="animate-sparkle-3">
+              <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="0" cy="0" r="2.5" fill="#0A3598" />
+            </g>
+
+            {/* Sparkle 4 (Near wallet) */}
+            <g transform="translate(1410, 680)" className="animate-sparkle-2">
+              <path d="M 0 -11 L 0 11 M -11 0 L 11 0" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="0" cy="0" r="3" fill="#0A3598" />
+            </g>
+
+            {/* Sparkle 5 (Near family) */}
+            <g transform="translate(80, 610)" className="animate-sparkle-1">
+              <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#0A3598" strokeWidth="2" strokeLinecap="round" />
+            </g>
+            {/* Interactive Parallax Clouds */}
+            {/* Cloud A (Left-center) */}
+            <g style={{ transform: `translate(${mouseOffset.x * 28}px, ${mouseOffset.y * 16}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <path 
+                d="M 620 180 L 700 180 A 12 12 0 0 0 712 168 A 16 16 0 0 0 696 152 A 22 22 0 0 0 654 136 A 16 16 0 0 0 622 152 A 12 12 0 0 0 608 168 A 12 12 0 0 0 620 180 Z" 
+                fill="none" 
+                stroke="#0A3598" 
+                strokeWidth="2.5" 
+                opacity="0.35" 
+              />
+            </g>
+
+            {/* Cloud B (Right-center) */}
+            <g style={{ transform: `translate(${mouseOffset.x * -20}px, ${mouseOffset.y * -12}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <path 
+                d="M 930 140 L 1010 140 A 12 12 0 0 0 1022 128 A 16 16 0 0 0 1006 112 A 22 22 0 0 0 964 96 A 16 16 0 0 0 932 112 A 12 12 0 0 0 918 128 A 12 12 0 0 0 930 140 Z" 
+                fill="none" 
+                stroke="#0A3598" 
+                strokeWidth="2.5" 
+                opacity="0.35" 
+              />
+            </g>
+            {/* Interactive Parallax Particles (+ and Circles) */}
+            {/* Left Yellow Cross */}
+            <g style={{ transform: `translate(${mouseOffset.x * 35}px, ${mouseOffset.y * 20}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <g transform="translate(120, 280)">
+                <path d="M -7 0 L 7 0 M 0 -7 L 0 7" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
+              </g>
+            </g>
+
+            {/* Left Blue Circle */}
+            <g style={{ transform: `translate(${mouseOffset.x * -18}px, ${mouseOffset.y * -12}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <circle cx="240" cy="160" r="6" fill="none" stroke="#0A3598" strokeWidth="2" />
+            </g>
+
+            {/* Right Blue Cross */}
+            <g style={{ transform: `translate(${mouseOffset.x * 40}px, ${mouseOffset.y * 25}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <g transform="translate(1420, 260)">
+                <path d="M -8 0 L 8 0 M 0 -8 L 0 8" stroke="#0A3598" strokeWidth="2.5" strokeLinecap="round" />
+              </g>
+            </g>
+
+            {/* Right Yellow Circle */}
+            <g style={{ transform: `translate(${mouseOffset.x * -25}px, ${mouseOffset.y * -15}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <circle cx="1550" cy="140" r="7" fill="none" stroke="#FFC107" strokeWidth="2" />
+            </g>
+
+            {/* Center-Right Yellow Dot */}
+            <g style={{ transform: `translate(${mouseOffset.x * 22}px, ${mouseOffset.y * 14}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <circle cx="1280" cy="380" r="4.5" fill="#FFC107" />
+            </g>
+          </svg>
+        )}
       </div>
 
       {/* Login Card Container */}
@@ -445,12 +484,17 @@ export default function Login({ onLogin }) {
         
         {/* Logo and Header */}
         <div className="text-center mb-5">
-          <div className="flex justify-center mb-2">
-            <img 
-              src="/logo.png" 
-              alt="Umbrella Finance Logo" 
-              className="h-12 w-auto object-contain"
-            />
+          <div className="flex justify-center mb-3">
+            <div className="relative p-[3px] rounded-full logo-gradient-wrapper shadow-md">
+              <div className="bg-white rounded-full p-2.5 w-16 h-16 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-radial-glow pointer-events-none"></div>
+                <img 
+                  src="/logo.png" 
+                  alt="Umbrella Finance Logo" 
+                  className="h-10 w-10 object-contain relative z-10"
+                />
+              </div>
+            </div>
           </div>
           <h2 className="text-xl font-black text-[#0A3598] tracking-tight">
             Umbrella Finance

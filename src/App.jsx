@@ -20,6 +20,7 @@ import UserProfile from './pages/settings/UserProfile';
 import AgentProfile from './pages/settings/AgentProfile';
 import Login from './pages/Login';
 import { PremiumLoader } from './components/ui/PremiumLoader';
+import { PWAInstallPrompt } from './components/ui/PWAInstallPrompt';
 
 export default function App() {
   const [appLoading, setAppLoading] = useState(true);
@@ -107,6 +108,7 @@ export default function App() {
   return (
     <Router>
       {appLoading && <PremiumLoader />}
+      <PWAInstallPrompt />
       {isLoggedIn ? (
         <Layout>
           <Routes>
