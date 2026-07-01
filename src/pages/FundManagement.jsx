@@ -399,9 +399,9 @@ export default function FundManagement() {
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Savings Balance</span>
-            <span className="material-symbols-rounded text-base text-[#F59E0B] select-none">savings</span>
+            <span className="material-symbols-rounded text-base text-[#D97706] select-none">savings</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#F59E0B]">₹{totalSavings.toLocaleString('en-IN')}</h3>
+          <h3 className="text-lg font-extrabold text-[#D97706]">₹{totalSavings.toLocaleString('en-IN')}</h3>
           <p className="text-[9px] text-[#64748B]">Deposited by customers</p>
         </div>
 
@@ -469,10 +469,10 @@ export default function FundManagement() {
                     <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-[#64748B]">{txn.transaction_date || txn.date}</td>
                     <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold text-[#0F172A]">
                       <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                        (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' :
-                        (txn.transaction_type || txn.type || '').includes('Transfer') ? 'bg-[#F59E0B]/10 text-[#F59E0B]' :
-                        (txn.transaction_type || txn.type || '').includes('Deposit') ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#64748B]/10 text-[#64748B]'
-                      }`}>
+                          (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' :
+                          (txn.transaction_type || txn.type || '').includes('Transfer') ? 'bg-[#FFC107]/10 text-[#D97706]' :
+                          (txn.transaction_type || txn.type || '').includes('Deposit') ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#64748B]/10 text-[#64748B]'
+                        }`}>
                         {txn.transaction_type || txn.type}
                       </span>
                     </td>

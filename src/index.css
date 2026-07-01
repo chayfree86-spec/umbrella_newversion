@@ -1,9 +1,8 @@
 @import "tailwindcss";
-@import "@fontsource/manrope";
 
 @theme {
-  --color-primary: #1E3A8A;
-  --color-accent: #F59E0B;
+  --color-primary: #0A3598;
+  --color-accent: #FFC107;
   --color-background-fin: #F8FAFC;
   --color-surface: #FFFFFF;
   --color-primary-text: #0F172A;
@@ -19,8 +18,8 @@
 
 :root {
   font-family: 'Manrope', system-ui, sans-serif;
-  --primary-color: #1E3A8A;
-  --accent-color: #F59E0B;
+  --primary-color: #0A3598;
+  --accent-color: #FFC107;
 }
 
 /* Hide spin buttons / arrows for all input type number globally */
@@ -238,16 +237,41 @@ a:active,
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-background-fin);
+  background: #F8FAFC;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-fin);
+  background: #CBD5E1;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
+  background: #0A3598;
+}
+
+/* Scrollbar thin class used in DatePicker and dropdowns */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #F8FAFC;
+  border-radius: 999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
   background: #CBD5E1;
+  border-radius: 999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #0A3598;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #F8FAFC;
 }
 
 /* Animations */
@@ -277,5 +301,35 @@ a:active,
 .no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Premium Brand Gradient Styling Overrides */
+.bg-primary, 
+.bg-\[\#0A3598\],
+.bg-\[\#0a3598\] {
+  background: linear-gradient(135deg, #2952E3 0%, #1E3A8A 50%, #0B2A6F 100%) !important;
+}
+
+.hover\:bg-primary\/90:hover, 
+.hover\:bg-\[\#0A3598\]\/90:hover,
+.hover\:bg-\[\#0a3598\]\/90:hover,
+.hover\:bg-primary\/95:hover, 
+.hover\:bg-\[\#0A3598\]\/95:hover,
+.hover\:bg-\[\#0a3598\]\/95:hover {
+  background: linear-gradient(135deg, #0B2A6F 0%, #1E3A8A 50%, #2952E3 100%) !important;
+  opacity: 0.95;
+}
+
+.bg-accent, 
+.bg-\[\#FFC107\],
+.bg-\[\#ffc107\] {
+  background: linear-gradient(135deg, #FFF000, #FFC107) !important;
+}
+
+.hover\:bg-accent\/90:hover, 
+.hover\:bg-\[\#FFC107\]\/90:hover,
+.hover\:bg-\[\#ffc107\]\/90:hover {
+  background: linear-gradient(135deg, #FFC107, #FFF000) !important;
+  opacity: 0.95;
 }
 

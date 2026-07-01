@@ -78,6 +78,22 @@ export function Layout({ children }) {
   };
   const initials = getInitials(loggedInName);
 
+  const [userId, setUserId] = useState(() => localStorage.getItem('user_id') || '');
+
+  useEffect(() => {
+    if (!userId) {
+      authApi.profile()
+        .then(res => {
+          const uid = res.data?.user_id || res.data?.id;
+          if (uid) {
+            localStorage.setItem('user_id', String(uid));
+            setUserId(String(uid));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userId]);
+
   const searchInputRef = useRef(null);
 
   // Keep search input in sync with URL search param
@@ -155,8 +171,16 @@ export function Layout({ children }) {
       {/* Desktop Left Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-72 lg:flex-shrink-0 bg-surface border-r border-border-fin z-20">
         {/* Brand Header */}
-        <div className="py-3 px-4 border-b border-border-fin flex items-center justify-start overflow-hidden">
-          <img src="/logo-horizontal.png" className="h-20 w-auto object-contain -my-2" alt="Umbrella Finance" />
+        <div className="py-4 px-5 border-b border-border-fin flex items-center gap-3 overflow-hidden select-none">
+          <img src="/logo.png" className="h-11 w-11 object-contain flex-shrink-0" alt="Umbrella Finance Logo" />
+          <div className="flex flex-col min-w-0">
+            <span className="text-lg uppercase tracking-tight mb-0.5" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900, lineHeight: 1.1 }}>
+              <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+            </span>
+            <span className="text-[9px] font-bold text-secondary-text tracking-wide whitespace-nowrap">
+              Chhote Kadam, Bade Sapne
+            </span>
+          </div>
         </div>
 
         {/* Sidebar Nav */}
@@ -180,11 +204,14 @@ export function Layout({ children }) {
         {/* User Info / Footer */}
         <div className="p-4 border-t border-border-fin bg-background-fin">
           <div className="flex items-center justify-between gap-3 px-2 py-1.5">
-            <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to={userId ? `/settings/user/${userId}` : '#'}
+              className={`flex items-center gap-3 min-w-0 flex-1 hover:bg-border-fin/50 p-1.5 rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.98] ${userId ? '' : 'pointer-events-none'}`}
+            >
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
                 {initials}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <span className="text-sm font-bold text-primary-text block truncate leading-none mb-1" title={loggedInName}>
                   {loggedInName}
                 </span>
@@ -192,7 +219,7 @@ export function Layout({ children }) {
                   {loggedInRole}
                 </span>
               </div>
-            </div>
+            </Link>
             <button
               onClick={handleLogout}
               className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"
@@ -218,8 +245,11 @@ export function Layout({ children }) {
             </button>
 
             {/* Mobile Logo next to menu button */}
-            <div className="lg:hidden flex items-center overflow-hidden h-10 border-r border-border-fin pr-2.5 mr-1">
-              <img src="/logo-horizontal.png" className="h-14 w-auto object-contain -my-2" alt="Umbrella" />
+            <div className="lg:hidden flex items-center gap-2 overflow-hidden h-10 border-r border-border-fin pr-2.5 mr-1 select-none">
+              <img src="/logo.png" className="h-7 w-7 object-contain flex-shrink-0" alt="Umbrella Logo" />
+              <span className="text-sm uppercase tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>
+                <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+              </span>
             </div>
 
             {/* Breadcrumb / Title */}
@@ -336,8 +366,16 @@ export function Layout({ children }) {
           {/* Drawer contents */}
           <div className="relative w-72 max-w-xs bg-surface h-full flex flex-col p-6 shadow-2xl z-50">
             <div className="flex justify-between items-center pb-4 border-b border-border-fin mb-6">
-              <div className="flex items-center overflow-hidden">
-                <img src="/logo-horizontal.png" className="h-16 w-auto object-contain -my-1.5" alt="Umbrella Finance" />
+              <div className="flex items-center gap-2 select-none">
+                <img src="/logo.png" className="h-9 w-9 object-contain flex-shrink-0" alt="Umbrella Finance Logo" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-base uppercase tracking-tight mb-0.5" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900, lineHeight: 1.1 }}>
+                    <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+                  </span>
+                  <span className="text-[8px] font-bold text-secondary-text tracking-wide whitespace-nowrap">
+                    Chhote Kadam, Bade Sapne
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -366,11 +404,15 @@ export function Layout({ children }) {
             </nav>
 
             <div className="pt-4 border-t border-border-fin flex items-center justify-between">
-              <div>
+              <Link
+                to={userId ? `/settings/user/${userId}` : '#'}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block min-w-0 flex-1 hover:bg-background-fin p-1.5 rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.98] ${userId ? '' : 'pointer-events-none'}`}
+              >
                 <span className="text-[11px] text-secondary-text font-bold uppercase block mb-1">Logged In</span>
                 <span className="text-sm font-bold text-primary-text block truncate max-w-[150px]">{loggedInName}</span>
                 <span className="text-[10px] text-secondary-text font-semibold block">{loggedInRole}</span>
-              </div>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"

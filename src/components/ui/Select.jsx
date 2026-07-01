@@ -67,7 +67,7 @@ export function Select({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between bg-surface border border-border-fin hover:border-[#1E3A8A]/30 rounded-xl text-primary-text focus:outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/10 transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.98] ${
+        className={`w-full flex items-center justify-between bg-surface border border-border-fin hover:border-[#0A3598]/30 rounded-xl text-primary-text focus:outline-none focus:border-[#0A3598] focus:ring-2 focus:ring-[#0A3598]/10 transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.98] ${
           compact ? 'px-3.5 py-2 text-xs font-bold' : 'px-4 py-3 text-sm font-medium'
         }`}
       >

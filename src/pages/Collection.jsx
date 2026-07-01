@@ -527,7 +527,7 @@ export default function Collection() {
                   onClick={() => setFilterStatus(s)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterStatus === s 
-                      ? 'bg-[#1E3A8A] text-white shadow-sm'
+                      ? 'bg-[#0A3598] text-white shadow-sm'
                       : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
@@ -581,7 +581,7 @@ export default function Collection() {
 
           {/* Selected Date Text */}
           <div className="flex items-center">
-            <span className="text-[11px] font-black text-[#1E3A8A] min-w-[72px] text-center select-none tracking-tight">
+            <span className="text-[11px] font-black text-[#0A3598] min-w-[72px] text-center select-none tracking-tight">
               {selectedDateStr}
             </span>
           </div>
@@ -644,11 +644,11 @@ export default function Collection() {
         <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completion Rate</span>
-            <span className="text-xs font-bold text-[#1E3A8A] bg-[#1E3A8A]/5 px-2 py-0.5 rounded">{progressPercent}%</span>
+            <span className="text-xs font-bold text-[#0A3598] bg-[#0A3598]/5 px-2 py-0.5 rounded">{progressPercent}%</span>
           </div>
           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
             <div 
-              className="bg-[#1E3A8A] h-full rounded-full transition-all duration-500" 
+              className="bg-[#0A3598] h-full rounded-full transition-all duration-500" 
               style={{ width: `${Math.min(100, progressPercent)}%` }}
             ></div>
           </div>
@@ -661,24 +661,24 @@ export default function Collection() {
         <button
           onClick={() => setActiveTab('single')}
           className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-            activeTab === 'single' ? 'text-[#1E3A8A]' : 'text-[#64748B] hover:text-[#0F172A]'
+            activeTab === 'single' ? 'text-[#0A3598]' : 'text-[#64748B] hover:text-[#0F172A]'
           }`}
         >
           Single Collection Checklist
           {activeTab === 'single' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1E3A8A] rounded-full"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0A3598] rounded-full"></div>
           )}
         </button>
         {!isAgent && (
           <button
             onClick={() => setActiveTab('bulk')}
             className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-              activeTab === 'bulk' ? 'text-[#1E3A8A]' : 'text-[#64748B] hover:text-[#0F172A]'
+              activeTab === 'bulk' ? 'text-[#0A3598]' : 'text-[#64748B] hover:text-[#0F172A]'
             }`}
           >
             Agent-Wise Bulk Operations
             {activeTab === 'bulk' && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1E3A8A] rounded-full"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0A3598] rounded-full"></div>
             )}
           </button>
         )}
@@ -718,7 +718,7 @@ export default function Collection() {
                           onClick={() => navigate(`/account/${acc.accNo}`)}
                           className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
                         >
-                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#1E3A8A]">
+                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">
                             {acc.accNo}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4">
@@ -727,7 +727,7 @@ export default function Collection() {
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-xs">
                             <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                              acc.type === 'Loan' ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                              acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
                             }`}>
                               {acc.type}
                             </span>
@@ -770,8 +770,9 @@ export default function Collection() {
                               <div className="flex flex-col items-center gap-1">
                                 <button
                                   onClick={() => handleOpenCollect(acc)}
-                                  className="px-5 py-1.5 rounded-lg text-xs font-bold bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
+                                  className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
                                 >
+                                  <span className="material-symbols-rounded text-sm select-none">payments</span>
                                   Collect
                                 </button>
                                 {todayRejected && (
@@ -810,7 +811,7 @@ export default function Collection() {
                   <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-wider">Bulk Today's Collection</h4>
                   <p className="text-[10px] text-[#64748B] mt-0.5">Uncollected accounts assigned to {selectedAgentForBulk}</p>
                 </div>
-                <span className="bg-[#1E3A8A]/10 text-[#1E3A8A] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-[#0A3598]/10 text-[#0A3598] text-[10px] font-bold px-2 py-0.5 rounded-full">
                   {bulkCollectAccounts.length} Pending
                 </span>
               </div>
@@ -831,11 +832,11 @@ export default function Collection() {
                             setBulkCollectSelected([]);
                           }
                         }}
-                        className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
+                        className="w-4 h-4 text-[#0A3598] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <span className="text-xs font-bold text-[#0F172A]">Select All Pending</span>
                     </label>
-                    <span className="text-xs font-bold text-[#1E3A8A]">
+                    <span className="text-xs font-bold text-[#0A3598]">
                       Selected: {bulkCollectSelected.length} / {bulkCollectAccounts.length}
                     </span>
                   </div>
@@ -869,12 +870,12 @@ export default function Collection() {
                                       setBulkCollectSelected(prev => prev.filter(id => id !== acc.accNo));
                                     }
                                   }}
-                                  className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
+                                  className="w-4 h-4 text-[#0A3598] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="px-4 py-3">
                                 <div className="font-bold text-[#0F172A]">{name}</div>
-                                <div className="text-[10px] text-[#1E3A8A] font-medium">{acc.accNo} ({acc.type})</div>
+                                <div className="text-[10px] text-[#0A3598] font-medium">{acc.accNo} ({acc.type})</div>
                               </td>
                               <td className="px-4 py-3 text-right font-black text-[#0F172A]">
                                 ₹{(acc.emiAmt || 0).toLocaleString()}
@@ -900,7 +901,7 @@ export default function Collection() {
                     <button
                       onClick={handleBulkCollectSubmit}
                       disabled={bulkCollectSelected.length === 0 || isFutureDate}
-                      className="w-full h-11 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1"
+                      className="w-full h-11 bg-[#0A3598] hover:bg-[#0A3598]/90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1"
                     >
                       <span className="material-symbols-rounded text-sm select-none">payments</span>
                       Collect Selected ({bulkCollectSelected.length} EMIs)
@@ -952,11 +953,11 @@ export default function Collection() {
                             setBulkAwaitingSelected([]);
                           }
                         }}
-                        className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                        className="w-4 h-4 text-[#0A3598] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
                       />
                       <span className="text-xs font-bold text-[#0F172A]">Select All Synced</span>
                     </label>
-                    <span className="text-xs font-bold text-[#1E3A8A]">
+                    <span className="text-xs font-bold text-[#0A3598]">
                       Selected: {bulkAwaitingSelected.length} / {bulkAwaitingApproveCollections.length}
                     </span>
                   </div>
@@ -990,12 +991,12 @@ export default function Collection() {
                                       setBulkAwaitingSelected(prev => prev.filter(id => id !== acc.accNo));
                                     }
                                   }}
-                                  className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
+                                  className="w-4 h-4 text-[#0A3598] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
                                 />
                               </td>
                               <td className="px-4 py-3">
                                 <div className="font-bold text-[#0F172A]">{name}</div>
-                                <div className="text-[10px] text-[#1E3A8A] font-medium">{acc.accNo} ({acc.type})</div>
+                                <div className="text-[10px] text-[#0A3598] font-medium">{acc.accNo} ({acc.type})</div>
                               </td>
                               <td className="px-4 py-3 text-right font-black text-[#16A34A]">
                                 ₹{(todayTx.amt || 0).toLocaleString()}
@@ -1061,7 +1062,7 @@ export default function Collection() {
           >
             <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">payments</span>
+                <span className="material-symbols-rounded text-base text-[#0A3598] select-none">payments</span>
                 <h3 className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">
                   Collect Daily Payment
                 </h3>
@@ -1082,7 +1083,7 @@ export default function Collection() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#64748B]">Account Number:</span>
-                  <span className="font-bold text-[#1E3A8A]">{selectedAccount.accNo}</span>
+                  <span className="font-bold text-[#0A3598]">{selectedAccount.accNo}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#64748B]">Standard EMI Due:</span>
@@ -1097,7 +1098,7 @@ export default function Collection() {
                     type="number"
                     value={collectAmount}
                     onChange={(e) => setCollectAmount(e.target.value)}
-                    className="w-full h-11 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full h-11 px-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold text-[#16A34A] focus:outline-none focus:border-[#0A3598]"
                     required
                     autoFocus
                   />
@@ -1138,7 +1139,7 @@ export default function Collection() {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 h-11 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center"
+                  className="flex-1 h-11 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center"
                 >
                   Save Payment
                 </button>
@@ -1157,7 +1158,7 @@ export default function Collection() {
             <div className="text-center pb-4 border-b border-dashed border-[#E2E8F0]">
               <span className="text-sm font-bold block">Umbrella Finance</span>
               <span className="text-[10px] text-[#64748B] block mt-0.5">Chhote Kadam, Bade Sapne</span>
-              <span className="text-xs font-bold text-[#1E3A8A] mt-2 block bg-[#1E3A8A]/5 py-1 rounded-lg">Collection Receipt</span>
+              <span className="text-xs font-bold text-[#0A3598] mt-2 block bg-[#0A3598]/5 py-1 rounded-lg">Collection Receipt</span>
             </div>
 
             <div className="space-y-2 text-xs py-2 border-b border-dashed border-[#E2E8F0] pb-3">
@@ -1185,7 +1186,7 @@ export default function Collection() {
                   <span className="text-[#64748B]">Fine</span>
                   <span className="font-bold">₹{receiptTxn.fine.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#1E3A8A]">
+                <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#0A3598]">
                   <span>Total Received</span>
                   <span>₹{(receiptTxn.amt + receiptTxn.fine).toLocaleString()}</span>
                 </div>
@@ -1207,7 +1208,7 @@ export default function Collection() {
                     alert('Receipt print command sent.');
                     closeReceipt();
                   }}
-                  className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
+                  className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90 transition-all cursor-pointer shadow-sm"
                 >
                   <span className="material-symbols-rounded text-sm select-none">print</span>
                   Print Receipt

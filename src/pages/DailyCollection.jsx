@@ -223,7 +223,7 @@ export default function DailyCollection() {
                   onClick={() => setFilterType(t)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     filterType === t
-                      ? 'bg-[#1E3A8A] text-white shadow-sm'
+                      ? 'bg-[#0A3598] text-white shadow-sm'
                       : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
@@ -253,7 +253,7 @@ export default function DailyCollection() {
         </div>
 
         {searchFilter && (
-          <div className="flex items-center justify-between bg-[#1E3A8A]/5 border border-[#1E3A8A]/25 rounded-xl px-4 py-2.5 text-xs font-semibold text-[#1E3A8A]">
+          <div className="flex items-center justify-between bg-[#0A3598]/5 border border-[#0A3598]/25 rounded-xl px-4 py-2.5 text-xs font-semibold text-[#0A3598]">
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-rounded text-sm select-none">filter_alt</span>
               <span>Active Search: "{searchFilter}"</span>
@@ -273,25 +273,24 @@ export default function DailyCollection() {
                   <th className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3.5 text-right text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Today's Due</th>
                   <th className="px-6 py-3.5 text-right text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Outstanding</th>
-                  <th className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Next Due</th>
                   <th className="px-6 py-3.5 text-center text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0] bg-white">
                 {loading ? (
-                  <tr><td colSpan="8" className="text-center py-10 text-xs text-[#64748B]">Loading accounts…</td></tr>
+                  <tr><td colSpan="7" className="text-center py-10 text-xs text-[#64748B]">Loading accounts…</td></tr>
                 ) : filteredAccounts.length === 0 ? (
-                  <tr><td colSpan="8" className="text-center py-12 text-xs text-[#64748B]">No accounts match current filters.</td></tr>
+                  <tr><td colSpan="7" className="text-center py-12 text-xs text-[#64748B]">No accounts match current filters.</td></tr>
                 ) : filteredAccounts.map(acc => (
                   <tr key={`${acc.type}-${acc.id}`} className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer" onClick={() => navigate(`/account/${acc.accNo}`)}>
-                    <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#1E3A8A]">{acc.accNo}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">{acc.accNo}</td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <div className="text-xs font-bold text-[#0F172A]">{acc.customerName}</div>
                       <div className="text-[10px] text-[#64748B]">{acc.customerMobile}</div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-xs">
                       <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                        acc.type === 'Loan' ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                        acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
                       }`}>{acc.type}</span>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-xs">
@@ -299,9 +298,6 @@ export default function DailyCollection() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-right text-[#EA580C]">₹{inr(acc.todayDue)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold text-right text-[#0F172A]">₹{inr(acc.outstanding)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-[11px] text-[#64748B] font-semibold">
-                      {acc.nextDueDate ? new Date(acc.nextDueDate).toLocaleDateString('en-IN') : '—'}
-                    </td>
                     <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                       {acc.status === 'Processing' ? (
                         <div className="flex gap-1.5 justify-center">
@@ -321,12 +317,13 @@ export default function DailyCollection() {
                       ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
                         <button
                           onClick={() => handleOpenCollect(acc)}
-                          className="px-5 py-1.5 rounded-lg text-xs font-bold bg-[#1E3A8A] text-white hover:bg-[#1E3A8A]/90 transition-all cursor-pointer shadow-sm"
+                          className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
                         >
+                          <span className="material-symbols-rounded text-sm select-none">payments</span>
                           Collect
                         </button>
                       ) : (
-                        <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider hover:text-[#1E3A8A]">
+                        <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider hover:text-[#0A3598]">
                           View
                         </Link>
                       )}
@@ -359,7 +356,7 @@ export default function DailyCollection() {
                     <span className="text-[10px] text-[#64748B] block mt-0.5">{selectedAccount.customerMobile}</span>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                    selectedAccount.type === 'Loan' ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                    selectedAccount.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
                   }`}>
                     {selectedAccount.type}
                   </span>
@@ -367,7 +364,7 @@ export default function DailyCollection() {
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] pt-2 border-t border-[#E2E8F0] text-[#64748B]">
                   <div><span className="block font-semibold">Account No</span><strong className="text-[#0F172A]">{selectedAccount.accNo}</strong></div>
                   <div><span className="block font-semibold">Plan</span><strong className="text-[#0F172A]">{selectedAccount.planName}</strong></div>
-                  <div><span className="block font-semibold">EMI / Deposit</span><strong className="text-[#1E3A8A]">₹{inr(selectedAccount.emi)}</strong></div>
+                  <div><span className="block font-semibold">EMI / Deposit</span><strong className="text-[#0A3598]">₹{inr(selectedAccount.emi)}</strong></div>
                   <div><span className="block font-semibold">Today's Due</span><strong className="text-[#EA580C]">₹{inr(selectedAccount.todayDue)}</strong></div>
                   <div><span className="block font-semibold">Outstanding</span><strong className="text-[#0F172A]">₹{inr(selectedAccount.outstanding)}</strong></div>
                   <div><span className="block font-semibold">Cycle</span><strong className="text-[#0F172A]">{selectedAccount.cycle}</strong></div>
@@ -382,7 +379,7 @@ export default function DailyCollection() {
                   required
                   value={collectionAmount}
                   onChange={(e) => setCollectionAmount(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold focus:outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/10"
+                  className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold focus:outline-none focus:border-[#0A3598] focus:ring-2 focus:ring-[#0A3598]/10"
                 />
                 <div className="flex gap-2 mt-2">
                   {[selectedAccount.emi, selectedAccount.todayDue, selectedAccount.outstanding].filter(v => v > 0).map((q, idx) => (
@@ -390,7 +387,7 @@ export default function DailyCollection() {
                       key={idx}
                       type="button"
                       onClick={() => setCollectionAmount(String(q))}
-                      className="px-2.5 py-1 bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#1E3A8A] text-[#1E3A8A] rounded-lg text-[10px] font-bold"
+                      className="px-2.5 py-1 bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#0A3598] text-[#0A3598] rounded-lg text-[10px] font-bold"
                     >
                       ₹{inr(q)}
                     </button>
@@ -406,7 +403,7 @@ export default function DailyCollection() {
                     min="0"
                     value={fineAmount}
                     onChange={(e) => setFineAmount(e.target.value)}
-                    className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold focus:outline-none focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/10"
+                    className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-sm font-bold focus:outline-none focus:border-[#0A3598] focus:ring-2 focus:ring-[#0A3598]/10"
                   />
                 </div>
               )}
@@ -415,7 +412,7 @@ export default function DailyCollection() {
                 <button type="button" onClick={() => setSelectedAccount(null)} className="flex-1 px-4 py-2.5 border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#64748B] rounded-xl text-xs font-bold">
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="flex-1 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 shadow-md shadow-[#1E3A8A]/10 disabled:opacity-60">
+                <button type="submit" disabled={submitting} className="flex-1 px-4 py-2.5 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90 shadow-md shadow-[#0A3598]/10 disabled:opacity-60">
                   {submitting ? 'Saving…' : 'Save Collection'}
                 </button>
               </div>
@@ -443,12 +440,12 @@ export default function DailyCollection() {
             <div className="space-y-2 p-3 bg-slate-50/50 rounded-xl border border-slate-100 text-xs">
               <div className="flex justify-between"><span className="text-[#64748B]">Amount</span><span className="font-bold text-[#16A34A]">₹{inr(receipt.amt)}</span></div>
               {receipt.fine > 0 && <div className="flex justify-between"><span className="text-[#64748B]">Fine</span><span className="font-bold">₹{inr(receipt.fine)}</span></div>}
-              <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#1E3A8A]">
+              <div className="flex justify-between border-t border-dashed border-[#E2E8F0] pt-2 font-bold text-sm text-[#0A3598]">
                 <span>Total Received</span><span>₹{inr(receipt.total)}</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => window.print()} className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90">
+              <button onClick={() => window.print()} className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90">
                 <span className="material-symbols-rounded text-sm select-none">print</span>Print
               </button>
               <button onClick={() => setReceipt(null)} className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-[#64748B] rounded-xl text-xs font-bold">

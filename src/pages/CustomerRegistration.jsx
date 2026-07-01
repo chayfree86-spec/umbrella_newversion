@@ -1460,7 +1460,7 @@ export default function CustomerRegistration() {
                     step.num
                   )}
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                <span className={`text-[10px] font-bold uppercase tracking-wider text-center transition-colors ${
                   currentStep === step.num ? 'text-primary' : 'text-[#64748B] group-hover:text-primary-text'
                 }`}>
                   {step.name}
@@ -2755,14 +2755,14 @@ export default function CustomerRegistration() {
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, false)}
-                className="px-6 py-3 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                className="px-6 py-3 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
-                className="flex items-center gap-2 px-6 py-3 bg-[#F59E0B] text-white rounded-xl text-xs font-bold hover:bg-[#F59E0B]/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-2 px-6 py-3 bg-[#FFC107] text-white rounded-xl text-xs font-bold hover:bg-[#FFC107]/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
               >
                 <span className="material-symbols-rounded text-sm select-none">print</span>
                 Save & Print

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SettingsNavigation } from './General';
 import { Select } from '../../components/ui/Select';
-import { planApi } from '../../services/api';
+import { planApi, settingsApi } from '../../services/api';
 
 const EMPTY_PLAN = {
   name: '',
@@ -25,11 +25,15 @@ export default function Plans() {
 
   const [loanPlans, setLoanPlans] = useState([]);
   const [savingPlans, setSavingPlans] = useState([]);
+  const [termsSavings, setTermsSavings] = useState([]);
+  const [termsLoan, setTermsLoan] = useState([]);
+  const [isSavingTerms, setIsSavingTerms] = useState(false);
 
   const [newPlan, setNewPlan] = useState(EMPTY_PLAN);
 
   useEffect(() => {
     fetchPlans();
+    fetchTerms();
   }, []);
 
   const fetchPlans = () => {
@@ -40,6 +44,37 @@ export default function Plans() {
     planApi.savingPlans.list()
       .then(res => setSavingPlans(res.data || []))
       .catch(() => {});
+  };
+
+  const fetchTerms = () => {
+    settingsApi.get()
+      .then(res => {
+        setTermsSavings(res.data?.terms_savings || []);
+        setTermsLoan(res.data?.terms_loan || []);
+      })
+      .catch(() => {});
+  };
+
+  const handleSaveTerms = () => {
+    setIsSavingTerms(true);
+    const cleanSavings = termsSavings.map(t => t.trim()).filter(Boolean);
+    const cleanLoan = termsLoan.map(t => t.trim()).filter(Boolean);
+
+    settingsApi.update({
+      terms_savings: cleanSavings,
+      terms_loan: cleanLoan
+    })
+      .then(() => {
+        setTermsSavings(cleanSavings);
+        setTermsLoan(cleanLoan);
+        alert('Terms & Conditions updated successfully.');
+      })
+      .catch((err) => {
+        alert(err.message || 'Failed to update Terms & Conditions.');
+      })
+      .finally(() => {
+        setIsSavingTerms(false);
+      });
   };
 
   const handleOpenCreate = () => {
@@ -153,15 +188,17 @@ export default function Plans() {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-base font-bold text-primary-text">Plan Master</h3>
-          <p className="text-xs text-secondary-text">Configure loan plans and savings templates for customer registrations</p>
+          <p className="text-xs text-secondary-text">Configure loan plans, savings templates, and terms & conditions</p>
         </div>
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
-        >
-          <span className="material-symbols-rounded text-sm select-none">add</span>
-          Add New Plan
-        </button>
+        {activePlanTab !== 'terms' && (
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <span className="material-symbols-rounded text-sm select-none">add</span>
+            Add New Plan
+          </button>
+        )}
       </div>
 
       {/* Plan Tabs */}
@@ -186,10 +223,137 @@ export default function Plans() {
         >
           Savings Plans
         </button>
+        <button
+          onClick={() => { setActivePlanTab('terms'); }}
+          className={`px-6 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activePlanTab === 'terms' 
+              ? 'border-primary text-primary' 
+              : 'border-transparent text-secondary-text hover:text-primary-text'
+          }`}
+        >
+          Terms & Conditions
+        </button>
       </div>
 
       {/* Plans Table */}
-      {activePlanTab === 'loan' ? (
+      {activePlanTab === 'terms' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-[fadeIn_0.2s_ease-out]">
+          {/* Savings T&C Card */}
+          <div className="bg-surface rounded-2xl border border-border-fin shadow-sm p-6 space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-border-fin">
+              <div>
+                <h4 className="text-xs font-bold text-primary-text uppercase tracking-wider">Savings Terms & Conditions</h4>
+                <p className="text-[10px] text-secondary-text mt-0.5">These will print on Passbook & Maturity Bond</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTermsSavings(prev => [...prev, ''])}
+                className="px-3 py-1.5 bg-[#FFC107]/15 text-[#D97706] rounded-xl text-xs font-bold hover:bg-[#FFC107]/25 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-rounded text-sm">add</span>
+                Add Condition
+              </button>
+            </div>
+
+            {termsSavings.length === 0 ? (
+              <p className="text-xs text-secondary-text text-center py-6">No terms added. Click "Add Condition" to create one.</p>
+            ) : (
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 no-scrollbar">
+                {termsSavings.map((term, idx) => (
+                  <div key={idx} className="flex items-center gap-2 animate-[fadeIn_0.15s_ease-out]">
+                    <span className="text-xs font-extrabold text-secondary-text w-5 text-right">{idx + 1}.</span>
+                    <input
+                      type="text"
+                      value={term}
+                      onChange={(e) => {
+                        const newTerms = [...termsSavings];
+                        newTerms[idx] = e.target.value;
+                        setTermsSavings(newTerms);
+                      }}
+                      placeholder="Enter terms/condition statement..."
+                      className="flex-1 px-4 py-2.5 bg-slate-50/50 border border-border-fin rounded-xl text-xs font-semibold text-primary-text focus:outline-none focus:bg-white focus:border-[#D97706]/45 focus:ring-4 focus:ring-[#D97706]/5 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTermsSavings(termsSavings.filter((_, i) => i !== idx));
+                      }}
+                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                      title="Delete"
+                    >
+                      <span className="material-symbols-rounded text-base">delete</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Loan T&C Card */}
+          <div className="bg-surface rounded-2xl border border-border-fin shadow-sm p-6 space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-border-fin">
+              <div>
+                <h4 className="text-xs font-bold text-primary-text uppercase tracking-wider">Loan Terms & Conditions</h4>
+                <p className="text-[10px] text-secondary-text mt-0.5">These will print on Account Passbook</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTermsLoan(prev => [...prev, ''])}
+                className="px-3 py-1.5 bg-[#FFC107]/15 text-[#D97706] rounded-xl text-xs font-bold hover:bg-[#FFC107]/25 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-rounded text-sm">add</span>
+                Add Condition
+              </button>
+            </div>
+
+            {termsLoan.length === 0 ? (
+              <p className="text-xs text-secondary-text text-center py-6">No terms added. Click "Add Condition" to create one.</p>
+            ) : (
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 no-scrollbar">
+                {termsLoan.map((term, idx) => (
+                  <div key={idx} className="flex items-center gap-2 animate-[fadeIn_0.15s_ease-out]">
+                    <span className="text-xs font-extrabold text-secondary-text w-5 text-right">{idx + 1}.</span>
+                    <input
+                      type="text"
+                      value={term}
+                      onChange={(e) => {
+                        const newTerms = [...termsLoan];
+                        newTerms[idx] = e.target.value;
+                        setTermsLoan(newTerms);
+                      }}
+                      placeholder="Enter terms/condition statement..."
+                      className="flex-1 px-4 py-2.5 bg-slate-50/50 border border-border-fin rounded-xl text-xs font-semibold text-primary-text focus:outline-none focus:bg-white focus:border-[#D97706]/45 focus:ring-4 focus:ring-[#D97706]/5 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTermsLoan(termsLoan.filter((_, i) => i !== idx));
+                      }}
+                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                      title="Delete"
+                    >
+                      <span className="material-symbols-rounded text-base">delete</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Action Row */}
+          <div className="lg:col-span-2 flex justify-end">
+            <button
+              onClick={handleSaveTerms}
+              disabled={isSavingTerms}
+              className="px-6 py-3 text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-95 flex items-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #FFD54A 0%, #FBBF24 35%, #F59E0B 70%, #E67E00 100%)' }}
+            >
+              <span className="material-symbols-rounded text-sm">save</span>
+              {isSavingTerms ? 'Saving Terms...' : 'Save Terms & Conditions'}
+            </button>
+          </div>
+        </div>
+      ) : activePlanTab === 'loan' ? (
         <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-border-fin">
@@ -245,7 +409,7 @@ export default function Plans() {
             </table>
           </div>
         </div>
-      ) : (
+      ) : activePlanTab === 'saving' ? (
         <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-border-fin">
@@ -299,7 +463,7 @@ export default function Plans() {
             </table>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Add Form Modal */}
       {showAddForm && (

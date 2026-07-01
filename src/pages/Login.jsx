@@ -124,6 +124,7 @@ export default function Login({ onLogin }) {
         localStorage.setItem('auth_token', token);
         localStorage.setItem('userRole', user.role);
         localStorage.setItem('username', user.name);
+        localStorage.setItem('user_id', user.user_id || '');
         localStorage.setItem('active_user_role', user.role);
         localStorage.setItem('active_user_name', user.name);
         localStorage.setItem('user_branch_id', user.branch_id || '');
@@ -284,7 +285,7 @@ export default function Login({ onLogin }) {
           <path 
             d="M 0 941 L 0 862 Q 418 830 836 875 T 1672 850 L 1672 941 Z" 
             fill="none" 
-            stroke="#1E3A8A" 
+            stroke="#0A3598" 
             strokeWidth="2.5" 
             opacity="0.35" 
             className="animate-wave-slow" 
@@ -292,7 +293,7 @@ export default function Login({ onLogin }) {
           <path 
             d="M 0 941 L 0 878 Q 418 862 836 845 T 1672 870 L 1672 941 Z" 
             fill="none" 
-            stroke="#F59E0B" 
+            stroke="#FFC107" 
             strokeWidth="3" 
             opacity="0.45" 
             className="animate-wave-fast" 
@@ -300,15 +301,15 @@ export default function Login({ onLogin }) {
 
           {/* Floating Rupee Coin */}
           <g className="animate-float" style={{ transformOrigin: '270px 820px' }}>
-            <circle cx="270" cy="820" r="38" fill="#FFFFFF" stroke="#F59E0B" strokeWidth="4" />
-            <circle cx="270" cy="820" r="31" fill="none" stroke="#F59E0B" strokeWidth="1" strokeDasharray="3 3" />
+            <circle cx="270" cy="820" r="38" fill="#FFFFFF" stroke="#FFC107" strokeWidth="4" />
+            <circle cx="270" cy="820" r="31" fill="none" stroke="#FFC107" strokeWidth="1" strokeDasharray="3 3" />
             <text 
               x="270" 
               y="833" 
               fontFamily="Manrope, sans-serif" 
               fontSize="38" 
               fontWeight="900" 
-              fill="#F59E0B" 
+              fill="#FFC107" 
               textAnchor="middle"
             >
               ₹
@@ -320,7 +321,7 @@ export default function Login({ onLogin }) {
             <path 
               d="M 1370 550 Q 1450 540 1530 460" 
               fill="none" 
-              stroke="#1E3A8A" 
+              stroke="#0A3598" 
               strokeWidth="5" 
               strokeLinecap="round"
               className="animate-chart-arrow"
@@ -328,13 +329,13 @@ export default function Login({ onLogin }) {
             <path 
               d="M 1518 458 L 1534 456 L 1528 472" 
               fill="none" 
-              stroke="#1E3A8A" 
+              stroke="#0A3598" 
               strokeWidth="5" 
               strokeLinecap="round" 
               strokeLinejoin="round" 
             />
             {/* Travelling glowing amber dot along the arrow */}
-            <circle r="7" fill="#F59E0B" className="shadow-lg">
+            <circle r="7" fill="#FFC107" className="shadow-lg">
               <animateMotion 
                 path="M 1370 550 Q 1450 540 1530 460" 
                 dur="4.5s" 
@@ -349,7 +350,7 @@ export default function Login({ onLogin }) {
             <path 
               d="M 60 485 C 60 485 60 380 210 380 C 360 380 360 485 360 485" 
               fill="none" 
-              stroke="#F59E0B" 
+              stroke="#FFC107" 
               strokeWidth="4" 
               strokeLinecap="round"
               className="animate-umbrella-glow"
@@ -359,31 +360,31 @@ export default function Login({ onLogin }) {
           {/* Sparkles Fading In/Out */}
           {/* Sparkle 1 (Top Left) */}
           <g transform="translate(170, 100)" className="animate-sparkle-1">
-            <path d="M 0 -12 L 0 12 M -12 0 L 12 0" stroke="#F59E0B" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="3.5" fill="#1E3A8A" />
+            <path d="M 0 -12 L 0 12 M -12 0 L 12 0" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="0" cy="0" r="3.5" fill="#0A3598" />
           </g>
 
           {/* Sparkle 2 (Top Right) */}
           <g transform="translate(1580, 210)" className="animate-sparkle-2">
-            <path d="M 0 -15 L 0 15 M -15 0 L 15 0" stroke="#F59E0B" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="4" fill="#1E3A8A" />
+            <path d="M 0 -15 L 0 15 M -15 0 L 15 0" stroke="#FFC107" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="0" cy="0" r="4" fill="#0A3598" />
           </g>
 
           {/* Sparkle 3 (Center Right) */}
           <g transform="translate(1140, 530)" className="animate-sparkle-3">
-            <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="2.5" fill="#1E3A8A" />
+            <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="0" cy="0" r="2.5" fill="#0A3598" />
           </g>
 
           {/* Sparkle 4 (Near wallet) */}
           <g transform="translate(1410, 680)" className="animate-sparkle-2">
-            <path d="M 0 -11 L 0 11 M -11 0 L 11 0" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="0" cy="0" r="3" fill="#1E3A8A" />
+            <path d="M 0 -11 L 0 11 M -11 0 L 11 0" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="0" cy="0" r="3" fill="#0A3598" />
           </g>
 
           {/* Sparkle 5 (Near family) */}
           <g transform="translate(80, 610)" className="animate-sparkle-1">
-            <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#1E3A8A" strokeWidth="2" strokeLinecap="round" />
+            <path d="M 0 -10 L 0 10 M -10 0 L 10 0" stroke="#0A3598" strokeWidth="2" strokeLinecap="round" />
           </g>
           {/* Interactive Parallax Clouds */}
           {/* Cloud A (Left-center) */}
@@ -391,7 +392,7 @@ export default function Login({ onLogin }) {
             <path 
               d="M 620 180 L 700 180 A 12 12 0 0 0 712 168 A 16 16 0 0 0 696 152 A 22 22 0 0 0 654 136 A 16 16 0 0 0 622 152 A 12 12 0 0 0 608 168 A 12 12 0 0 0 620 180 Z" 
               fill="none" 
-              stroke="#1E3A8A" 
+              stroke="#0A3598" 
               strokeWidth="2.5" 
               opacity="0.35" 
             />
@@ -402,7 +403,7 @@ export default function Login({ onLogin }) {
             <path 
               d="M 930 140 L 1010 140 A 12 12 0 0 0 1022 128 A 16 16 0 0 0 1006 112 A 22 22 0 0 0 964 96 A 16 16 0 0 0 932 112 A 12 12 0 0 0 918 128 A 12 12 0 0 0 930 140 Z" 
               fill="none" 
-              stroke="#1E3A8A" 
+              stroke="#0A3598" 
               strokeWidth="2.5" 
               opacity="0.35" 
             />
@@ -411,30 +412,30 @@ export default function Login({ onLogin }) {
           {/* Left Yellow Cross */}
           <g style={{ transform: `translate(${mouseOffset.x * 35}px, ${mouseOffset.y * 20}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
             <g transform="translate(120, 280)">
-              <path d="M -7 0 L 7 0 M 0 -7 L 0 7" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M -7 0 L 7 0 M 0 -7 L 0 7" stroke="#FFC107" strokeWidth="2.5" strokeLinecap="round" />
             </g>
           </g>
 
           {/* Left Blue Circle */}
           <g style={{ transform: `translate(${mouseOffset.x * -18}px, ${mouseOffset.y * -12}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <circle cx="240" cy="160" r="6" fill="none" stroke="#1E3A8A" strokeWidth="2" />
+            <circle cx="240" cy="160" r="6" fill="none" stroke="#0A3598" strokeWidth="2" />
           </g>
 
           {/* Right Blue Cross */}
           <g style={{ transform: `translate(${mouseOffset.x * 40}px, ${mouseOffset.y * 25}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
             <g transform="translate(1420, 260)">
-              <path d="M -8 0 L 8 0 M 0 -8 L 0 8" stroke="#1E3A8A" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M -8 0 L 8 0 M 0 -8 L 0 8" stroke="#0A3598" strokeWidth="2.5" strokeLinecap="round" />
             </g>
           </g>
 
           {/* Right Yellow Circle */}
           <g style={{ transform: `translate(${mouseOffset.x * -25}px, ${mouseOffset.y * -15}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <circle cx="1550" cy="140" r="7" fill="none" stroke="#F59E0B" strokeWidth="2" />
+            <circle cx="1550" cy="140" r="7" fill="none" stroke="#FFC107" strokeWidth="2" />
           </g>
 
           {/* Center-Right Yellow Dot */}
           <g style={{ transform: `translate(${mouseOffset.x * 22}px, ${mouseOffset.y * 14}px)`, transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-            <circle cx="1280" cy="380" r="4.5" fill="#F59E0B" />
+            <circle cx="1280" cy="380" r="4.5" fill="#FFC107" />
           </g>
         </svg>
       </div>
@@ -451,7 +452,7 @@ export default function Login({ onLogin }) {
               className="h-12 w-auto object-contain"
             />
           </div>
-          <h2 className="text-xl font-black text-[#1E3A8A] tracking-tight">
+          <h2 className="text-xl font-black text-[#0A3598] tracking-tight">
             Umbrella Finance
           </h2>
           <p className="text-[10px] text-[#64748B] font-extrabold mt-0.5 uppercase tracking-wide">
@@ -481,13 +482,13 @@ export default function Login({ onLogin }) {
               placeholder=" "
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="block w-full px-4 py-3.5 text-sm text-[#0F172A] bg-white border border-[#E2E8F0] rounded-2xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#1E3A8A]/5 focus:border-[#1E3A8A] peer pr-10 font-semibold transition-all"
+              className="block w-full px-4 py-3.5 text-sm text-[#0F172A] bg-white border border-[#E2E8F0] rounded-2xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer pr-10 font-semibold transition-all"
               disabled={loading}
               autoComplete="username"
             />
             <label 
               htmlFor="username" 
-              className="absolute text-xs text-[#64748B] duration-200 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#1E3A8A] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 font-semibold pointer-events-none"
+              className="absolute text-xs text-[#64748B] duration-200 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0A3598] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 font-semibold pointer-events-none"
             >
               Email or Mobile Number
             </label>
@@ -521,7 +522,7 @@ export default function Login({ onLogin }) {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={1}
-                    className="w-12 h-12 text-center text-lg font-black text-[#1E3A8A] bg-[#F8FAFC] border-2 border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-4 focus:ring-[#1E3A8A]/10 focus:border-[#1E3A8A] transition-all focus:scale-105"
+                    className="w-12 h-12 text-center text-lg font-black text-[#0A3598] bg-[#F8FAFC] border-2 border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-4 focus:ring-[#0A3598]/10 focus:border-[#0A3598] transition-all focus:scale-105"
                     disabled={loading}
                     autoComplete="one-time-code"
                   />
@@ -530,7 +531,7 @@ export default function Login({ onLogin }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="w-8 h-8 flex items-center justify-center text-[#64748B]/60 hover:text-[#1E3A8A] transition-colors cursor-pointer select-none"
+                  className="w-8 h-8 flex items-center justify-center text-[#64748B]/60 hover:text-[#0A3598] transition-colors cursor-pointer select-none"
                 >
                   <span className="material-symbols-rounded text-lg">
                     {showPassword ? 'visibility_off' : 'visibility'}
@@ -547,20 +548,20 @@ export default function Login({ onLogin }) {
                 placeholder=" "
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full px-4 py-3.5 text-sm text-[#0F172A] bg-white border border-[#E2E8F0] rounded-2xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#1E3A8A]/5 focus:border-[#1E3A8A] peer pr-12 font-semibold transition-all"
+                className="block w-full px-4 py-3.5 text-sm text-[#0F172A] bg-white border border-[#E2E8F0] rounded-2xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer pr-12 font-semibold transition-all"
                 disabled={loading}
                 autoComplete="current-password"
               />
               <label 
                 htmlFor="password" 
-                className="absolute text-xs text-[#64748B] duration-200 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#1E3A8A] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 font-semibold pointer-events-none"
+                className="absolute text-xs text-[#64748B] duration-200 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-[#0A3598] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3 font-semibold pointer-events-none"
               >
                 Password
               </label>
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#64748B]/60 hover:text-[#1E3A8A] transition-colors cursor-pointer select-none"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#64748B]/60 hover:text-[#0A3598] transition-colors cursor-pointer select-none"
               >
                 <span className="material-symbols-rounded text-lg">
                   {showPassword ? 'visibility_off' : 'visibility'}
@@ -576,7 +577,7 @@ export default function Login({ onLogin }) {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4.5 h-4.5 rounded-md border-[#E2E8F0] text-[#1E3A8A] focus:ring-[#1E3A8A] transition-all cursor-pointer accent-[#1E3A8A]"
+                className="w-4.5 h-4.5 rounded-md border-[#E2E8F0] text-[#0A3598] focus:ring-[#0A3598] transition-all cursor-pointer accent-[#0A3598]"
                 disabled={loading}
               />
               <span>Remember me</span>
@@ -584,7 +585,7 @@ export default function Login({ onLogin }) {
             <button 
               type="button"
               onClick={() => { setShowResetModal(true); setResetStep(1); }}
-              className="text-[#1E3A8A] hover:text-[#F59E0B] font-extrabold transition-colors cursor-pointer select-none bg-transparent border-none p-0 outline-none"
+              className="text-[#0A3598] hover:text-[#FFC107] font-extrabold transition-colors cursor-pointer select-none bg-transparent border-none p-0 outline-none"
             >
               Forgot Password?
             </button>
@@ -593,7 +594,7 @@ export default function Login({ onLogin }) {
           {/* Login Button */}
           <button
             type="submit"
-            className="w-full mt-4 py-3.5 bg-[#1E3A8A] hover:bg-[#1E3A8A]/95 text-white font-black rounded-2xl shadow-lg hover:shadow-xl hover:shadow-[#1E3A8A]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer select-none group border-2 border-transparent focus:border-[#F59E0B] focus:outline-none"
+            className="w-full mt-4 py-3.5 bg-[#0A3598] hover:bg-[#0A3598]/95 text-white font-black rounded-2xl shadow-lg hover:shadow-xl hover:shadow-[#0A3598]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer select-none group border-2 border-transparent focus:border-[#FFC107] focus:outline-none"
             disabled={loading}
           >
             {loading ? (
@@ -634,7 +635,7 @@ export default function Login({ onLogin }) {
             {/* Step 1: Find User */}
             {resetStep === 1 && (
               <form onSubmit={handleVerifyUser} className="space-y-4">
-                <div className="mx-auto w-12 h-12 rounded-full bg-[#1E3A8A]/10 text-[#1E3A8A] flex items-center justify-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-[#0A3598]/10 text-[#0A3598] flex items-center justify-center">
                   <span className="material-symbols-rounded text-2xl select-none">
                     lock_reset
                   </span>
@@ -660,9 +661,9 @@ export default function Login({ onLogin }) {
                     value={resetUsername}
                     onChange={(e) => setResetUsername(e.target.value)}
                     placeholder=" "
-                    className="block w-full px-4 py-3 text-xs text-[#0F172A] bg-white border border-[#E2E8F0] rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#1E3A8A]/5 focus:border-[#1E3A8A] peer font-semibold"
+                    className="block w-full px-4 py-3 text-xs text-[#0F172A] bg-white border border-[#E2E8F0] rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer font-semibold"
                   />
-                  <label className="absolute text-[10px] text-[#64748B] duration-200 transform -translate-y-3.5 scale-75 top-2 z-10 origin-[0] bg-white px-1.5 peer-focus:px-1.5 peer-focus:text-[#1E3A8A] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-3.5 left-3.5 font-semibold pointer-events-none">
+                  <label className="absolute text-[10px] text-[#64748B] duration-200 transform -translate-y-3.5 scale-75 top-2 z-10 origin-[0] bg-white px-1.5 peer-focus:px-1.5 peer-focus:text-[#0A3598] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-3.5 left-3.5 font-semibold pointer-events-none">
                     Email or Mobile Number
                   </label>
                 </div>
@@ -677,7 +678,7 @@ export default function Login({ onLogin }) {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2.5 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-black rounded-xl cursor-pointer select-none flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-black rounded-xl cursor-pointer select-none flex items-center justify-center gap-1.5"
                     disabled={resetLoading}
                   >
                     {resetLoading ? 'Verifying...' : 'Verify User'}
@@ -689,7 +690,7 @@ export default function Login({ onLogin }) {
             {/* Step 2: Set New Password/PIN */}
             {resetStep === 2 && (
               <form onSubmit={handleUpdateCredentials} className="space-y-4">
-                <div className="mx-auto w-12 h-12 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-[#FFC107]/10 text-[#FFC107] flex items-center justify-center">
                   <span className="material-symbols-rounded text-2xl select-none">
                     password
                   </span>
@@ -699,7 +700,7 @@ export default function Login({ onLogin }) {
                     Set New Credentials
                   </h4>
                   <p className="text-xs text-[#64748B] font-semibold leading-relaxed">
-                    User: <strong className="text-[#1E3A8A]">{resetUser?.name}</strong> ({resetUser?.role})
+                    User: <strong className="text-[#0A3598]">{resetUser?.name}</strong> ({resetUser?.role})
                   </p>
                 </div>
 
@@ -716,9 +717,9 @@ export default function Login({ onLogin }) {
                     value={resetPassword}
                     onChange={(e) => setResetPassword(e.target.value)}
                     placeholder=" "
-                    className="block w-full px-4 py-3 text-xs text-[#0F172A] bg-white border border-[#E2E8F0] rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#1E3A8A]/5 focus:border-[#1E3A8A] peer font-semibold"
+                    className="block w-full px-4 py-3 text-xs text-[#0F172A] bg-white border border-[#E2E8F0] rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer font-semibold"
                   />
-                  <label className="absolute text-[10px] text-[#64748B] duration-200 transform -translate-y-3.5 scale-75 top-2 z-10 origin-[0] bg-white px-1.5 peer-focus:px-1.5 peer-focus:text-[#1E3A8A] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-3.5 left-3.5 font-semibold pointer-events-none">
+                  <label className="absolute text-[10px] text-[#64748B] duration-200 transform -translate-y-3.5 scale-75 top-2 z-10 origin-[0] bg-white px-1.5 peer-focus:px-1.5 peer-focus:text-[#0A3598] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-3.5 left-3.5 font-semibold pointer-events-none">
                     New Password
                   </label>
                 </div>
@@ -733,9 +734,9 @@ export default function Login({ onLogin }) {
                     value={resetPin}
                     onChange={(e) => setResetPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder=" "
-                    className="block w-full px-4 py-3 text-center text-sm font-black tracking-widest text-[#0F172A] bg-white border border-[#E2E8F0] rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#1E3A8A]/5 focus:border-[#1E3A8A] peer"
+                    className="block w-full px-4 py-3 text-center text-sm font-black tracking-widest text-[#0F172A] bg-white border border-[#E2E8F0] rounded-xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer"
                   />
-                  <label className="absolute text-[10px] text-[#64748B] duration-200 transform -translate-y-3.5 scale-75 top-2 z-10 origin-[0] bg-white px-1.5 peer-focus:px-1.5 peer-focus:text-[#1E3A8A] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-3.5 left-1/2 -translate-x-1/2 font-semibold pointer-events-none">
+                  <label className="absolute text-[10px] text-[#64748B] duration-200 transform -translate-y-3.5 scale-75 top-2 z-10 origin-[0] bg-white px-1.5 peer-focus:px-1.5 peer-focus:text-[#0A3598] peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-3.5 left-1/2 -translate-x-1/2 font-semibold pointer-events-none">
                     New 4-Digit PIN
                   </label>
                 </div>
@@ -750,7 +751,7 @@ export default function Login({ onLogin }) {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2.5 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-black rounded-xl cursor-pointer select-none flex items-center justify-center gap-1.5"
+                    className="flex-1 py-2.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-black rounded-xl cursor-pointer select-none flex items-center justify-center gap-1.5"
                     disabled={resetLoading}
                   >
                     {resetLoading ? 'Saving...' : 'Save New Code'}
@@ -786,7 +787,7 @@ export default function Login({ onLogin }) {
                     setResetPin('');
                     setResetUser(null);
                   }}
-                  className="w-full py-2.5 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-black rounded-xl cursor-pointer select-none"
+                  className="w-full py-2.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-black rounded-xl cursor-pointer select-none"
                 >
                   Back to Sign In
                 </button>

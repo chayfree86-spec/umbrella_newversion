@@ -86,10 +86,10 @@ export default function App() {
         return <strong key={i} className="text-[#16A34A] font-black text-sm">{part}</strong>;
       }
       if (/^[A-Z]{2,3}-[0-9]{4}$/.test(part)) {
-        return <strong key={i} className="text-[#1E3A8A] font-black text-xs">{part}</strong>;
+        return <strong key={i} className="text-[#0A3598] font-black text-xs">{part}</strong>;
       }
       if (part === 'Sumit Kumar') {
-        return <strong key={i} className="text-[#1E3A8A] font-black text-xs">{part}</strong>;
+        return <strong key={i} className="text-[#0A3598] font-black text-xs">{part}</strong>;
       }
       return part;
     });
@@ -144,7 +144,7 @@ export default function App() {
             >
               {/* Custom Icon */}
               <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
-                isSuccess ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#1E3A8A]/10 text-[#1E3A8A]'
+                isSuccess ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#0A3598]/10 text-[#0A3598]'
               }`}>
                 <span className="material-symbols-rounded text-2xl select-none">
                   {isSuccess ? 'check_circle' : 'notifications_active'}
@@ -165,7 +165,7 @@ export default function App() {
               <button
                 onClick={closeAlert}
                 className={`w-full py-2.5 text-white text-xs font-black rounded-xl transition-all shadow-sm cursor-pointer select-none ${
-                  isSuccess ? 'bg-[#16A34A] hover:bg-[#16A34A]/90' : 'bg-[#1E3A8A] hover:bg-[#1E3A8A]/90'
+                  isSuccess ? 'bg-[#16A34A] hover:bg-[#16A34A]/90' : 'bg-[#0A3598] hover:bg-[#0A3598]/90'
                 }`}
               >
                 OK

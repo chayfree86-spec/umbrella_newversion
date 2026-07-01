@@ -154,7 +154,7 @@ export default function Dashboard() {
 
   const collectionTrendOptions = {
     chart: { type: 'area', height: 300, toolbar: { show: false }, fontFamily: 'Manrope, sans-serif' },
-    colors: ['#1E3A8A'],
+    colors: ['#0A3598'],
     fill: {
       type: 'gradient',
       gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 90, 100] }
@@ -186,7 +186,7 @@ export default function Dashboard() {
   const loanVsSavingOptions = {
     chart: { type: 'donut', height: 280, fontFamily: 'Manrope, sans-serif' },
     labels: ['Loan Portfolio', 'Savings Portfolio'],
-    colors: ['#1E3A8A', '#F59E0B'],
+    colors: ['#0A3598', '#FFC107'],
     dataLabels: { enabled: false },
     legend: { position: 'bottom', horizontalAlign: 'center', labels: { colors: '#64748B' } },
     plotOptions: {
@@ -219,7 +219,7 @@ export default function Dashboard() {
           <span className="bg-surface/10 text-accent px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-1.5 inline-block">
             Daily Insights
           </span>
-          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-surface">
+          <h2 className="text-lg md:text-xl font-extrabold tracking-tight text-surface mb-1">
             Welcome, {username}!
           </h2>
           <p className="text-sm text-surface/80 max-w-[60ch] leading-relaxed font-semibold">
@@ -255,7 +255,7 @@ export default function Dashboard() {
                   stat.type === 'success' ? 'bg-success-fin/10 text-success-fin' :
                   stat.type === 'danger' ? 'bg-danger-fin/10 text-danger-fin' :
                   stat.type === 'warning' ? 'bg-warning-fin/10 text-warning-fin' :
-                  stat.type === 'accent' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'
+                  stat.type === 'accent' ? 'bg-accent/10 text-[#D97706]' : 'bg-primary/10 text-primary'
                 }`}>
                   <span className="material-symbols-rounded text-lg select-none">{stat.icon}</span>
                 </div>

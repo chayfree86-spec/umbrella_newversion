@@ -485,33 +485,33 @@ export default function CustomerProfile() {
     <div className="space-y-6">
       {/* Customer Hero summary */}
       <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm flex flex-col md:flex-row gap-6 items-center">
-        <div className="w-20 h-20 rounded-full bg-[#1E3A8A] text-white flex items-center justify-center font-bold text-2xl">
+        <div className="w-20 h-20 rounded-full bg-[#0A3598] text-white flex items-center justify-center font-bold text-2xl">
           {initials(customer.full_name)}
         </div>
         <div className="flex-1 text-center md:text-left space-y-1 w-full">
           <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">
             <h2 className="text-xl font-bold text-[#0F172A]">{customer.full_name}</h2>
-            <span className="bg-[#1E3A8A]/5 text-[#1E3A8A] text-[10px] font-bold px-2 py-0.5 rounded-full inline-block w-fit mx-auto md:mx-0">
+            <span className="bg-[#0A3598]/5 text-[#0A3598] text-[10px] font-bold px-2 py-0.5 rounded-full inline-block w-fit mx-auto md:mx-0">
               {customer.status || 'Active Customer'}
             </span>
             <div className="md:ml-auto flex flex-wrap items-center gap-2 justify-center">
               <button
                 onClick={openEditModal}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0F172A] hover:text-[#1E3A8A] text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0F172A] hover:text-[#0A3598] text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
               >
                 <span className="material-symbols-rounded text-sm">edit</span>
                 Edit Profile
               </button>
               <button
                 onClick={() => setIsAddLoanModalOpen(true)}
-                className="px-4 py-2 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                className="px-4 py-2 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
               >
                 <span className="material-symbols-rounded text-sm">add_circle</span>
                 Add Loan
               </button>
               <button
                 onClick={() => setIsAddSavingModalOpen(true)}
-                className="px-4 py-2 bg-[#F59E0B] hover:bg-[#F59E0B]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                className="px-4 py-2 bg-[#FFC107] hover:bg-[#FFC107]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
               >
                 <span className="material-symbols-rounded text-sm">add_circle</span>
                 Add Savings
@@ -546,7 +546,7 @@ export default function CustomerProfile() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 pb-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
               activeTab === tab.id
-                ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                ? 'border-[#0A3598] text-[#0A3598]'
                 : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
             }`}
           >
@@ -571,7 +571,7 @@ export default function CustomerProfile() {
                 </div>
                 <div className="p-3 bg-[#F8FAFC] rounded-xl">
                   <span className="text-[10px] text-[#64748B] block mb-0.5">{activeTabData.accountType === 'Loan' ? 'Principal Amount' : 'Total Deposited'}</span>
-                  <span className="text-xs font-bold text-[#1E3A8A]">₹{Number(acc.principal_amount || acc.total_deposited || 0).toLocaleString('en-IN')}</span>
+                  <span className="text-xs font-bold text-[#0A3598]">₹{Number(acc.principal_amount || acc.total_deposited || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div className="p-3 bg-[#F8FAFC] rounded-xl">
                   <span className="text-[10px] text-[#64748B] block mb-0.5">{activeTabData.accountType === 'Loan' ? 'Total Paid' : 'Interest Earned'}</span>
@@ -595,7 +595,7 @@ export default function CustomerProfile() {
                 </p>
                 <Link
                   to={`/account/${activeTabData.accountNo}`}
-                  className="text-xs text-[#1E3A8A] font-bold hover:underline"
+                  className="text-xs text-[#0A3598] font-bold hover:underline"
                 >
                   View Full Ledger &amp; Calendar →
                 </Link>
@@ -616,11 +616,11 @@ export default function CustomerProfile() {
                 </div>
                 {customer.aadhaar_front_url && (
                   <div className="flex gap-2 pt-2">
-                    <a href={customer.aadhaar_front_url} target="_blank" rel="noreferrer" className="flex-1 border border-[#E2E8F0] p-2 bg-[#F8FAFC] rounded-lg text-center text-[10px] text-[#1E3A8A] font-semibold cursor-pointer hover:bg-[#1E3A8A]/5 transition-all">
+                    <a href={customer.aadhaar_front_url} target="_blank" rel="noreferrer" className="flex-1 border border-[#E2E8F0] p-2 bg-[#F8FAFC] rounded-lg text-center text-[10px] text-[#0A3598] font-semibold cursor-pointer hover:bg-[#0A3598]/5 transition-all">
                       Download Aadhaar Front
                     </a>
                     {customer.aadhaar_back_url && (
-                      <a href={customer.aadhaar_back_url} target="_blank" rel="noreferrer" className="flex-1 border border-[#E2E8F0] p-2 bg-[#F8FAFC] rounded-lg text-center text-[10px] text-[#1E3A8A] font-semibold cursor-pointer hover:bg-[#1E3A8A]/5 transition-all">
+                      <a href={customer.aadhaar_back_url} target="_blank" rel="noreferrer" className="flex-1 border border-[#E2E8F0] p-2 bg-[#F8FAFC] rounded-lg text-center text-[10px] text-[#0A3598] font-semibold cursor-pointer hover:bg-[#0A3598]/5 transition-all">
                         Download Aadhaar Back
                       </a>
                     )}
@@ -636,7 +636,7 @@ export default function CustomerProfile() {
                 </div>
                 {customer.pan_url && (
                   <div className="pt-2">
-                    <a href={customer.pan_url} target="_blank" rel="noreferrer" className="block border border-[#E2E8F0] p-2 bg-[#F8FAFC] rounded-lg text-center text-[10px] text-[#1E3A8A] font-semibold cursor-pointer hover:bg-[#1E3A8A]/5 transition-all">
+                    <a href={customer.pan_url} target="_blank" rel="noreferrer" className="block border border-[#E2E8F0] p-2 bg-[#F8FAFC] rounded-lg text-center text-[10px] text-[#0A3598] font-semibold cursor-pointer hover:bg-[#0A3598]/5 transition-all">
                       Download PAN Image
                     </a>
                   </div>
@@ -765,7 +765,7 @@ export default function CustomerProfile() {
             <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto animate-scale-up">
               <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-4">
                 <h3 className="text-sm font-bold text-[#0F172A] flex items-center gap-1.5 uppercase tracking-wider">
-                  <span className="material-symbols-rounded text-lg text-[#1E3A8A] select-none">edit_document</span>
+                  <span className="material-symbols-rounded text-lg text-[#0A3598] select-none">edit_document</span>
                   Edit Customer Profile
                 </h3>
                 <button 
@@ -779,7 +779,7 @@ export default function CustomerProfile() {
               <form onSubmit={handleUpdateProfile} className="space-y-6">
                 {/* Section 1: Personal Details */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-[#1E3A8A] uppercase tracking-wider">Personal Information</h4>
+                  <h4 className="text-xs font-bold text-[#0A3598] uppercase tracking-wider">Personal Information</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Full Name *</label>
@@ -788,7 +788,7 @@ export default function CustomerProfile() {
                         required
                         value={editForm.full_name}
                         onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -798,7 +798,7 @@ export default function CustomerProfile() {
                         required
                         value={editForm.mobile}
                         onChange={(e) => setEditForm(prev => ({ ...prev, mobile: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -807,7 +807,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.alternate_mobile}
                         onChange={(e) => setEditForm(prev => ({ ...prev, alternate_mobile: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -816,7 +816,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.father_or_husband_name}
                         onChange={(e) => setEditForm(prev => ({ ...prev, father_or_husband_name: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -843,7 +843,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.occupation}
                         onChange={(e) => setEditForm(prev => ({ ...prev, occupation: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -855,7 +855,7 @@ export default function CustomerProfile() {
                         type="number" 
                         value={editForm.monthly_income}
                         onChange={(e) => setEditForm(prev => ({ ...prev, monthly_income: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -863,7 +863,7 @@ export default function CustomerProfile() {
 
                 {/* Section 2: Branch, Area & Agent */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-[#1E3A8A] uppercase tracking-wider">Branch & Area Assignment</h4>
+                  <h4 className="text-xs font-bold text-[#0A3598] uppercase tracking-wider">Branch & Area Assignment</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <Select 
                       label="Branch *"
@@ -888,14 +888,14 @@ export default function CustomerProfile() {
 
                 {/* Section 3: Address */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-[#1E3A8A] uppercase tracking-wider">Residential Address</h4>
+                  <h4 className="text-xs font-bold text-[#0A3598] uppercase tracking-wider">Residential Address</h4>
                   <div>
                     <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Address Line 1</label>
                     <input 
                       type="text" 
                       value={editForm.address}
                       onChange={(e) => setEditForm(prev => ({ ...prev, address: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -905,7 +905,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.city}
                         onChange={(e) => setEditForm(prev => ({ ...prev, city: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -914,7 +914,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.state}
                         onChange={(e) => setEditForm(prev => ({ ...prev, state: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -923,7 +923,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.pincode}
                         onChange={(e) => setEditForm(prev => ({ ...prev, pincode: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -931,7 +931,7 @@ export default function CustomerProfile() {
 
                 {/* Section 4: KYC & Bank */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-[#1E3A8A] uppercase tracking-wider">KYC & Bank Details</h4>
+                  <h4 className="text-xs font-bold text-[#0A3598] uppercase tracking-wider">KYC & Bank Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Aadhaar Number</label>
@@ -939,7 +939,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.aadhaar_no}
                         onChange={(e) => setEditForm(prev => ({ ...prev, aadhaar_no: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -948,7 +948,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.pan_no}
                         onChange={(e) => setEditForm(prev => ({ ...prev, pan_no: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -959,7 +959,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.bank_name}
                         onChange={(e) => setEditForm(prev => ({ ...prev, bank_name: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -968,7 +968,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.bank_account_no}
                         onChange={(e) => setEditForm(prev => ({ ...prev, bank_account_no: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                     <div>
@@ -977,7 +977,7 @@ export default function CustomerProfile() {
                         type="text" 
                         value={editForm.bank_ifsc}
                         onChange={(e) => setEditForm(prev => ({ ...prev, bank_ifsc: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1E3A8A] focus:bg-white transition-all"
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#0A3598] focus:bg-white transition-all"
                       />
                     </div>
                   </div>
@@ -994,7 +994,7 @@ export default function CustomerProfile() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer text-center shadow-sm"
+                    className="flex-1 py-3 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer text-center shadow-sm"
                   >
                     Save Profile Details
                   </button>
@@ -1015,7 +1015,7 @@ export default function CustomerProfile() {
             {/* Header */}
             <div className="flex justify-between items-center border-b border-[#F1F5F9] px-6 py-4 bg-[#F8FAFC]">
               <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-1.5">
-                <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">credit_score</span>
+                <span className="material-symbols-rounded text-base text-[#0A3598] select-none">credit_score</span>
                 Apply for New Loan
               </h3>
               <button 
@@ -1071,7 +1071,7 @@ export default function CustomerProfile() {
 
                 {loanForm.loan_plan_id === 'custom' && (
                   <div className="border-t border-[#F1F5F9] pt-4 mt-2 space-y-4">
-                    <h4 className="text-[11px] font-bold text-[#1E3A8A] uppercase tracking-wider">Custom Loan Details</h4>
+                    <h4 className="text-[11px] font-bold text-[#0A3598] uppercase tracking-wider">Custom Loan Details</h4>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -1082,7 +1082,7 @@ export default function CustomerProfile() {
                           min="1"
                           value={loanForm.principal_amount}
                           onChange={(e) => setLoanForm({ ...loanForm, principal_amount: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 10000"
                         />
                       </div>
@@ -1096,7 +1096,7 @@ export default function CustomerProfile() {
                           min="0"
                           value={loanForm.interest_rate}
                           onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 12"
                         />
                       </div>
@@ -1122,7 +1122,7 @@ export default function CustomerProfile() {
                             min="1"
                             value={loanForm.duration_value}
                             onChange={(e) => setLoanForm({ ...loanForm, duration_value: e.target.value })}
-                            className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                            className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                             placeholder="E.g., 100"
                           />
                           <Select
@@ -1160,7 +1160,7 @@ export default function CustomerProfile() {
                           min="1"
                           value={loanForm.emi_amount}
                           onChange={(e) => setLoanForm({ ...loanForm, emi_amount: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="Calculated automatically..."
                         />
                       </div>
@@ -1172,7 +1172,7 @@ export default function CustomerProfile() {
                           min="0"
                           value={loanForm.processing_fee}
                           onChange={(e) => setLoanForm({ ...loanForm, processing_fee: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 200"
                         />
                       </div>
@@ -1184,7 +1184,7 @@ export default function CustomerProfile() {
                           min="0"
                           value={loanForm.penalty_per_day}
                           onChange={(e) => setLoanForm({ ...loanForm, penalty_per_day: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 10"
                         />
                       </div>
@@ -1201,7 +1201,7 @@ export default function CustomerProfile() {
                       min="1"
                       value={loanForm.principal_amount}
                       onChange={(e) => setLoanForm({ ...loanForm, principal_amount: e.target.value })}
-                      className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                      className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                       placeholder="Enter principal amount"
                     />
                   </div>
@@ -1254,15 +1254,15 @@ export default function CustomerProfile() {
                             </div>
 
                             <div className="flex justify-between items-center text-xs bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
-                              <span className="text-[#1E3A8A] font-bold">Duration</span>
+                              <span className="text-[#0A3598] font-bold">Duration</span>
                               <span className="font-extrabold text-[#0F172A] bg-white px-2 py-0.5 rounded border border-[#E2E8F0]">
                                 {duration} {durationUnit}
                               </span>
                             </div>
 
-                            <div className="flex justify-between items-center text-xs bg-[#1E3A8A]/5 border border-[#1E3A8A]/10 px-3 py-2 rounded-xl">
-                              <span className="text-[#1E3A8A] font-bold">Installment (EMI)</span>
-                              <span className="font-extrabold text-[#1E3A8A] bg-white px-2 py-0.5 rounded border border-[#1E3A8A]/10">
+                            <div className="flex justify-between items-center text-xs bg-[#0A3598]/5 border border-[#0A3598]/10 px-3 py-2 rounded-xl">
+                              <span className="text-[#0A3598] font-bold">Installment (EMI)</span>
+                              <span className="font-extrabold text-[#0A3598] bg-white px-2 py-0.5 rounded border border-[#0A3598]/10">
                                 ₹{emi.toLocaleString()} ({frequency})
                               </span>
                             </div>
@@ -1297,7 +1297,7 @@ export default function CustomerProfile() {
                   <button 
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 h-10 bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 h-10 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Submitting...' : 'Apply Loan'}
                   </button>
@@ -1318,7 +1318,7 @@ export default function CustomerProfile() {
             {/* Header */}
             <div className="flex justify-between items-center border-b border-[#F1F5F9] px-6 py-4 bg-[#F8FAFC]">
               <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center gap-1.5">
-                <span className="material-symbols-rounded text-base text-[#F59E0B] select-none">savings</span>
+                <span className="material-symbols-rounded text-base text-[#FFC107] select-none">savings</span>
                 Open New Savings Account
               </h3>
               <button 
@@ -1376,7 +1376,7 @@ export default function CustomerProfile() {
 
                 {savingForm.saving_plan_id && (
                   <div className="border-t border-[#F1F5F9] pt-4 mt-2 space-y-4">
-                    <h4 className="text-[11px] font-bold text-[#F59E0B] uppercase tracking-wider">
+                    <h4 className="text-[11px] font-bold text-[#FFC107] uppercase tracking-wider">
                       {savingForm.saving_plan_id === 'custom' ? 'Custom Savings Details' : 'Savings Plan Parameters'}
                     </h4>
 
@@ -1389,7 +1389,7 @@ export default function CustomerProfile() {
                           min="1"
                           value={savingForm.deposit_amount}
                           onChange={(e) => setSavingForm({ ...savingForm, deposit_amount: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 100"
                           readOnly={savingForm.saving_plan_id !== 'custom' && selectedSavingPlanObj?.deposit_amount > 0}
                         />
@@ -1404,7 +1404,7 @@ export default function CustomerProfile() {
                           min="0"
                           value={savingForm.interest_rate}
                           onChange={(e) => setSavingForm({ ...savingForm, interest_rate: e.target.value })}
-                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                          className="w-full h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 6.5"
                           readOnly={savingForm.saving_plan_id !== 'custom'}
                         />
@@ -1420,7 +1420,7 @@ export default function CustomerProfile() {
                               min="1"
                               value={savingForm.duration_value}
                               onChange={(e) => setSavingForm({ ...savingForm, duration_value: e.target.value })}
-                              className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
+                              className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#0A3598] focus:ring-1 focus:ring-[#0A3598] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                               placeholder="E.g., 365"
                             />
                           <Select
@@ -1515,9 +1515,9 @@ export default function CustomerProfile() {
 
                         return (
                           <>
-                            <div className="flex justify-between items-center text-xs bg-[#F59E0B]/5 border border-[#F59E0B]/10 px-3 py-2 rounded-xl">
-                              <span className="text-[#F59E0B] font-bold">Deposit ({frequency})</span>
-                              <span className="font-extrabold text-[#F59E0B] bg-white px-2 py-0.5 rounded border border-[#F59E0B]/10">
+                            <div className="flex justify-between items-center text-xs bg-[#FFC107]/5 border border-[#FFC107]/10 px-3 py-2 rounded-xl">
+                              <span className="text-[#FFC107] font-bold">Deposit ({frequency})</span>
+                              <span className="font-extrabold text-[#FFC107] bg-white px-2 py-0.5 rounded border border-[#FFC107]/10">
                                 ₹{deposit.toLocaleString()}
                               </span>
                             </div>
@@ -1528,7 +1528,7 @@ export default function CustomerProfile() {
                             </div>
 
                             <div className="flex justify-between items-center text-xs bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
-                              <span className="text-[#F59E0B] font-bold">Duration</span>
+                              <span className="text-[#FFC107] font-bold">Duration</span>
                               <span className="font-extrabold text-[#0F172A] bg-white px-2 py-0.5 rounded border border-[#E2E8F0]">
                                 {duration} {durationUnit}
                               </span>
