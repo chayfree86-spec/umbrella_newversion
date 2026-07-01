@@ -80,7 +80,15 @@ class LoanAccount {
         $stmt = $db->prepare("
             SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            lp.name as plan_name
+            lp.name as plan_name,
+            (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
+                FROM loan_installments li
+                WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid') as today_due,
+            (SELECT MIN(li2.due_date)
+                FROM loan_installments li2
+                WHERE li2.loan_account_id = la.id AND li2.status != 'Paid') as next_due_date,
+            (SELECT COUNT(*) FROM loan_installments li3 WHERE li3.loan_account_id = la.id AND li3.status = 'Paid') as paid_installments,
+            (SELECT COUNT(*) FROM loan_installments li4 WHERE li4.loan_account_id = la.id) as total_installments
             FROM loan_accounts la
             JOIN customers c ON la.customer_id = c.id
             JOIN branches b ON la.branch_id = b.id
@@ -97,7 +105,15 @@ class LoanAccount {
         $stmt = $db->prepare("
             SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            lp.name as plan_name
+            lp.name as plan_name,
+            (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
+                FROM loan_installments li
+                WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid') as today_due,
+            (SELECT MIN(li2.due_date)
+                FROM loan_installments li2
+                WHERE li2.loan_account_id = la.id AND li2.status != 'Paid') as next_due_date,
+            (SELECT COUNT(*) FROM loan_installments li3 WHERE li3.loan_account_id = la.id AND li3.status = 'Paid') as paid_installments,
+            (SELECT COUNT(*) FROM loan_installments li4 WHERE li4.loan_account_id = la.id) as total_installments
             FROM loan_accounts la
             JOIN customers c ON la.customer_id = c.id
             JOIN branches b ON la.branch_id = b.id

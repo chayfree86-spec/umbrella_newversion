@@ -326,6 +326,8 @@ export default function Dashboard() {
                             ) : (
                               <span className="text-danger-fin font-black">{s}</span>
                             )
+                          ) : (colHeader === 'Amount Received' || colHeader === 'Deposited') ? (
+                            <span className="text-success-fin font-black">{s}</span>
                           ) : s.includes('High Risk') || s.includes('Debit') ? (
                             <span className="text-danger-fin font-bold">{s}</span>
                           ) : s.includes('Credit') || s.includes('Paid') ? (

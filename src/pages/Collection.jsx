@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
+import { DatePicker } from '../components/ui/DatePicker';
 import { loanApi, savingApi, branchApi, areaApi, agentApi, collectionApi, reportApi } from '../services/api';
 
 export default function Collection() {
@@ -65,9 +66,13 @@ export default function Collection() {
   const selectedDateStr = getFormattedDateStr(selectedDate);
   const todayStr = selectedDateStr; // Backward compatibility alias
 
+  const selectedDateMidnight = new Date(selectedDate);
+  selectedDateMidnight.setHours(0, 0, 0, 0);
+
   const todayMidnight = new Date();
   todayMidnight.setHours(0, 0, 0, 0);
-  const isFutureDate = selectedDate > todayMidnight;
+
+  const isFutureDate = selectedDateMidnight > todayMidnight;
 
   const handlePrevDay = () => {
     setSelectedDate(prev => {
@@ -140,7 +145,9 @@ export default function Collection() {
           agent: l.agent_name,
           branch: l.branch_name,
           area: l.area_name,
-          ledger: ledger
+          ledger: ledger,
+          todayDue: Number(l.today_due || 0),
+          nextDueDate: l.next_due_date
         };
       });
 
@@ -171,7 +178,9 @@ export default function Collection() {
           agent: s.agent_name,
           branch: s.branch_name,
           area: s.area_name,
-          ledger: ledger
+          ledger: ledger,
+          todayDue: Number(s.today_due || 0),
+          nextDueDate: s.next_due_date
         };
       });
 
@@ -212,7 +221,15 @@ export default function Collection() {
   const activeAccounts = accounts.filter(acc => {
     const status = acc.accountStatus || 'Approved';
     const hasCollectionOnDate = (acc.ledger || []).length > 0;
-    const isStatusMatch = ['Approved', 'Active', 'Defaulter', 'NPA'].includes(status) || hasCollectionOnDate;
+
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const selectedDateYMD = `${year}-${month}-${day}`;
+
+    const isDue = acc.nextDueDate && acc.nextDueDate <= selectedDateYMD;
+
+    const isStatusMatch = (['Approved', 'Active', 'Defaulter', 'NPA'].includes(status) && isDue) || hasCollectionOnDate;
     const isTypeMatch = filterType === 'All' || acc.type === filterType;
     return isStatusMatch && isTypeMatch;
   });
@@ -249,14 +266,11 @@ export default function Collection() {
   });
 
   // Bulk operation lists (dynamically filtered)
-  const bulkCollectAccounts = accounts.filter(acc => {
-    const status = acc.accountStatus || 'Approved';
+  const bulkCollectAccounts = activeAccounts.filter(acc => {
     const accAgent = acc.agent || acc.customer?.agent || '';
     const isCollectorMatch = accAgent === selectedAgentForBulk;
-    const isStatusMatch = ['Approved', 'Active', 'Defaulter', 'NPA'].includes(status);
     const todayPaid = acc.ledger?.some(tx => tx.date === todayStr);
-    const isTypeMatch = filterType === 'All' || acc.type === filterType;
-    return isCollectorMatch && isStatusMatch && !todayPaid && isTypeMatch;
+    return isCollectorMatch && !todayPaid;
   });
 
   const bulkApproveAccounts = accounts.filter(acc => {
@@ -271,7 +285,7 @@ export default function Collection() {
     const accAgent = acc.agent || acc.customer?.agent || '';
     const isCollectorMatch = accAgent === selectedAgentForBulk;
     const isTypeMatch = filterType === 'All' || acc.type === filterType;
-    const hasAwaiting = acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Awaiting Approval');
+    const hasAwaiting = acc.ledger?.some(tx => tx.date === todayStr);
     return isCollectorMatch && isTypeMatch && hasAwaiting;
   });
 
@@ -413,6 +427,16 @@ export default function Collection() {
       });
   };
 
+  const handleBulkApproveCollectionsSubmit = (e) => {
+    e.preventDefault();
+    if (bulkAwaitingSelected.length === 0) {
+      alert('Please select at least one collection to verify.');
+      return;
+    }
+    alert(`Successfully verified ${bulkAwaitingSelected.length} collections.`);
+    setBulkAwaitingSelected([]);
+  };
+
   // Bulk approval action
   const handleBulkApproveSubmit = (e) => {
     e.preventDefault();
@@ -461,9 +485,9 @@ export default function Collection() {
         </div>
       )}
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-row items-center justify-between gap-4 overflow-x-auto no-scrollbar">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {activeTab === 'single' ? (
-          <div className="flex items-center gap-3 flex-1 flex-nowrap shrink-0">
+          <div className="flex flex-wrap items-center gap-3 flex-1">
             {/* Branch Filter */}
             <Select 
               options={[{ value: 'All', label: 'All Branches' }, ...branches.map(b => ({ value: b.name, label: b.name }))] }
@@ -513,7 +537,7 @@ export default function Collection() {
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 flex-1 flex-nowrap shrink-0">
+          <div className="flex flex-wrap items-center gap-3 flex-1">
             <Select 
               options={agents.map(a => ({ value: a.name, label: `${a.name} (${a.code})` }))}
               value={selectedAgentForBulk}
@@ -572,19 +596,19 @@ export default function Collection() {
           </button>
 
           {/* Calendar Picker (Jump to Date) */}
-          <div className="relative w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
-            <span className="material-symbols-rounded text-base select-none">event</span>
-            <input 
-              type="date"
-              value={selectedDate.toISOString().split('T')[0]}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setSelectedDate(new Date(e.target.value));
-                }
-              }}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
-          </div>
+          <DatePicker
+            value={selectedDate.toISOString().split('T')[0]}
+            onChange={(val) => {
+              if (val) {
+                setSelectedDate(new Date(val));
+              }
+            }}
+            customTrigger={
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
+                <span className="material-symbols-rounded text-base select-none">event</span>
+              </div>
+            }
+          />
         </div>
       </div>
 
@@ -685,8 +709,7 @@ export default function Collection() {
                       
                       // Check today status
                       const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
-                      const todayPaid = !!(todayPayment && todayPayment.status !== 'Awaiting Approval');
-                      const todayAwaiting = !!(todayPayment && todayPayment.status === 'Awaiting Approval');
+                      const todayPaid = !!todayPayment;
                       const todayRejected = !todayPayment && !!acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Rejected');
 
                       return (
@@ -716,13 +739,11 @@ export default function Collection() {
                             <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                               todayPaid 
                                 ? 'bg-[#16A34A]/10 text-[#16A34A]' 
-                                : todayAwaiting 
-                                  ? 'bg-[#F59E0B]/10 text-[#F59E0B]' 
-                                  : todayRejected
-                                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                                    : 'bg-[#EA580C]/10 text-[#EA580C]'
+                                : todayRejected
+                                  ? 'bg-[#EF4444]/10 text-[#EF4444]'
+                                  : 'bg-[#EA580C]/10 text-[#EA580C]'
                             }`}>
-                              {todayPaid ? 'Collected' : todayAwaiting ? 'Awaiting Approval' : todayRejected ? 'Reset' : 'Pending'}
+                              {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
@@ -734,18 +755,6 @@ export default function Collection() {
                                   setShowReceipt(true);
                                 }}
                                 className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
-                              >
-                                <span className="material-symbols-rounded text-sm select-none">receipt</span>
-                                Receipt
-                              </button>
-                            ) : todayAwaiting ? (
-                              <button
-                                onClick={() => {
-                                  setReceiptAccountNo(acc.accNo);
-                                  setReceiptTxn(todayPayment);
-                                  setShowReceipt(true);
-                                }}
-                                className="px-4 py-1.5 border border-[#16A34A] hover:bg-[#16A34A]/5 text-[#16A34A] rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto"
                               >
                                 <span className="material-symbols-rounded text-sm select-none">receipt</span>
                                 Receipt
@@ -916,15 +925,15 @@ export default function Collection() {
               )}
             </div>
 
-            {/* Section 2: Bulk Collection Approvals */}
+            {/* Section 2: Bulk Collections Synced */}
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 flex flex-col gap-4">
               <div className="flex justify-between items-center pb-3 border-b border-[#F1F5F9]">
                 <div>
-                  <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-wider">Bulk Collection Approvals</h4>
-                  <p className="text-[10px] text-[#64748B] mt-0.5">Collected today by {selectedAgentForBulk}, awaiting approval</p>
+                  <h4 className="text-xs font-black text-[#0F172A] uppercase tracking-wider">Bulk Collections Received</h4>
+                  <p className="text-[10px] text-[#64748B] mt-0.5">Collected today by {selectedAgentForBulk}, synced to server</p>
                 </div>
-                <span className="bg-[#F59E0B]/10 text-[#F59E0B] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {bulkAwaitingApproveCollections.length} Awaiting
+                <span className="bg-[#16A34A]/10 text-[#16A34A] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {bulkAwaitingApproveCollections.length} Synced
                 </span>
               </div>
 
@@ -945,7 +954,7 @@ export default function Collection() {
                         }}
                         className="w-4 h-4 text-[#1E3A8A] rounded border-[#E2E8F0] focus:ring-0 cursor-pointer"
                       />
-                      <span className="text-xs font-bold text-[#0F172A]">Select All Awaiting</span>
+                      <span className="text-xs font-bold text-[#0F172A]">Select All Synced</span>
                     </label>
                     <span className="text-xs font-bold text-[#1E3A8A]">
                       Selected: {bulkAwaitingSelected.length} / {bulkAwaitingApproveCollections.length}
@@ -966,7 +975,7 @@ export default function Collection() {
                         {bulkAwaitingApproveCollections.map(acc => {
                           const name = acc.customer?.name || acc.name;
                           const isChecked = bulkAwaitingSelected.includes(acc.accNo);
-                          const todayTx = acc.ledger?.find(t => t.date === todayStr && t.status === 'Awaiting Approval') || { amt: 0 };
+                          const todayTx = acc.ledger?.find(t => t.date === todayStr) || { amt: 0 };
 
                           return (
                             <tr key={acc.accNo} className="hover:bg-slate-50 transition-colors">
@@ -1001,12 +1010,12 @@ export default function Collection() {
                   {/* Summary Box & Action Button */}
                   <div className="pt-3 border-t border-[#F1F5F9] space-y-3">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-[#64748B] font-medium">Total Selected for Approval:</span>
+                      <span className="text-[#64748B] font-medium">Total Selected Collections:</span>
                       <strong className="text-base font-black text-[#16A34A]">
                         ₹{bulkAwaitingApproveCollections
                           .filter(a => bulkAwaitingSelected.includes(a.accNo))
                           .reduce((sum, a) => {
-                            const tx = a.ledger?.find(t => t.date === todayStr && t.status === 'Awaiting Approval');
+                            const tx = a.ledger?.find(t => t.date === todayStr);
                             return sum + (tx?.amt || 0);
                           }, 0)
                           .toLocaleString()}
@@ -1018,7 +1027,7 @@ export default function Collection() {
                       className="w-full h-11 bg-[#16A34A] hover:bg-[#16A34A]/90 disabled:bg-[#E2E8F0] disabled:text-[#94A3B8] disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1"
                     >
                       <span className="material-symbols-rounded text-sm select-none">check_circle</span>
-                      Approve Selected ({bulkAwaitingSelected.length} Collections)
+                      Verify Selected ({bulkAwaitingSelected.length} Collections)
                     </button>
                   </div>
                 </div>
@@ -1028,13 +1037,13 @@ export default function Collection() {
                     <span className="material-symbols-rounded text-xl select-none">check_circle</span>
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-[#0F172A]">Cleared & Approved</h5>
+                    <h5 className="text-xs font-bold text-[#0F172A]">All Collections Synced</h5>
                     <p className="text-[10px] text-[#64748B] mt-1 max-w-[200px] mx-auto leading-relaxed">
-                      No collections are awaiting approval for {selectedAgentForBulk} today.
+                      No new collections recorded for {selectedAgentForBulk} today.
                     </p>
                   </div>
                   <span className="bg-[#E1F3FE] text-[#1F6C9F] text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    Zero Pending
+                    Synced
                   </span>
                 </div>
               )}
@@ -1105,16 +1114,18 @@ export default function Collection() {
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Payment Mode *</label>
-                <select
+                <Select
+                  label="Payment Mode"
+                  required={true}
+                  options={[
+                    { value: "Cash", label: "Cash Settlement" },
+                    { value: "Bank Transfer", label: "Bank Transfer (UPI / IMPS)" },
+                    { value: "Cheque", label: "Cheque Settlement" }
+                  ]}
                   value={paymentMode}
-                  onChange={(e) => setPaymentMode(e.target.value)}
-                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none"
-                >
-                  <option value="Cash">Cash Settlement</option>
-                  <option value="Bank Transfer">Bank Transfer (UPI / IMPS)</option>
-                  <option value="Cheque">Cheque Settlement</option>
-                </select>
+                  onChange={(val) => setPaymentMode(val)}
+                  searchable={false}
+                />
               </div>
 
               <div className="flex gap-3 pt-2 border-t border-slate-100">

@@ -13,6 +13,8 @@ export function DatePicker({
   required = false,
   placeholder = 'Select Date',
   isDob = false,
+  customTrigger = null,
+  maxDate = '',
   ...props
 }) {
   const isDobPicker = isDob || (label && (label.toLowerCase().includes('birth') || label.toLowerCase().includes('dob')));
@@ -356,35 +358,46 @@ export function DatePicker({
       const minAllowedYear = currentFullYear - 70;
       if (year > maxAllowedYear || year < minAllowedYear) return true;
     }
+    if (maxDate) {
+      const cellDate = new Date(year, month, day);
+      const maxD = new Date(maxDate);
+      if (cellDate > maxD) return true;
+    }
     return false;
   };
 
   return (
-    <div className="relative w-full text-left" ref={wrapperRef}>
+    <div className={`relative ${customTrigger ? '' : 'w-full'} text-left`} ref={wrapperRef}>
       {label && (
         <label className="block text-xs font-bold text-secondary-text mb-1.5 uppercase tracking-wider">
           {label} {required && <span className="text-danger-fin">*</span>}
         </label>
       )}
 
-      <div className="relative flex items-center">
-        <span className="material-symbols-rounded absolute left-4 text-sm text-secondary-text pointer-events-none select-none z-10">
-          calendar_today
-        </span>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsOpen(true)}
-          placeholder="DD-MM-YYYY"
-          maxLength={10}
-          className="w-full pl-11 pr-4 py-3 bg-surface border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all duration-200 shadow-sm"
-        />
-      </div>
+      {customTrigger ? (
+        <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
+          {customTrigger}
+        </div>
+      ) : (
+        <div className="relative flex items-center">
+          <span className="material-symbols-rounded absolute left-4 text-sm text-secondary-text pointer-events-none select-none z-10">
+            calendar_today
+          </span>
+          <input
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsOpen(true)}
+            placeholder="DD-MM-YYYY"
+            maxLength={10}
+            className="w-full pl-11 pr-4 py-3 bg-surface border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all duration-200 shadow-sm"
+          />
+        </div>
+      )}
 
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 bg-surface border border-border-fin rounded-2xl shadow-xl p-4 w-80 transform origin-top transition-all duration-200 left-0 md:left-auto">
+        <div className={`absolute z-50 mt-1.5 bg-surface border border-border-fin rounded-2xl shadow-xl p-4 w-80 transform origin-top transition-all duration-200 ${customTrigger ? 'right-0' : 'left-0 md:left-auto'}`}>
           {/* Calendar Header */}
           <div className="flex justify-between items-center mb-3">
             <button

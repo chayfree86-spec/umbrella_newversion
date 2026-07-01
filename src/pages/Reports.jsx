@@ -798,7 +798,13 @@ export default function Reports() {
                           {row.map((val, colIdx) => {
                             const colHeader = activeReportDetails.columns[colIdx];
                             const isDebitAmt = colHeader === 'Debit Amount' && val !== '-';
-                            const isCreditAmt = colHeader === 'Credit Amount' && val !== '-';
+                            const isCreditAmt = (
+                              colHeader === 'Credit Amount' ||
+                              colHeader === 'Amount Collected' ||
+                              colHeader === 'Actual Collected' ||
+                              colHeader === 'Interest Collected' ||
+                              colHeader === 'Total Deposit'
+                            ) && val !== '-';
                             return (
                               <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
                                 {isDebitAmt ? (

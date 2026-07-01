@@ -404,9 +404,9 @@ export default function AccountDetails() {
   account.tenureDays = isLoan 
     ? (account.duration_days || 0) 
     : (account.duration_months ? account.duration_months * 30 : 365);
-  account.nextDueDate = isLoan 
-    ? (account.end_date || 'N/A') 
-    : (account.maturity_date || 'N/A');
+  account.nextDueDate = account.next_due_date
+    ? new Date(account.next_due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : (account.account_status === 'Closed' ? 'Closed' : (isLoan ? (account.end_date || 'N/A') : (account.maturity_date || 'N/A')));
 
   account.disbursalDate = account.start_date || 'N/A';
   const startVal = account.start_date ? new Date(account.start_date) : new Date();
@@ -2793,16 +2793,12 @@ export default function AccountDetails() {
                       className="w-full p-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#16A34A] focus:outline-none focus:border-[#1E3A8A]"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-[#64748B] block text-[10px] uppercase">Settlement Date</label>
-                    <input 
-                      type="date"
-                      value={closeDate}
-                      max={new Date().toLocaleDateString('sv-SE')}
-                      onChange={(e) => setCloseDate(e.target.value)}
-                      className="w-full p-2.5 bg-white border border-[#E2E8F0] rounded-xl text-xs font-bold text-[#0F172A] focus:outline-none focus:border-[#1E3A8A]"
-                    />
-                  </div>
+                  <DatePicker
+                    label="Settlement Date"
+                    value={closeDate}
+                    maxDate={new Date().toLocaleDateString('sv-SE')}
+                    onChange={(val) => setCloseDate(val)}
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -3309,31 +3305,26 @@ export default function AccountDetails() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Payment Mode</label>
-                <select 
-                  value={updateForm.payment_mode}
-                  onChange={(e) => setUpdateForm({ ...updateForm, payment_mode: e.target.value })}
-                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cheque">Cheque</option>
-                  <option value="Online">Online</option>
-                </select>
-              </div>
+              <Select
+                label="Payment Mode"
+                options={[
+                  { value: 'Cash', label: 'Cash' },
+                  { value: 'UPI', label: 'UPI' },
+                  { value: 'Bank Transfer', label: 'Bank Transfer' },
+                  { value: 'Cheque', label: 'Cheque' },
+                  { value: 'Online', label: 'Online' }
+                ]}
+                value={updateForm.payment_mode}
+                onChange={(val) => setUpdateForm({ ...updateForm, payment_mode: val })}
+                searchable={false}
+              />
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collection Date</label>
-                <input 
-                  type="date"
-                  required
-                  value={updateForm.date}
-                  onChange={(e) => setUpdateForm({ ...updateForm, date: e.target.value })}
-                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                />
-              </div>
+              <DatePicker
+                label="Collection Date"
+                required={true}
+                value={updateForm.date}
+                onChange={(val) => setUpdateForm({ ...updateForm, date: val })}
+              />
             </div>
 
             <div className="space-y-1">
@@ -3642,7 +3633,7 @@ export default function AccountDetails() {
                           <td className="px-3 py-2.5 whitespace-nowrap">{t.type}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">{t.paymentMode || 'Cash'}</td>
                           <td className="px-3 py-2.5 text-right whitespace-nowrap text-rose-500">₹{Number(t.fine || 0).toLocaleString()}</td>
-                          <td className="px-3 py-2.5 text-right font-extrabold whitespace-nowrap text-slate-900">₹{Number(t.amt || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2.5 text-right font-extrabold whitespace-nowrap text-[#16A34A]">₹{Number(t.amt || 0).toLocaleString()}</td>
                         </tr>
                       ))
                     )}
@@ -3742,12 +3733,20 @@ export default function AccountDetails() {
             {/* Form Inputs (Left) */}
             <div className="md:col-span-2 space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Select Loan Plan</label>
-                <select 
-                  required
+                <Select
+                  label="Select Loan Plan"
+                  required={true}
+                  options={[
+                    { value: "", label: "-- Choose Plan --" },
+                    ...loanPlans.map(p => ({
+                      value: String(p.id),
+                      label: `${p.name} (₹${Number(p.min_amount || 0).toLocaleString()} - ${p.interest_rate}% ${p.interest_type} / ${p.duration_value} ${p.duration_unit})`
+                    })),
+                    { value: "custom", label: "Custom Loan Plan (Enter Manually)" }
+                  ]}
                   value={loanForm.loan_plan_id}
-                  onChange={(e) => {
-                    const planId = e.target.value;
+                  onChange={(val) => {
+                    const planId = val;
                     if (planId === 'custom') {
                       setLoanForm(prev => ({
                         ...prev,
@@ -3758,29 +3757,27 @@ export default function AccountDetails() {
                         duration_value: '100',
                         duration_unit: 'Days',
                         collection_frequency: 'Daily',
-                        emi_amount: '',
-                        processing_fee: '0',
-                        penalty_per_day: '0'
+                        emi_amount: ''
                       }));
                     } else {
-                      const selected = loanPlans.find(p => String(p.id) === planId);
-                      setLoanForm(prev => ({
-                        ...prev,
-                        loan_plan_id: planId,
-                        principal_amount: selected ? String(selected.min_amount) : ''
-                      }));
+                      const p = loanPlans.find(lp => String(lp.id) === String(planId));
+                      if (p) {
+                        setLoanForm(prev => ({
+                          ...prev,
+                          loan_plan_id: planId,
+                          principal_amount: p.min_amount,
+                          interest_rate: p.interest_rate,
+                          interest_type: p.interest_type,
+                          duration_value: p.duration_value,
+                          duration_unit: p.duration_unit,
+                          collection_frequency: p.collection_frequency,
+                          emi_amount: p.emi_amount
+                        }));
+                      }
                     }
                   }}
-                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                >
-                  <option value="">-- Choose a Plan --</option>
-                  {loanPlans.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (₹{Number(p.min_amount || 0).toLocaleString()} - {p.interest_rate}% {p.interest_type} / {p.duration_value} {p.duration_unit})
-                    </option>
-                  ))}
-                  <option value="custom">Custom Loan Plan (Enter Manually)</option>
-                </select>
+                  searchable={true}
+                />
               </div>
 
               {loanForm.loan_plan_id === 'custom' && (
@@ -3815,18 +3812,17 @@ export default function AccountDetails() {
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Type *</label>
-                      <select 
-                        required
-                        value={loanForm.interest_type}
-                        onChange={(e) => setLoanForm({ ...loanForm, interest_type: e.target.value })}
-                        className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                      >
-                        <option value="Flat">Flat Interest</option>
-                        <option value="Reducing">Reducing Interest</option>
-                      </select>
-                    </div>
+                    <Select
+                      label="Interest Type"
+                      required={true}
+                      options={[
+                        { value: 'Flat', label: 'Flat Interest' },
+                        { value: 'Reducing', label: 'Reducing Interest' }
+                      ]}
+                      value={loanForm.interest_type}
+                      onChange={(val) => setLoanForm({ ...loanForm, interest_type: val })}
+                      searchable={false}
+                    />
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration *</label>
@@ -3840,31 +3836,32 @@ export default function AccountDetails() {
                           className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                           placeholder="E.g., 100"
                         />
-                        <select 
+                        <Select
+                          options={[
+                            { value: 'Days', label: 'Days' },
+                            { value: 'Months', label: 'Months' },
+                            { value: 'Years', label: 'Years' }
+                          ]}
                           value={loanForm.duration_unit}
-                          onChange={(e) => setLoanForm({ ...loanForm, duration_unit: e.target.value })}
-                          className="w-28 h-11 px-2 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                        >
-                          <option value="Days">Days</option>
-                          <option value="Months">Months</option>
-                          <option value="Years">Years</option>
-                        </select>
+                          onChange={(val) => setLoanForm({ ...loanForm, duration_unit: val })}
+                          searchable={false}
+                          compact={true}
+                        />
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Collection Frequency *</label>
-                      <select 
-                        required
-                        value={loanForm.collection_frequency}
-                        onChange={(e) => setLoanForm({ ...loanForm, collection_frequency: e.target.value })}
-                        className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                      >
-                        <option value="Daily">Daily</option>
-                        <option value="Weekly">Weekly</option>
-                        <option value="Monthly">Monthly</option>
-                      </select>
-                    </div>
+                    <Select
+                      label="Collection Frequency"
+                      required={true}
+                      options={[
+                        { value: 'Daily', label: 'Daily' },
+                        { value: 'Weekly', label: 'Weekly' },
+                        { value: 'Monthly', label: 'Monthly' }
+                      ]}
+                      value={loanForm.collection_frequency}
+                      onChange={(val) => setLoanForm({ ...loanForm, collection_frequency: val })}
+                      searchable={false}
+                    />
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Installment / EMI (₹) *</label>
@@ -4046,49 +4043,47 @@ export default function AccountDetails() {
           <form onSubmit={handleAddSaving} className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[80vh] overflow-y-auto">
             {/* Form Inputs (Left) */}
             <div className="md:col-span-2 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Select Savings Plan</label>
-                <select 
-                  required
-                  value={savingForm.saving_plan_id}
-                  onChange={(e) => {
-                    const planId = e.target.value;
-                    if (planId === 'custom') {
-                      setSavingForm(prev => ({
-                        ...prev,
-                        saving_plan_id: planId,
-                        deposit_amount: '',
-                        interest_rate: '6.5',
-                        duration_value: '365',
-                        duration_unit: 'Days',
-                        collection_frequency: 'Daily',
-                        maturity_amount: ''
-                      }));
-                    } else {
-                      const selected = savingPlans.find(p => String(p.id) === planId);
-                      setSavingForm(prev => ({
-                        ...prev,
-                        saving_plan_id: planId,
-                        deposit_amount: selected ? String(selected.deposit_amount) : '',
-                        interest_rate: selected ? String(selected.interest_rate) : '',
-                        duration_value: selected ? String(selected.duration_value) : '',
-                        duration_unit: selected ? String(selected.duration_unit) : 'Days',
-                        collection_frequency: selected ? String(selected.collection_frequency) : 'Daily',
-                        maturity_amount: selected ? String(selected.maturity_amount) : ''
-                      }));
-                    }
-                  }}
-                  className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                >
-                  <option value="">-- Choose a Plan --</option>
-                  {savingPlans.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} (Deposit: ₹{p.deposit_amount} / Rate: {p.interest_rate}% / {p.duration_value} {p.duration_unit})
-                    </option>
-                  ))}
-                  <option value="custom">Custom Savings Plan (Enter Manually)</option>
-                </select>
-              </div>
+              <Select
+                label="Select Savings Plan"
+                required={true}
+                options={[
+                  { value: "", label: "-- Choose a Plan --" },
+                  ...savingPlans.map(p => ({
+                    value: String(p.id),
+                    label: `${p.name} (Deposit: ₹${p.deposit_amount} / Rate: ${p.interest_rate}% / ${p.duration_value} ${p.duration_unit})`
+                  })),
+                  { value: "custom", label: "Custom Savings Plan (Enter Manually)" }
+                ]}
+                value={savingForm.saving_plan_id}
+                onChange={(val) => {
+                  const planId = val;
+                  if (planId === 'custom') {
+                    setSavingForm(prev => ({
+                      ...prev,
+                      saving_plan_id: planId,
+                      deposit_amount: '',
+                      interest_rate: '6.5',
+                      duration_value: '365',
+                      duration_unit: 'Days',
+                      collection_frequency: 'Daily',
+                      maturity_amount: ''
+                    }));
+                  } else {
+                    const selected = savingPlans.find(p => String(p.id) === planId);
+                    setSavingForm(prev => ({
+                      ...prev,
+                      saving_plan_id: planId,
+                      deposit_amount: selected ? String(selected.deposit_amount) : '',
+                      interest_rate: selected ? String(selected.interest_rate) : '',
+                      duration_value: selected ? String(selected.duration_value) : '',
+                      duration_unit: selected ? String(selected.duration_unit) : 'Days',
+                      collection_frequency: selected ? String(selected.collection_frequency) : 'Daily',
+                      maturity_amount: selected ? String(selected.maturity_amount) : ''
+                    }));
+                  }
+                }}
+                searchable={true}
+              />
 
               {savingForm.saving_plan_id && (
                 <div className="border-t border-[#F1F5F9] pt-4 mt-2 space-y-4">
@@ -4139,15 +4134,17 @@ export default function AccountDetails() {
                             className="flex-1 h-11 px-3.5 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all"
                             placeholder="E.g., 365"
                           />
-                          <select 
+                          <Select
+                            options={[
+                              { value: 'Days', label: 'Days' },
+                              { value: 'Months', label: 'Months' },
+                              { value: 'Years', label: 'Years' }
+                            ]}
                             value={savingForm.duration_unit}
-                            onChange={(e) => setSavingForm({ ...savingForm, duration_unit: e.target.value })}
-                            className="w-28 h-11 px-2 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                          >
-                            <option value="Days">Days</option>
-                            <option value="Months">Months</option>
-                            <option value="Years">Years</option>
-                          </select>
+                            onChange={(val) => setSavingForm({ ...savingForm, duration_unit: val })}
+                            searchable={false}
+                            compact={true}
+                          />
                         </div>
                       ) : (
                         <div className="w-full h-11 px-3.5 bg-slate-50 border border-[#E2E8F0] rounded-xl text-xs font-bold text-slate-500 flex items-center select-none cursor-not-allowed">
@@ -4159,16 +4156,18 @@ export default function AccountDetails() {
                     {savingForm.saving_plan_id === 'custom' ? (
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Frequency *</label>
-                        <select 
-                          required
-                          value={savingForm.collection_frequency}
-                          onChange={(e) => setSavingForm({ ...savingForm, collection_frequency: e.target.value })}
-                          className="w-full h-11 px-3 bg-white border border-[#E2E8F0] hover:border-slate-300 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A] rounded-xl text-xs font-semibold text-[#0F172A] outline-none transition-all cursor-pointer"
-                        >
-                          <option value="Daily">Daily</option>
-                          <option value="Weekly">Weekly</option>
-                          <option value="Monthly">Monthly</option>
-                        </select>
+                          <Select
+                            label="Frequency"
+                            required={true}
+                            options={[
+                              { value: 'Daily', label: 'Daily' },
+                              { value: 'Weekly', label: 'Weekly' },
+                              { value: 'Monthly', label: 'Monthly' }
+                            ]}
+                            value={savingForm.collection_frequency}
+                            onChange={(val) => setSavingForm({ ...savingForm, collection_frequency: val })}
+                            searchable={false}
+                          />
                       </div>
                     ) : (
                       <div className="space-y-1">

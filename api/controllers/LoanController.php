@@ -225,8 +225,7 @@ class LoanController {
         // 3. Mark all remaining installments as Paid (paid_amount = total_due)
         $stmtUpdateInst = $db->prepare("
             UPDATE loan_installments 
-            SET status = 'Paid', paid_amount = total_due, paid_at = :closed_at,
-                remarks = CONCAT(COALESCE(remarks, ''), ' (Waived during closure)')
+            SET status = 'Paid', paid_amount = total_due, paid_at = :closed_at
             WHERE id = :id
         ");
         foreach ($remainingInsts as $inst) {
@@ -242,14 +241,12 @@ class LoanController {
             SET account_status = 'Closed', 
                 outstanding_amount = 0.00,
                 closed_at = :closed_at, 
-                closed_by = :closed_by,
-                remarks = CONCAT(COALESCE(remarks, ''), :close_remarks)
+                closed_by = :closed_by
             WHERE id = :id
         ");
         $stmt->execute([
             'closed_at' => $closeDate . ' ' . date('H:i:s'),
             'closed_by' => $authUser['id'],
-            'close_remarks' => "\nClosed on " . $closeDate . " with settlement: ₹" . $settlementAmount . ", waiver: ₹" . $waiverAmount . ".",
             'id' => $account['id']
         ]);
 

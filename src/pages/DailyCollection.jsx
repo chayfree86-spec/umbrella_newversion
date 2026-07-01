@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { loanApi, savingApi } from '../services/api';
 import { DatePicker } from '../components/ui/DatePicker';
+import { Select } from '../components/ui/Select';
 
 const inr = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
@@ -231,24 +232,23 @@ export default function DailyCollection() {
               ))}
             </div>
 
-            <div className="flex items-center bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-1 rounded-xl">
-              <span className="material-symbols-rounded text-slate-400 text-sm mr-1.5 select-none">filter_list</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-[#0F172A] focus:ring-0 focus:outline-none cursor-pointer py-1 pr-1"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Processing">Processing</option>
-                <option value="Approved">Approved</option>
-                <option value="Active">Active</option>
-                <option value="Defaulter">Defaulter</option>
-                <option value="NPA">NPA</option>
-                <option value="Rejected">Rejected</option>
-                <option value="Closed">Closed</option>
-                <option value="Matured">Matured</option>
-              </select>
-            </div>
+            <Select
+              options={[
+                { value: "All", label: "All Statuses" },
+                { value: "Processing", label: "Processing" },
+                { value: "Approved", label: "Approved" },
+                { value: "Active", label: "Active" },
+                { value: "Defaulter", label: "Defaulter" },
+                { value: "NPA", label: "NPA" },
+                { value: "Rejected", label: "Rejected" },
+                { value: "Closed", label: "Closed" },
+                { value: "Matured", label: "Matured" }
+              ]}
+              value={filterStatus}
+              onChange={(val) => setFilterStatus(val)}
+              searchable={false}
+              compact={true}
+            />
           </div>
         </div>
 
