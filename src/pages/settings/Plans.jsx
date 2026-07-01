@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SettingsNavigation } from './General';
 import { Select } from '../../components/ui/Select';
 import { planApi, settingsApi } from '../../services/api';
+import { Pagination } from '../../components/ui/Pagination';
 
 const EMPTY_PLAN = {
   name: '',
@@ -28,6 +29,9 @@ export default function Plans() {
   const [termsSavings, setTermsSavings] = useState([]);
   const [termsLoan, setTermsLoan] = useState([]);
   const [isSavingTerms, setIsSavingTerms] = useState(false);
+
+  const [loanCurrentPage, setLoanCurrentPage] = useState(1);
+  const [savingCurrentPage, setSavingCurrentPage] = useState(1);
 
   const [newPlan, setNewPlan] = useState(EMPTY_PLAN);
 
@@ -371,43 +375,53 @@ export default function Plans() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-fin text-xs font-medium text-secondary-text">
-                {loanPlans.map((lp) => (
-                  <tr key={lp.id} className="hover:bg-slate-50/50">
-                    <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{lp.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(lp.min_amount).toLocaleString()} - ₹{parseFloat(lp.max_amount).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{lp.interest_rate}% ({lp.interest_type})</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{lp.duration_value} {lp.duration_unit}</td>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">{lp.collection_frequency}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(lp.processing_fee).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(lp.penalty_per_day).toLocaleString()}/day</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                        lp.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
-                      }`}>
-                        {lp.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                      <button
-                        onClick={() => handleOpenEdit(lp, 'loan')}
-                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                        title="Edit Plan"
-                      >
-                        <span className="material-symbols-rounded text-sm select-none">edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeletePlan(lp.id, 'loan')}
-                        className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
-                        title="Delete Plan"
-                      >
-                        <span className="material-symbols-rounded text-sm select-none">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const sorted = [...loanPlans].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                  const paginated = sorted.slice((loanCurrentPage - 1) * 20, loanCurrentPage * 20);
+
+                  return paginated.map((lp) => (
+                    <tr key={lp.id} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{lp.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(lp.min_amount).toLocaleString()} - ₹{parseFloat(lp.max_amount).toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{lp.interest_rate}% ({lp.interest_type})</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{lp.duration_value} {lp.duration_unit}</td>
+                      <td className="px-6 py-4 whitespace-nowrap capitalize">{lp.collection_frequency}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(lp.processing_fee).toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(lp.penalty_per_day).toLocaleString()}/day</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          lp.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                        }`}>
+                          {lp.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap flex gap-2">
+                        <button
+                          onClick={() => handleOpenEdit(lp, 'loan')}
+                          className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                          title="Edit Plan"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlan(lp.id, 'loan')}
+                          className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
+                          title="Delete Plan"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
+          <Pagination 
+            currentPage={loanCurrentPage}
+            totalPages={Math.ceil(loanPlans.length / 20)}
+            onPageChange={setLoanCurrentPage}
+          />
         </div>
       ) : activePlanTab === 'saving' ? (
         <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
@@ -426,42 +440,52 @@ export default function Plans() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-fin text-xs font-medium text-secondary-text">
-                {savingPlans.map((sp) => (
-                  <tr key={sp.id} className="hover:bg-slate-50/50">
-                    <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{sp.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(sp.deposit_amount).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{sp.interest_rate}%</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{sp.duration_value} {sp.duration_unit}</td>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">{sp.collection_frequency}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-success-fin font-bold">₹{parseFloat(sp.maturity_amount).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                        sp.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
-                      }`}>
-                        {sp.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                      <button
-                        onClick={() => handleOpenEdit(sp, 'saving')}
-                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                        title="Edit Plan"
-                      >
-                        <span className="material-symbols-rounded text-sm select-none">edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeletePlan(sp.id, 'saving')}
-                        className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
-                        title="Delete Plan"
-                      >
-                        <span className="material-symbols-rounded text-sm select-none">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const sorted = [...savingPlans].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                  const paginated = sorted.slice((savingCurrentPage - 1) * 20, savingCurrentPage * 20);
+
+                  return paginated.map((sp) => (
+                    <tr key={sp.id} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{sp.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">₹{parseFloat(sp.deposit_amount).toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{sp.interest_rate}%</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{sp.duration_value} {sp.duration_unit}</td>
+                      <td className="px-6 py-4 whitespace-nowrap capitalize">{sp.collection_frequency}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-success-fin font-bold">₹{parseFloat(sp.maturity_amount).toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          sp.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                        }`}>
+                          {sp.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap flex gap-2">
+                        <button
+                          onClick={() => handleOpenEdit(sp, 'saving')}
+                          className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                          title="Edit Plan"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeletePlan(sp.id, 'saving')}
+                          className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
+                          title="Delete Plan"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
+          <Pagination 
+            currentPage={savingCurrentPage}
+            totalPages={Math.ceil(savingPlans.length / 20)}
+            onPageChange={setSavingCurrentPage}
+          />
         </div>
       ) : null}
 

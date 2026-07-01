@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
 import { fundApi } from '../services/api';
+import { Pagination } from '../components/ui/Pagination';
 
 function MonthPicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -147,6 +148,7 @@ export default function FundManagement() {
   const [summary, setSummary] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchData = () => {
     setLoading(true);
@@ -167,6 +169,10 @@ export default function FundManagement() {
   const [searchFilter, setSearchFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchFilter, monthFilter, typeFilter]);
 
   // Sync with global header search query parameter
   useEffect(() => {
@@ -458,56 +464,70 @@ export default function FundManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0] bg-white">
-                {filteredTransactions.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-xs text-[#64748B]">
-                      {loading ? 'Loading transactions...' : 'No matching transactions found.'}
-                    </td>
-                  </tr>
-                ) : filteredTransactions.map((txn) => (
-                  <tr key={txn.id} className="hover:bg-[#F8FAFC]/50 transition-colors">
-                    <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-[#64748B]">{txn.transaction_date || txn.date}</td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold text-[#0F172A]">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                          (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' :
-                          (txn.transaction_type || txn.type || '').includes('Transfer') ? 'bg-[#FFC107]/10 text-[#D97706]' :
-                          (txn.transaction_type || txn.type || '').includes('Deposit') ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#64748B]/10 text-[#64748B]'
-                        }`}>
-                        {txn.transaction_type || txn.type}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-xs font-semibold text-[#0F172A]">{txn.description || txn.desc}</td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-xs font-semibold text-[#64748B]">{txn.reference_no || txn.ref}</td>
-                    <td className={`whitespace-nowrap px-6 py-3.5 text-xs font-bold ${
-                      (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') || (txn.transaction_type || txn.type || '').includes('Deposit')
-                        ? 'text-success-fin'
-                        : 'text-danger-fin'
-                    }`}>
-                      ₹{Number(txn.amount || 0).toLocaleString('en-IN')}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-[#64748B]">{txn.created_by || txn.user}</td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-right text-xs font-medium flex justify-end gap-1.5">
-                      <button
-                        onClick={() => handleEditClick(txn)}
-                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                        title="Edit Transaction"
-                      >
-                        <span className="material-symbols-rounded text-sm select-none">edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(txn.id)}
-                        className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
-                        title="Delete Transaction"
-                      >
-                        <span className="material-symbols-rounded text-sm select-none">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const sorted = [...filteredTransactions].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                  const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
+
+                  if (paginated.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan="7" className="px-6 py-8 text-center text-xs text-[#64748B]">
+                          {loading ? 'Loading transactions...' : 'No matching transactions found.'}
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return paginated.map((txn) => (
+                    <tr key={txn.id} className="hover:bg-[#F8FAFC]/50 transition-colors">
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-[#64748B]">{txn.transaction_date || txn.date}</td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold text-[#0F172A]">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                            (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' :
+                            (txn.transaction_type || txn.type || '').includes('Transfer') ? 'bg-[#FFC107]/10 text-[#D97706]' :
+                            (txn.transaction_type || txn.type || '').includes('Deposit') ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#64748B]/10 text-[#64748B]'
+                          }`}>
+                          {txn.transaction_type || txn.type}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-semibold text-[#0F172A]">{txn.description || txn.desc}</td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-semibold text-[#64748B]">{txn.reference_no || txn.ref}</td>
+                      <td className={`whitespace-nowrap px-6 py-3.5 text-xs font-bold ${
+                        (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') || (txn.transaction_type || txn.type || '').includes('Deposit')
+                          ? 'text-success-fin'
+                          : 'text-danger-fin'
+                      }`}>
+                        ₹{Number(txn.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-[#64748B]">{txn.created_by || txn.user}</td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-right text-xs font-medium flex justify-end gap-1.5">
+                        <button
+                          onClick={() => handleEditClick(txn)}
+                          className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                          title="Edit Transaction"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(txn.id)}
+                          className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
+                          title="Delete Transaction"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
         </div>
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={Math.ceil(filteredTransactions.length / 20)}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* Add Capital Modal Form */}

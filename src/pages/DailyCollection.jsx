@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { loanApi, savingApi } from '../services/api';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
+import { Pagination } from '../components/ui/Pagination';
 
 const inr = (v) => Number(v || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
@@ -73,6 +74,7 @@ export default function DailyCollection() {
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [searchFilter, setSearchFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [collectionAmount, setCollectionAmount] = useState('');
@@ -80,6 +82,10 @@ export default function DailyCollection() {
   const [submitting, setSubmitting] = useState(false);
 
   const [receipt, setReceipt] = useState(null);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, filterStatus, searchFilter]);
 
   // Approval modal states
   const [approvingAccount, setApprovingAccount] = useState(null);
@@ -279,61 +285,73 @@ export default function DailyCollection() {
               <tbody className="divide-y divide-[#E2E8F0] bg-white">
                 {loading ? (
                   <tr><td colSpan="7" className="text-center py-10 text-xs text-[#64748B]">Loading accounts…</td></tr>
-                ) : filteredAccounts.length === 0 ? (
-                  <tr><td colSpan="7" className="text-center py-12 text-xs text-[#64748B]">No accounts match current filters.</td></tr>
-                ) : filteredAccounts.map(acc => (
-                  <tr key={`${acc.type}-${acc.id}`} className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer" onClick={() => navigate(`/account/${acc.accNo}`)}>
-                    <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">{acc.accNo}</td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <div className="text-xs font-bold text-[#0F172A]">{acc.customerName}</div>
-                      <div className="text-[10px] text-[#64748B]">{acc.customerMobile}</div>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-xs">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                        acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
-                      }`}>{acc.type}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-xs">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>{acc.status}</span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-right text-[#EA580C]">₹{inr(acc.todayDue)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold text-right text-[#0F172A]">₹{inr(acc.outstanding)}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      {acc.status === 'Processing' ? (
-                        <div className="flex gap-1.5 justify-center">
+                ) : (() => {
+                  const sorted = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                  const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
+
+                  if (paginated.length === 0) {
+                    return <tr><td colSpan="7" className="text-center py-12 text-xs text-[#64748B]">No accounts match current filters.</td></tr>;
+                  }
+
+                  return paginated.map(acc => (
+                    <tr key={`${acc.type}-${acc.id}`} className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer" onClick={() => navigate(`/account/${acc.accNo}`)}>
+                      <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">{acc.accNo}</td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <div className="text-xs font-bold text-[#0F172A]">{acc.customerName}</div>
+                        <div className="text-[10px] text-[#64748B]">{acc.customerMobile}</div>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-xs">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
+                        }`}>{acc.type}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-xs">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>{acc.status}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-right text-[#EA580C]">₹{inr(acc.todayDue)}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold text-right text-[#0F172A]">₹{inr(acc.outstanding)}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        {acc.status === 'Processing' ? (
+                          <div className="flex gap-1.5 justify-center">
+                            <button
+                              onClick={() => handleApprove(acc)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#16A34A] text-white hover:bg-[#16A34A]/90 transition-all cursor-pointer shadow-sm"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleReject(acc)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
                           <button
-                            onClick={() => handleApprove(acc)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#16A34A] text-white hover:bg-[#16A34A]/90 transition-all cursor-pointer shadow-sm"
+                            onClick={() => handleOpenCollect(acc)}
+                            className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
                           >
-                            Approve
+                            <span className="material-symbols-rounded text-sm select-none">payments</span>
+                            Collect
                           </button>
-                          <button
-                            onClick={() => handleReject(acc)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all cursor-pointer"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
-                        <button
-                          onClick={() => handleOpenCollect(acc)}
-                          className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
-                        >
-                          <span className="material-symbols-rounded text-sm select-none">payments</span>
-                          Collect
-                        </button>
-                      ) : (
-                        <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider hover:text-[#0A3598]">
-                          View
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        ) : (
+                          <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider hover:text-[#0A3598]">
+                            View
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
         </div>
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={Math.ceil(filteredAccounts.length / 20)}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* Collection Modal */}

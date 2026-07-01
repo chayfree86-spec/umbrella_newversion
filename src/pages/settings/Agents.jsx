@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SettingsNavigation } from './General';
 import { Select } from '../../components/ui/Select';
 import { agentApi, branchApi, areaApi, settingsApi } from '../../services/api';
+import { Pagination } from '../../components/ui/Pagination';
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
@@ -10,6 +11,7 @@ export default function Agents() {
   const [branches, setBranches] = useState([]);
   const [areas, setAreas] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [newAgent, setNewAgent] = useState({
     code: '',
     name: '',
@@ -112,47 +114,57 @@ export default function Agents() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-fin text-xs font-medium text-secondary-text">
-              {agents.map((ag) => (
-                <tr key={ag.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{ag.code}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{ag.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="block font-bold text-primary-text">{ag.mobile}</span>
-                    <span className="block text-[10px] text-secondary-text">{ag.email || 'No Email'}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="block font-semibold text-primary-text">{ag.branch_name}</span>
-                    <span className="block text-[10px] text-secondary-text">{ag.area_name}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{ag.policy_name || 'No Policy Link'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                      ag.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
-                    }`}>
-                      {ag.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                    <Link
-                      to={`/settings/agent/${ag.id}`}
-                      className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Edit Agent"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">edit</span>
-                    </Link>
-                    <button
-                      onClick={() => handleDeleteAgent(ag.id)}
-                      className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Delete Agent"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">delete</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                const sortedAgents = [...agents].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                const paginatedAgents = sortedAgents.slice((currentPage - 1) * 20, currentPage * 20);
+
+                return paginatedAgents.map((ag) => (
+                  <tr key={ag.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{ag.code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{ag.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="block font-bold text-primary-text">{ag.mobile}</span>
+                      <span className="block text-[10px] text-secondary-text">{ag.email || 'No Email'}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="block font-semibold text-primary-text">{ag.branch_name}</span>
+                      <span className="block text-[10px] text-secondary-text">{ag.area_name}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{ag.policy_name || 'No Policy Link'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                        ag.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                      }`}>
+                        {ag.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
+                      <Link
+                        to={`/settings/agent/${ag.id}`}
+                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Edit Agent"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">edit</span>
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteAgent(ag.id)}
+                        className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Delete Agent"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={Math.ceil(agents.length / 20)}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* Add Form Modal */}

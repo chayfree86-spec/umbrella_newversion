@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { reportApi, branchApi, agentApi, collectionApi } from '../services/api';
+import { Pagination } from '../components/ui/Pagination';
 
 export default function Reports() {
   const [selectedBranch, setSelectedBranch] = useState('all');
@@ -16,6 +17,9 @@ export default function Reports() {
   const [branches, setBranches] = useState([]);
   const [agents, setAgents] = useState([]);
 
+  const [todayPage, setTodayPage] = useState(1);
+  const [detailPage, setDetailPage] = useState(1);
+
   // In-report detail page filters state
   const [detailMonth, setDetailMonth] = useState(() => {
     const month = new Date().getMonth() + 1;
@@ -26,6 +30,14 @@ export default function Reports() {
   const [detailStatus, setDetailStatus] = useState('all');
   const [selectedMetricLabel, setSelectedMetricLabel] = useState(null);
   const [todayCollections, setTodayCollections] = useState([]);
+
+  useEffect(() => {
+    setTodayPage(1);
+  }, [selectedBranch, selectedAgent, startDate, endDate]);
+
+  useEffect(() => {
+    setDetailPage(1);
+  }, [activeReport, detailMonth, detailStartDate, detailEndDate, detailStatus, searchQuery]);
 
   useEffect(() => {
     branchApi.list().then(res => setBranches(res.data || [])).catch(() => {});
@@ -152,11 +164,25 @@ export default function Reports() {
         ];
       }
       case 'maturity': {
-        const totalMaturity = rows.reduce((sum, r) => sum + parseAmt(r[4]), 0);
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        const maturingTodayRows = rows.filter(r => r[0] === todayStr && r[5] !== 'Processing' && r[5] !== 'Rejected');
+        const totalMaturityToday = maturingTodayRows.reduce((sum, r) => sum + parseAmt(r[4]), 0);
+        
+        const completedMaturity = rows.filter(r => r[5] === 'Completed' || r[5] === 'Closed');
+        const totalCompleted = completedMaturity.reduce((sum, r) => sum + parseAmt(r[4]), 0);
+        
+        const pendingPayout = rows.filter(r => r[5] === 'Pending Pay Out');
+        const totalPending = pendingPayout.reduce((sum, r) => sum + parseAmt(r[4]), 0);
+
         return [
-          { label: "Maturing Today", value: `${rows.length} Accounts`, sub: `Total ₹${totalMaturity.toLocaleString('en-IN')}`, type: "warning", filterVal: "all" },
-          { label: "Maturity Paid", value: "₹" + rows.filter(r => r[5] === 'Completed' || r[5] === 'Loan Completed').reduce((sum, r) => sum + parseAmt(r[4]), 0).toLocaleString('en-IN'), sub: "Completed payouts", type: "success", filterVal: "Completed" },
-          { label: "Pending Payout Pool", value: "₹" + rows.filter(r => r[5] === 'Pending Pay Out').reduce((sum, r) => sum + parseAmt(r[4]), 0).toLocaleString('en-IN'), sub: "Payout verification due", type: "accent", filterVal: "Pending Pay Out" }
+          { label: "Maturing Today", value: `${maturingTodayRows.length} Accounts`, sub: `Total ₹${totalMaturityToday.toLocaleString('en-IN')}`, type: "warning", filterVal: "all" },
+          { label: "Maturity Paid", value: "₹" + totalCompleted.toLocaleString('en-IN'), sub: `${completedMaturity.length} Completed payouts`, type: "success", filterVal: "Completed" },
+          { label: "Pending Payout Pool", value: "₹" + totalPending.toLocaleString('en-IN'), sub: `${pendingPayout.length} Payouts pending`, type: "accent", filterVal: "Pending Pay Out" }
         ];
       }
       default:
@@ -196,11 +222,11 @@ export default function Reports() {
     let apiCall;
     switch (activeReport) {
       case 'col': apiCall = reportApi.dailyCollection(params); break;
-      case 'saving': apiCall = reportApi.saving(); break;
-      case 'loan': apiCall = reportApi.loan(); break;
+      case 'saving': apiCall = reportApi.saving(params); break;
+      case 'loan': apiCall = reportApi.loan(params); break;
       case 'agent': apiCall = reportApi.agentWise(); break;
       case 'cashbook': apiCall = reportApi.cashBook(params); break;
-      case 'maturity': apiCall = reportApi.maturity(); break;
+      case 'maturity': apiCall = reportApi.maturity(params); break;
       default: apiCall = Promise.resolve({ data: [] });
     }
 
@@ -306,6 +332,9 @@ export default function Reports() {
     if (!dateStr) return null;
     const parts = dateStr.split('-');
     if (parts.length !== 3) return null;
+    if (parts[0].length === 4) {
+      return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
     return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
   };
 
@@ -373,6 +402,51 @@ export default function Reports() {
       }
     }
 
+    if (selectedMetricLabel) {
+      const parseAmt = (val) => typeof val === 'string' ? Number(val.replace(/[^\d.]/g, '')) : Number(val || 0);
+
+      if (activeReport === 'loan') {
+        if (selectedMetricLabel === 'Total Disbursed Pool') {
+          // Show all
+        } else if (selectedMetricLabel === 'Total Outstanding Bal') {
+          filtered = filtered.filter(row => parseAmt(row[5]) > 0);
+        } else if (selectedMetricLabel === 'Active Loan Accounts') {
+          filtered = filtered.filter(row => row[8].includes('Active'));
+        } else if (selectedMetricLabel === 'Interest Collected') {
+          filtered = filtered.filter(row => parseAmt(row[6]) > 0);
+        } else if (selectedMetricLabel === 'Interest Pending') {
+          filtered = filtered.filter(row => parseAmt(row[7]) > 0);
+        } else if (selectedMetricLabel === 'Interest Loss' || selectedMetricLabel === 'Interest Loss (NPA Defaulters)') {
+          filtered = filtered.filter(row => /Defaulter|NPA|Overdue/.test(row[8]));
+        }
+      } else if (activeReport === 'saving') {
+        if (selectedMetricLabel === 'Total Deposit Pool') {
+          // Show all
+        } else if (selectedMetricLabel === 'Interest Liabilities') {
+          filtered = filtered.filter(row => parseAmt(row[5]) > 0);
+        } else if (selectedMetricLabel === 'Net Liability') {
+          filtered = filtered.filter(row => parseAmt(row[6]) > 0);
+        }
+      } else if (activeReport === 'col') {
+        if (selectedMetricLabel === 'Cash Collections') {
+          filtered = filtered.filter(row => row[5] === 'Cash');
+        }
+      } else if (activeReport === 'maturity') {
+        if (selectedMetricLabel === 'Maturity Paid') {
+          filtered = filtered.filter(row => row[5] === 'Completed' || row[5] === 'Closed');
+        } else if (selectedMetricLabel === 'Pending Payout Pool') {
+          filtered = filtered.filter(row => row[5] === 'Pending Pay Out');
+        } else if (selectedMetricLabel === 'Maturing Today') {
+          const today = new Date();
+          const yyyy = today.getFullYear();
+          const mm = String(today.getMonth() + 1).padStart(2, '0');
+          const dd = String(today.getDate()).padStart(2, '0');
+          const todayStr = `${yyyy}-${mm}-${dd}`;
+          filtered = filtered.filter(row => row[0] === todayStr);
+        }
+      }
+    }
+
     if (searchQuery.trim()) {
       filtered = filtered.filter(row =>
         row.some(val => String(val).toLowerCase().includes(searchQuery.toLowerCase()))
@@ -384,6 +458,12 @@ export default function Reports() {
 
   const handleMetricCardClick = (label, filterVal) => {
     if (!filterVal) return;
+    
+    // Clear date and month filters to show all matching records for the metric
+    setDetailMonth('all');
+    setDetailStartDate('');
+    setDetailEndDate('');
+
     if (selectedMetricLabel === label) {
       setSelectedMetricLabel(null);
       setDetailStatus('all');
@@ -510,8 +590,21 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-fin bg-surface text-xs font-bold text-primary-text">
-                    {todayCollections.length > 0 ? (
-                      todayCollections.map((row, idx) => (
+                    {(() => {
+                      const sorted = [...todayCollections].sort((a, b) => b[1].localeCompare(a[1]));
+                      const paginated = sorted.slice((todayPage - 1) * 20, todayPage * 20);
+
+                      if (paginated.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan="6" className="px-6 py-8 text-center text-xs text-secondary-text font-bold">
+                              No transactions found for the selected filters today.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return paginated.map((row, idx) => (
                         <tr key={idx} className="hover:bg-background-fin/50 transition-colors">
                           <td className="whitespace-nowrap px-6 py-3.5 text-secondary-text font-medium">{row[0]}</td>
                           <td className="whitespace-nowrap px-6 py-3.5">
@@ -528,18 +621,17 @@ export default function Reports() {
                             </span>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-xs text-secondary-text font-bold">
-                          No transactions found for the selected filters today.
-                        </td>
-                      </tr>
-                    )}
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
             </div>
+            <Pagination 
+              currentPage={todayPage}
+              totalPages={Math.ceil(todayCollections.length / 20)}
+              onPageChange={setTodayPage}
+            />
           </section>
         </>
       )}
@@ -792,8 +884,21 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-fin bg-surface text-xs font-bold text-primary-text">
-                    {getFilteredRows(reportRows).length > 0 ? (
-                      getFilteredRows(reportRows).map((row, rowIdx) => (
+                    {(() => {
+                      const filtered = getFilteredRows(reportRows);
+                      const paginated = filtered.slice((detailPage - 1) * 20, detailPage * 20);
+
+                      if (paginated.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={activeReportDetails.columns.length} className="px-6 py-10 text-center text-xs text-secondary-text font-bold">
+                              No matching records found. Try adjusting filters or search query.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return paginated.map((row, rowIdx) => (
                         <tr key={rowIdx} className="hover:bg-background-fin/50 transition-colors">
                           {row.map((val, colIdx) => {
                             const colHeader = activeReportDetails.columns[colIdx];
@@ -811,11 +916,11 @@ export default function Reports() {
                                   <span className="text-danger-fin font-black">{val}</span>
                                 ) : isCreditAmt ? (
                                   <span className="text-success-fin font-black">{val}</span>
-                                ) : val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue'))) ? (
+                                ) : val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || val === 'Rejected' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue') || val.includes('Rejected'))) ? (
                                   <span className="text-danger-fin font-black">{val}</span>
                                 ) : val === 'Credit' || val === 'Paid' || val === 'Completed' || val === 'Loan Completed' || (typeof val === 'string' && val.includes('Active')) ? (
                                   <span className="text-success-fin font-black">{val}</span>
-                                ) : val === 'Pending Pay Out' || val === 'Medium Risk' || val === 'Warning' ? (
+                                ) : val === 'Pending Pay Out' || val === 'Processing' || val === 'Medium Risk' || val === 'Warning' ? (
                                   <span className="text-warning-fin font-black">{val}</span>
                                 ) : (typeof val === 'string' && (val.startsWith('LN-') || val.startsWith('SV-') || val.startsWith('UF-LN-') || val.startsWith('UF-SV-'))) ? (
                                   <Link to={`/account/${val}`} className="text-primary font-black hover:underline">
@@ -828,18 +933,17 @@ export default function Reports() {
                             );
                           })}
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={activeReportDetails.columns.length} className="px-6 py-10 text-center text-xs text-secondary-text font-bold">
-                          No matching records found. Try adjusting filters or search query.
-                        </td>
-                      </tr>
-                    )}
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
             </div>
+            <Pagination 
+              currentPage={detailPage}
+              totalPages={Math.ceil(getFilteredRows(reportRows).length / 20)}
+              onPageChange={setDetailPage}
+            />
           </section>
         </div>
       )}

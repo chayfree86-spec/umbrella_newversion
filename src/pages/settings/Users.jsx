@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SettingsNavigation } from './General';
 import { Select } from '../../components/ui/Select';
 import { userApi, settingsApi } from '../../services/api';
+import { Pagination } from '../../components/ui/Pagination';
 
 const EMPTY_STAFF = {
   name: '',
@@ -20,6 +21,7 @@ export default function Users() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_STAFF);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchUsers();
@@ -140,61 +142,71 @@ export default function Users() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-fin text-xs font-medium text-secondary-text">
-              {users.map((u) => (
-                <tr
-                  key={u.id}
-                  className="hover:bg-slate-50/50 cursor-pointer"
-                  onClick={() => navigate(`/settings/user/${u.id}`)}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">
-                    <Link
-                      to={`/settings/user/${u.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="hover:underline hover:text-primary"
-                    >
-                      {u.name}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{u.role_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{u.mobile}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{u.email || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{u.policy_name || 'System Default'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{u.last_login_at ? new Date(u.last_login_at).toLocaleString('en-IN') : 'Never'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                      u.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
-                    }`}>
-                      {u.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleOpenEdit(u)}
-                      className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Edit User"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleResetPassword(u.id)}
-                      className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Reset Credentials"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">key</span>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteStaff(u.id)}
-                      className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Delete User"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">delete</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                const sortedUsers = [...users].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                const paginatedUsers = sortedUsers.slice((currentPage - 1) * 20, currentPage * 20);
+                
+                return paginatedUsers.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="hover:bg-slate-50/50 cursor-pointer"
+                    onClick={() => navigate(`/settings/user/${u.id}`)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">
+                      <Link
+                        to={`/settings/user/${u.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:underline hover:text-primary"
+                      >
+                        {u.name}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{u.role_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{u.mobile}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{u.email || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{u.policy_name || 'System Default'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{u.last_login_at ? new Date(u.last_login_at).toLocaleString('en-IN') : 'Never'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                        u.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                      }`}>
+                        {u.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleOpenEdit(u)}
+                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Edit User"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleResetPassword(u.id)}
+                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Reset Credentials"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">key</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStaff(u.id)}
+                        className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Delete User"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={Math.ceil(users.length / 20)}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* Add / Edit Form Modal */}

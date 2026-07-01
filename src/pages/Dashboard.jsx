@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Chart from 'react-apexcharts';
 import { Link } from 'react-router-dom';
 import { dashboardApi } from '../services/api';
+import { Pagination } from '../components/ui/Pagination';
 
 const inr = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const num = (val) => Number(val || 0).toLocaleString('en-IN');
@@ -20,7 +21,12 @@ export default function Dashboard() {
   const [dataSummary, setDataSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const username = localStorage.getItem('username') || localStorage.getItem('active_user_name') || 'User';
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -341,47 +347,60 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-fin bg-surface text-xs font-bold text-primary-text">
-                {activeFilterData.rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={activeFilterData.columns.length} className="px-6 py-10 text-center text-secondary-text font-bold">
-                      {loading ? 'Loading…' : error ? error : 'No records available'}
-                    </td>
-                  </tr>
-                ) : activeFilterData.rows.map((row, rowIdx) => (
-                  <tr key={rowIdx} className="hover:bg-background-fin/50 transition-colors">
-                    {row.map((val, colIdx) => {
-                      const s = String(val ?? '');
-                      const colHeader = activeFilterData.columns[colIdx];
-                      return (
-                        <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
-                          {colHeader === 'Amount' ? (
-                            (row[1] === 'Credit' || row[1] === 'Capital Injection') ? (
-                              <span className="text-success-fin font-black">{s}</span>
-                            ) : (
-                              <span className="text-danger-fin font-black">{s}</span>
-                            )
-                          ) : (colHeader === 'Amount Received' || colHeader === 'Deposited') ? (
-                            <span className="text-success-fin font-black">{s}</span>
-                          ) : s.includes('High Risk') || s.includes('Debit') ? (
-                            <span className="text-danger-fin font-bold">{s}</span>
-                          ) : s.includes('Credit') || s.includes('Paid') ? (
-                            <span className="text-success-fin font-bold">{s}</span>
-                          ) : /^(LN-|SV-)/.test(s) ? (
-                            <Link to={`/account/${s}`} className="text-primary font-extrabold hover:underline">
-                              {s}
-                            </Link>
-                          ) : (
-                            s
-                          )}
+                {(() => {
+                  const paginatedRows = activeFilterData.rows.slice((currentPage - 1) * 20, currentPage * 20);
+                  
+                  if (paginatedRows.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={activeFilterData.columns.length} className="px-6 py-10 text-center text-secondary-text font-bold">
+                          {loading ? 'Loading…' : error ? error : 'No records available'}
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      </tr>
+                    );
+                  }
+
+                  return paginatedRows.map((row, rowIdx) => (
+                    <tr key={rowIdx} className="hover:bg-slate-50/50 transition-colors">
+                      {row.map((val, colIdx) => {
+                        const s = String(val ?? '');
+                        const colHeader = activeFilterData.columns[colIdx];
+                        return (
+                          <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
+                            {colHeader === 'Amount' ? (
+                              (row[1] === 'Credit' || row[1] === 'Capital Injection') ? (
+                                <span className="text-success-fin font-black">{s}</span>
+                              ) : (
+                                <span className="text-danger-fin font-black">{s}</span>
+                              )
+                            ) : (colHeader === 'Amount Received' || colHeader === 'Deposited') ? (
+                              <span className="text-success-fin font-black">{s}</span>
+                            ) : s.includes('High Risk') || s.includes('Debit') ? (
+                              <span className="text-danger-fin font-bold">{s}</span>
+                            ) : s.includes('Credit') || s.includes('Paid') ? (
+                              <span className="text-success-fin font-bold">{s}</span>
+                            ) : /^(LN-|SV-)/.test(s) ? (
+                              <Link to={`/account/${s}`} className="text-primary font-extrabold hover:underline">
+                                {s}
+                              </Link>
+                            ) : (
+                              s
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
         </div>
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={Math.ceil(activeFilterData.rows.length / 20)}
+          onPageChange={setCurrentPage}
+        />
       </section>
 
       {/* Charts Bento Section */}

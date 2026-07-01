@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { loanApi, savingApi, branchApi, areaApi, agentApi, collectionApi, reportApi } from '../services/api';
+import { Pagination } from '../components/ui/Pagination';
 
 export default function Collection() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function Collection() {
   const [branches, setBranches] = useState([]);
   const [areas, setAreas] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // View mode tab
   const [activeTab, setActiveTab] = useState('single'); // 'single' or 'bulk'
@@ -702,100 +704,114 @@ export default function Collection() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E2E8F0] bg-white">
-                  {filteredAccounts.length > 0 ? (
-                    filteredAccounts.map((acc) => {
-                      const name = acc.customer?.name || acc.name || 'Customer';
-                      const phone = acc.customer?.phone || acc.phone || 'N/A';
-                      
-                      // Check today status
-                      const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
-                      const todayPaid = !!todayPayment;
-                      const todayRejected = !todayPayment && !!acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Rejected');
+                  {(() => {
+                    const sortedAccounts = [...filteredAccounts].sort((a, b) => {
+                      return b.accNo.localeCompare(a.accNo);
+                    });
+                    const paginatedAccounts = sortedAccounts.slice((currentPage - 1) * 20, currentPage * 20);
 
-                      return (
-                        <tr 
-                          key={acc.accNo}
-                          onClick={() => navigate(`/account/${acc.accNo}`)}
-                          className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
-                        >
-                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">
-                            {acc.accNo}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <div className="text-xs font-bold text-[#0F172A]">{name}</div>
-                            <div className="text-[10px] text-[#64748B]">{phone}</div>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-xs">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                              acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
-                            }`}>
-                              {acc.type}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0F172A]">
-                            ₹{(acc.emiAmt || 0).toLocaleString()}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-xs font-bold">
-                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                              todayPaid 
-                                ? 'bg-[#16A34A]/10 text-[#16A34A]' 
-                                : todayRejected
-                                  ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                                  : 'bg-[#EA580C]/10 text-[#EA580C]'
-                            }`}>
-                              {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                            {todayPaid ? (
-                              <button
-                                onClick={() => {
-                                  setReceiptAccountNo(acc.accNo);
-                                  setReceiptTxn(todayPayment);
-                                  setShowReceipt(true);
-                                }}
-                                className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
-                              >
-                                <span className="material-symbols-rounded text-sm select-none">receipt</span>
-                                Receipt
-                              </button>
-                            ) : isFutureDate ? (
-                              <button
-                                disabled
-                                className="px-5 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none mx-auto"
-                              >
-                                Scheduled
-                              </button>
-                            ) : (
-                              <div className="flex flex-col items-center gap-1">
+                    if (paginatedAccounts.length > 0) {
+                      return paginatedAccounts.map((acc) => {
+                        const name = acc.customer?.name || acc.name || 'Customer';
+                        const phone = acc.customer?.phone || acc.phone || 'N/A';
+                        
+                        // Check today status
+                        const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
+                        const todayPaid = !!todayPayment;
+                        const todayRejected = !todayPayment && !!acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Rejected');
+
+                        return (
+                          <tr 
+                            key={acc.accNo}
+                            onClick={() => navigate(`/account/${acc.accNo}`)}
+                            className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
+                          >
+                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">
+                              {acc.accNo}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4">
+                              <div className="text-xs font-bold text-[#0F172A]">{name}</div>
+                              <div className="text-[10px] text-[#64748B]">{phone}</div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-xs">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
+                              }`}>
+                                {acc.type}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0F172A]">
+                              ₹{(acc.emiAmt || 0).toLocaleString()}
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                todayPaid 
+                                  ? 'bg-[#16A34A]/10 text-[#16A34A]' 
+                                  : todayRejected
+                                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
+                                    : 'bg-[#EA580C]/10 text-[#EA580C]'
+                              }`}>
+                                {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                              {todayPaid ? (
                                 <button
-                                  onClick={() => handleOpenCollect(acc)}
-                                  className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                  onClick={() => {
+                                    setReceiptAccountNo(acc.accNo);
+                                    setReceiptTxn(todayPayment);
+                                    setShowReceipt(true);
+                                  }}
+                                  className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
                                 >
-                                  <span className="material-symbols-rounded text-sm select-none">payments</span>
-                                  Collect
+                                  <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                                  Receipt
                                 </button>
-                                {todayRejected && (
-                                  <span className="text-[9px] text-[#EF4444] font-black uppercase tracking-wider">
-                                    Rejected Today
-                                  </span>
-                                )}
-                              </div>
-                            )}
+                              ) : isFutureDate ? (
+                                <button
+                                  disabled
+                                  className="px-5 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none mx-auto"
+                                >
+                                  Scheduled
+                                </button>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <button
+                                    onClick={() => handleOpenCollect(acc)}
+                                    className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                  >
+                                    <span className="material-symbols-rounded text-sm select-none">payments</span>
+                                    Collect
+                                  </button>
+                                  {todayRejected && (
+                                    <span className="text-[9px] text-[#EF4444] font-black uppercase tracking-wider">
+                                      Rejected Today
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    } else {
+                      return (
+                        <tr>
+                          <td colSpan="6" className="text-center py-12 text-xs text-[#64748B]">
+                            No active collection accounts found for today matching the filters.
                           </td>
                         </tr>
                       );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="text-center py-12 text-xs text-[#64748B]">
-                        No active collection accounts found for today matching the filters.
-                      </td>
-                    </tr>
-                  )}
+                    }
+                  })()}
                 </tbody>
               </table>
             </div>
+            <Pagination 
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredAccounts.length / 20)}
+              onPageChange={setCurrentPage}
+            />
           </div>
         </div>
       )}

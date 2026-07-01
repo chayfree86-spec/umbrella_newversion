@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SettingsNavigation } from './General';
 import { Select } from '../../components/ui/Select';
 import { branchApi, userApi } from '../../services/api';
+import { Pagination } from '../../components/ui/Pagination';
 
 const EMPTY_BRANCH = { code: '', name: '', city: '', address: '', manager_id: '' };
 
@@ -11,6 +12,7 @@ export default function Branches() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_BRANCH);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchBranches();
@@ -144,70 +146,80 @@ export default function Branches() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-fin text-xs font-medium text-secondary-text">
-              {branches.map((b) => (
-                <tr key={b.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{b.code}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{b.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{b.city || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{b.manager_name || 'Not Assigned'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => togglePolicy(b, 'allow_registrations')}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
-                        b.allow_registrations 
-                          ? 'bg-[#16A34A]/10 text-[#16A34A] hover:bg-[#16A34A]/15' 
-                          : 'bg-[#DC2626]/10 text-[#DC2626] hover:bg-[#DC2626]/15'
-                      }`}
-                    >
-                      <span className="material-symbols-rounded text-xs select-none">
-                        {b.allow_registrations ? 'check_circle' : 'cancel'}
+              {(() => {
+                const sortedBranches = [...branches].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+                const paginatedBranches = sortedBranches.slice((currentPage - 1) * 20, currentPage * 20);
+
+                return paginatedBranches.map((b) => (
+                  <tr key={b.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{b.code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{b.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{b.city || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{b.manager_name || 'Not Assigned'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => togglePolicy(b, 'allow_registrations')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
+                          b.allow_registrations 
+                            ? 'bg-[#16A34A]/10 text-[#16A34A] hover:bg-[#16A34A]/15' 
+                            : 'bg-[#DC2626]/10 text-[#DC2626] hover:bg-[#DC2626]/15'
+                        }`}
+                      >
+                        <span className="material-symbols-rounded text-xs select-none">
+                          {b.allow_registrations ? 'check_circle' : 'cancel'}
+                        </span>
+                        {b.allow_registrations ? 'Allowed' : 'Suspended'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => togglePolicy(b, 'allow_collections')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
+                          b.allow_collections 
+                            ? 'bg-[#16A34A]/10 text-[#16A34A] hover:bg-[#16A34A]/15' 
+                            : 'bg-[#DC2626]/10 text-[#DC2626] hover:bg-[#DC2626]/15'
+                        }`}
+                      >
+                        <span className="material-symbols-rounded text-xs select-none">
+                          {b.allow_collections ? 'check_circle' : 'cancel'}
+                        </span>
+                        {b.allow_collections ? 'Allowed' : 'Suspended'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                        b.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                      }`}>
+                        {b.status}
                       </span>
-                      {b.allow_registrations ? 'Allowed' : 'Suspended'}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => togglePolicy(b, 'allow_collections')}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
-                        b.allow_collections 
-                          ? 'bg-[#16A34A]/10 text-[#16A34A] hover:bg-[#16A34A]/15' 
-                          : 'bg-[#DC2626]/10 text-[#DC2626] hover:bg-[#DC2626]/15'
-                      }`}
-                    >
-                      <span className="material-symbols-rounded text-xs select-none">
-                        {b.allow_collections ? 'check_circle' : 'cancel'}
-                      </span>
-                      {b.allow_collections ? 'Allowed' : 'Suspended'}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                      b.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
-                    }`}>
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                    <button
-                      onClick={() => handleOpenEdit(b)}
-                      className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Edit Branch"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(b)}
-                      className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
-                      title="Delete Branch"
-                    >
-                      <span className="material-symbols-rounded text-sm select-none">delete</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
+                      <button
+                        onClick={() => handleOpenEdit(b)}
+                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Edit Branch"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(b)}
+                        className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
+                        title="Delete Branch"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ));
+              })()}
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={currentPage}
+          totalPages={Math.ceil(branches.length / 20)}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* Add / Edit Form Modal */}

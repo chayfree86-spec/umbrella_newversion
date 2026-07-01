@@ -214,10 +214,10 @@ export const reportApi = {
   branchWise: () => api.get('/reports/branch-wise'),
   areaWise: () => api.get('/reports/area-wise'),
   agentWise: () => api.get('/reports/agent-wise'),
-  loan: () => api.get('/reports/loan'),
-  saving: () => api.get('/reports/saving'),
+  loan: (params) => api.get('/reports/loan', { params }),
+  saving: (params) => api.get('/reports/saving', { params }),
   due: (params) => api.get('/reports/due', { params }),
-  maturity: () => api.get('/reports/maturity'),
+  maturity: (params) => api.get('/reports/maturity', { params }),
   customerLedger: (customer_id) => api.get('/reports/customer-ledger', { params: { customer_id } }),
   cashBook: (params) => api.get('/reports/cash-book', { params })
 };

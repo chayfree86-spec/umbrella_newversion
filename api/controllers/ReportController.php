@@ -149,7 +149,7 @@ class ReportController {
     public static function maturity($db, $authUser) {
         $branchId = $_GET['branch_id'] ?? null;
         $bind = [];
-        $where = ["sa.deleted_at IS NULL", "sa.maturity_date IS NOT NULL"];
+        $where = ["sa.deleted_at IS NULL", "sa.maturity_date IS NOT NULL", "sa.account_status IN ('Active', 'Approved', 'Matured', 'Closed')"];
         if ($authUser['role_slug'] === 'branch_manager') {
             $where[] = "sa.branch_id = :branch_id";
             $bind['branch_id'] = $authUser['branch_id'];
@@ -167,6 +167,9 @@ class ReportController {
             sa.total_deposited as TotalDeposited,
             sa.plan_name as PlanName,
             CASE
+                WHEN sa.account_status = 'Processing' THEN 'Processing'
+                WHEN sa.account_status = 'Approved' THEN 'Approved'
+                WHEN sa.account_status = 'Rejected' THEN 'Rejected'
                 WHEN sa.account_status = 'Matured' THEN 'Completed'
                 WHEN sa.account_status = 'Closed' THEN 'Closed'
                 WHEN sa.maturity_date <= CURRENT_DATE() THEN 'Pending Pay Out'
