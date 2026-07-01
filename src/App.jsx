@@ -19,8 +19,10 @@ import Plans from './pages/settings/Plans';
 import UserProfile from './pages/settings/UserProfile';
 import AgentProfile from './pages/settings/AgentProfile';
 import Login from './pages/Login';
+import { PremiumLoader } from './components/ui/PremiumLoader';
 
 export default function App() {
+  const [appLoading, setAppLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(
     () => localStorage.getItem('isLoggedIn') === 'true' && !!localStorage.getItem('auth_token')
   );
@@ -42,6 +44,13 @@ export default function App() {
     defaultValue: '',
     resolve: null
   });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppLoading(false);
+    }, 2600);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Intercept native browser alert
@@ -97,6 +106,7 @@ export default function App() {
 
   return (
     <Router>
+      {appLoading && <PremiumLoader />}
       {isLoggedIn ? (
         <Layout>
           <Routes>
