@@ -93,6 +93,7 @@ class LoanController {
 
         if ($durUnit === 'Days') {
             $durationDays = $durVal;
+            $durationMonths = $durVal / 30;
         } elseif ($durUnit === 'Months') {
             $durationMonths = $durVal;
             $durationDays = $durVal * 30;
@@ -107,15 +108,32 @@ class LoanController {
         // Interest amount calculation
         $pAmt = floatval($input['principal_amount']);
         $rate = floatval($input['interest_rate']);
-        $interestAmount = ($input['interest_type'] === 'Flat') ? ($pAmt * ($rate / 100)) : ($pAmt * ($rate / 100) * 0.7);
+        
+        $loanPeriod = Setting::getVal($db, 'interest_calculation_period_loan', 'monthly');
+        $timeFactor = ($loanPeriod === 'yearly') ? ($durationMonths / 12) : $durationMonths;
+
+        $interestAmount = ($input['interest_type'] === 'Flat') 
+            ? ($pAmt * ($rate / 100) * $timeFactor) 
+            : ($pAmt * ($rate / 100) * $timeFactor * 0.7);
         $totalPayable = $pAmt + $interestAmount;
 
         $input['interest_amount'] = $interestAmount;
         $input['total_payable'] = $totalPayable;
         $input['processing_fee'] = $isCustom ? (isset($input['processing_fee']) ? floatval($input['processing_fee']) : floatval($plan['processing_fee'])) : floatval($plan['processing_fee']);
         
-        $divisible = $isCustom ? ($durVal ?: 1) : ($plan['duration_value'] ?: 1);
-        $input['emi_amount'] = $isCustom ? (isset($input['emi_amount']) ? floatval($input['emi_amount']) : round($totalPayable / $divisible, 2)) : round($totalPayable / $divisible, 2);
+        // Calculate number of installments N
+        $freq = $isCustom ? ($input['collection_frequency'] ?? $plan['collection_frequency']) : $plan['collection_frequency'];
+        $N = 0;
+        if ($freq === 'Daily') {
+            $N = $durationDays;
+        } elseif ($freq === 'Weekly') {
+            $N = round($durationDays / 7);
+        } elseif ($freq === 'Monthly') {
+            $N = $durationMonths;
+        }
+        if ($N <= 0) $N = 1;
+
+        $input['emi_amount'] = $isCustom ? (isset($input['emi_amount']) ? floatval($input['emi_amount']) : round($totalPayable / $N, 2)) : round($totalPayable / $N, 2);
         
         $input['start_date'] = $input['start_date'] ?? date('Y-m-d');
         $input['end_date'] = date('Y-m-d', strtotime("+$durationDays days", strtotime($input['start_date'])));

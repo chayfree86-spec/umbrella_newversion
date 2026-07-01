@@ -29,6 +29,9 @@ export default function Plans() {
   const [termsSavings, setTermsSavings] = useState([]);
   const [termsLoan, setTermsLoan] = useState([]);
   const [isSavingTerms, setIsSavingTerms] = useState(false);
+  const [interestCalcPeriodLoan, setInterestCalcPeriodLoan] = useState('monthly');
+  const [interestCalcPeriodSaving, setInterestCalcPeriodSaving] = useState('yearly');
+  const [isSavingInterest, setIsSavingInterest] = useState(false);
 
   const [loanCurrentPage, setLoanCurrentPage] = useState(1);
   const [savingCurrentPage, setSavingCurrentPage] = useState(1);
@@ -55,6 +58,8 @@ export default function Plans() {
       .then(res => {
         setTermsSavings(res.data?.terms_savings || []);
         setTermsLoan(res.data?.terms_loan || []);
+        setInterestCalcPeriodLoan(res.data?.interest_calculation_period_loan || 'monthly');
+        setInterestCalcPeriodSaving(res.data?.interest_calculation_period_saving || 'yearly');
       })
       .catch(() => {});
   };
@@ -78,6 +83,23 @@ export default function Plans() {
       })
       .finally(() => {
         setIsSavingTerms(false);
+      });
+  };
+
+  const handleSaveInterestSettings = () => {
+    setIsSavingInterest(true);
+    settingsApi.update({
+      interest_calculation_period_loan: interestCalcPeriodLoan,
+      interest_calculation_period_saving: interestCalcPeriodSaving
+    })
+      .then(() => {
+        alert('Interest settings updated successfully.');
+      })
+      .catch((err) => {
+        alert(err.message || 'Failed to update Interest settings.');
+      })
+      .finally(() => {
+        setIsSavingInterest(false);
       });
   };
 
@@ -194,7 +216,7 @@ export default function Plans() {
           <h3 className="text-base font-bold text-primary-text">Plan Master</h3>
           <p className="text-xs text-secondary-text">Configure loan plans, savings templates, and terms & conditions</p>
         </div>
-        {activePlanTab !== 'terms' && (
+        {activePlanTab !== 'terms' && activePlanTab !== 'interest' && (
           <button
             onClick={handleOpenCreate}
             className="flex items-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
@@ -236,6 +258,16 @@ export default function Plans() {
           }`}
         >
           Terms & Conditions
+        </button>
+        <button
+          onClick={() => { setActivePlanTab('interest'); }}
+          className={`px-6 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activePlanTab === 'interest' 
+              ? 'border-primary text-primary' 
+              : 'border-transparent text-secondary-text hover:text-primary-text'
+          }`}
+        >
+          Interest Settings
         </button>
       </div>
 
@@ -486,6 +518,51 @@ export default function Plans() {
             totalPages={Math.ceil(savingPlans.length / 20)}
             onPageChange={setSavingCurrentPage}
           />
+        </div>
+      ) : activePlanTab === 'interest' ? (
+        <div className="bg-surface rounded-2xl border border-border-fin shadow-sm p-6 space-y-5 max-w-md animate-[fadeIn_0.2s_ease-out]">
+          <div className="pb-3 border-b border-border-fin">
+            <h4 className="text-xs font-bold text-primary-text uppercase tracking-wider">Interest Settings</h4>
+            <p className="text-[10px] text-secondary-text mt-0.5">Configure system interest calculation period</p>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <Select
+              label="Loan Interest Calculation Period"
+              required={true}
+              searchable={false}
+              options={[
+                { value: 'monthly', label: 'Monthly Calculation' },
+                { value: 'yearly', label: 'Yearly Calculation' }
+              ]}
+              value={interestCalcPeriodLoan}
+              onChange={(val) => setInterestCalcPeriodLoan(val)}
+            />
+
+            <Select
+              label="Savings Interest Calculation Period"
+              required={true}
+              searchable={false}
+              options={[
+                { value: 'monthly', label: 'Monthly Calculation' },
+                { value: 'yearly', label: 'Yearly Calculation' }
+              ]}
+              value={interestCalcPeriodSaving}
+              onChange={(val) => setInterestCalcPeriodSaving(val)}
+            />
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={handleSaveInterestSettings}
+              disabled={isSavingInterest}
+              className="px-6 py-3 text-white text-xs font-black rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-95 flex items-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #0A3598 0%, #1E50C5 100%)' }}
+            >
+              <span className="material-symbols-rounded text-sm">save</span>
+              {isSavingInterest ? 'Saving Settings...' : 'Save Settings'}
+            </button>
+          </div>
         </div>
       ) : null}
 

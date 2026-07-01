@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
-import { branchApi, areaApi, agentApi, planApi, customerApi } from '../services/api';
+import { branchApi, areaApi, agentApi, planApi, customerApi, settingsApi } from '../services/api';
 
 const getTodayDateString = () => {
   const d = new Date();
@@ -78,7 +78,7 @@ const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, fr
   return Math.round(balance);
 };
 
-const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType) => {
+const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly') => {
   if (!principal || !rate || !durationVal) return '';
 
   let totalDays = 0;
@@ -105,17 +105,18 @@ const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequenc
   if (N <= 0) N = 1;
 
   if (interestType === 'Flat') {
-    const interest = principal * (rate / 100);
+    const timeFactor = loanPeriod === 'yearly' ? (totalMonths / 12) : totalMonths;
+    const interest = principal * (rate / 100) * timeFactor;
     const totalPayable = principal + interest;
     return Math.round(totalPayable / N);
   } else {
     let R = 0;
     if (frequency === 'Daily') {
-      R = (rate / 100) / 365;
+      R = loanPeriod === 'yearly' ? ((rate / 100) / 365) : (((rate / 100) * 12) / 365);
     } else if (frequency === 'Weekly') {
-      R = (rate / 100) / 52;
+      R = loanPeriod === 'yearly' ? ((rate / 100) / 52) : (((rate / 100) * 12) / 52);
     } else if (frequency === 'Monthly') {
-      R = (rate / 100) / 12;
+      R = loanPeriod === 'yearly' ? ((rate / 100) / 12) : (rate / 100);
     }
 
     if (R === 0) return Math.round(principal / N);
@@ -400,6 +401,7 @@ export default function CustomerRegistration() {
   const [agents, setAgents] = useState([]);
   const [dbLoanPlans, setDbLoanPlans] = useState([]);
   const [dbSavingPlans, setDbSavingPlans] = useState([]);
+  const [liveSettings, setLiveSettings] = useState({});
 
   // Load initial form data from localStorage or default
   const getInitialFormData = () => {
@@ -699,6 +701,10 @@ export default function CustomerRegistration() {
     planApi.savingPlans.list()
       .then(res => setDbSavingPlans(res.data || []))
       .catch(() => {});
+
+    settingsApi.get()
+      .then(res => setLiveSettings(res.data || {}))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -909,19 +915,50 @@ export default function CustomerRegistration() {
     );
   };
 
-  const loanPlans = dbLoanPlans.map(p => ({
-    value: String(p.id),
-    label: `${p.name} - ${p.interest_rate}% (${p.duration_value} ${p.duration_unit})`,
-    amount: Number(p.min_amount),
-    rate: Number(p.interest_rate),
-    type: p.interest_type,
-    duration: Number(p.duration_value),
-    durationUnit: p.duration_unit || 'Days',
-    frequency: p.collection_frequency,
-    emi: Math.round((Number(p.min_amount) + (Number(p.min_amount) * (Number(p.interest_rate) / 100))) / Number(p.duration_value)),
-    processingFee: Number(p.processing_fee),
-    penalty: Number(p.penalty_per_day)
-  }));
+  const loanPlans = dbLoanPlans.map(p => {
+    const durVal = Number(p.duration_value);
+    const durUnit = p.duration_unit || 'Days';
+    let durationInMonths = 0;
+    if (durUnit === 'Days') durationInMonths = durVal / 30;
+    else if (durUnit === 'Months') durationInMonths = durVal;
+    else if (durUnit === 'Years') durationInMonths = durVal * 12;
+
+    const principal = Number(p.min_amount);
+    const rate = Number(p.interest_rate);
+    
+    const loanPeriod = liveSettings.interest_calculation_period_loan || 'monthly';
+    const timeFactor = loanPeriod === 'yearly' ? (durationInMonths / 12) : durationInMonths;
+    
+    const interest = p.interest_type === 'Flat' 
+      ? (principal * (rate / 100) * timeFactor)
+      : (principal * (rate / 100) * timeFactor * 0.7);
+    const totalPayable = principal + interest;
+
+    let N = 0;
+    const freq = p.collection_frequency;
+    if (freq === 'Daily') {
+      N = durUnit === 'Days' ? durVal : (durUnit === 'Months' ? durVal * 30 : durVal * 365);
+    } else if (freq === 'Weekly') {
+      N = durUnit === 'Days' ? Math.round(durVal / 7) : (durUnit === 'Months' ? Math.round((durVal * 30) / 7) : durVal * 52);
+    } else if (freq === 'Monthly') {
+      N = durUnit === 'Days' ? Math.round(durVal / 30) : (durUnit === 'Months' ? durVal : durVal * 12);
+    }
+    if (N <= 0) N = 1;
+
+    return {
+      value: String(p.id),
+      label: `${p.name} - ${p.interest_rate}% (${p.duration_value} ${p.duration_unit})`,
+      amount: principal,
+      rate: rate,
+      type: p.interest_type,
+      duration: durVal,
+      durationUnit: durUnit,
+      frequency: freq,
+      emi: Math.round(totalPayable / N),
+      processingFee: Number(p.processing_fee),
+      penalty: Number(p.penalty_per_day)
+    };
+  });
 
   const savingPlans = dbSavingPlans.map(p => ({
     value: String(p.id),
@@ -944,6 +981,7 @@ export default function CustomerRegistration() {
           rate: Number(formData.customRate) || 0,
           type: formData.customType || 'Flat',
           duration: Number(formData.customDuration) || 0,
+          durationUnit: formData.customDurationUnit || 'Days',
           frequency: formData.customFrequency || 'Daily',
           emi: Number(formData.customEmi) || 0,
           processingFee: Number(formData.customProcessingFee) || 0,
@@ -1014,7 +1052,8 @@ export default function CustomerRegistration() {
         Number(formData.customDuration) || 0,
         formData.customDurationUnit || 'Days',
         formData.customFrequency || 'Daily',
-        formData.customType || 'Flat'
+        formData.customType || 'Flat',
+        liveSettings.interest_calculation_period_loan || 'monthly'
       );
       setFormData(prev => {
         if (prev.customEmi !== String(calculatedEmi)) {
@@ -1077,11 +1116,27 @@ export default function CustomerRegistration() {
     formData.customFrequency,
     formData.customType,
     formData.customDailyDeposit,
-    dbSavingPlans
+    dbSavingPlans,
+    liveSettings
   ]);
 
+  const durationInMonths = (() => {
+    if (!selectedPlan) return 0;
+    const durVal = selectedPlan.duration;
+    const durUnit = selectedPlan.durationUnit || (formData.planId === 'custom' ? formData.customDurationUnit : 'Days');
+    if (durUnit === 'Days') return durVal / 30;
+    if (durUnit === 'Months') return durVal;
+    if (durUnit === 'Years') return durVal * 12;
+    return 0;
+  })();
+
+  const loanPeriod = liveSettings.interest_calculation_period_loan || 'monthly';
+  const timeFactor = loanPeriod === 'yearly' ? (durationInMonths / 12) : durationInMonths;
+
   const totalInterest = selectedPlan && formData.accountType === 'Loan'
-    ? (selectedPlan.amount * (selectedPlan.rate / 100))
+    ? (selectedPlan.type === 'Flat'
+        ? (selectedPlan.amount * (selectedPlan.rate / 100) * timeFactor)
+        : (selectedPlan.amount * (selectedPlan.rate / 100) * timeFactor * 0.7))
     : 0;
 
   const totalPayable = selectedPlan && formData.accountType === 'Loan'

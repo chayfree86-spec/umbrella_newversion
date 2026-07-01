@@ -159,29 +159,48 @@ class CustomerController {
                     if ($plan) {
                         $pAmt = $input['principal_amount'] ?? $plan['min_amount'];
                         $rate = $input['interest_rate'] ?? $plan['interest_rate'];
-                        $type = $plan['interest_type'];
-                        
+                        $type = !empty($input['interest_type']) ? $input['interest_type'] : $plan['interest_type'];
+                        $durVal = !empty($input['duration_value']) ? intval($input['duration_value']) : intval($plan['duration_value']);
+                        $durUnit = !empty($input['duration_unit']) ? $input['duration_unit'] : $plan['duration_unit'];
+                        $freq = !empty($input['collection_frequency']) ? $input['collection_frequency'] : $plan['collection_frequency'];
+
                         $durationDays = 0;
                         $durationMonths = 0;
-                        if ($plan['duration_unit'] === 'Days') {
-                            $durationDays = $plan['duration_value'];
-                        } elseif ($plan['duration_unit'] === 'Months') {
-                            $durationMonths = $plan['duration_value'];
-                            $durationDays = $plan['duration_value'] * 30;
+                        if ($durUnit === 'Days') {
+                            $durationDays = $durVal;
+                            $durationMonths = $durVal / 30;
+                        } elseif ($durUnit === 'Months') {
+                            $durationMonths = $durVal;
+                            $durationDays = $durVal * 30;
+                        } elseif ($durUnit === 'Years') {
+                            $durationMonths = $durVal * 12;
+                            $durationDays = $durVal * 365;
                         }
 
-                        // Calculate interest component & total payable
+                        // Calculate interest component & total payable using live setting
+                        $loanPeriod = Setting::getVal($db, 'interest_calculation_period_loan', 'monthly');
+                        $timeFactor = ($loanPeriod === 'yearly') ? ($durationMonths / 12) : $durationMonths;
+
                         $interestAmount = 0;
                         if ($type === 'Flat') {
-                            $interestAmount = $pAmt * ($rate / 100);
+                            $interestAmount = $pAmt * ($rate / 100) * $timeFactor;
                         } else {
-                            // Reducing balance approximation
-                            $interestAmount = $pAmt * ($rate / 100) * 0.7; 
+                            $interestAmount = $pAmt * ($rate / 100) * $timeFactor * 0.7; 
                         }
                         $totalPayable = $pAmt + $interestAmount;
 
-                        // Auto calculate daily/weekly/monthly EMI
-                        $emiAmt = $input['emi_amount'] ?? round($totalPayable / $plan['duration_value'], 2);
+                        // Calculate N for EMI
+                        $N = 0;
+                        if ($freq === 'Daily') {
+                            $N = $durationDays;
+                        } elseif ($freq === 'Weekly') {
+                            $N = round($durationDays / 7);
+                        } elseif ($freq === 'Monthly') {
+                            $N = $durationMonths;
+                        }
+                        if ($N <= 0) $N = 1;
+
+                        $emiAmt = $input['emi_amount'] ?? round($totalPayable / $N, 2);
 
                         $loanData = [
                             'customer_id' => $customerId,
@@ -193,12 +212,12 @@ class CustomerController {
                             'interest_rate' => $rate,
                             'interest_type' => $type,
                             'interest_amount' => $interestAmount,
-                            'processing_fee' => $plan['processing_fee'],
+                            'processing_fee' => $input['processing_fee'] ?? $plan['processing_fee'],
                             'total_payable' => $totalPayable,
                             'emi_amount' => $emiAmt,
                             'duration_days' => $durationDays,
                             'duration_months' => $durationMonths,
-                            'collection_frequency' => $plan['collection_frequency'],
+                            'collection_frequency' => $freq,
                             'start_date' => !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d'),
                             'end_date' => date('Y-m-d', strtotime((!empty($input['start_date']) ? $input['start_date'] : date('Y-m-d')) . " +$durationDays days")),
                             'account_status' => 'Processing', // Set to Processing for verification workflow

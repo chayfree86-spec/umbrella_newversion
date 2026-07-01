@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { customerApi, branchApi, areaApi, agentApi, loanApi, savingApi, planApi } from '../services/api';
+import { customerApi, branchApi, areaApi, agentApi, loanApi, savingApi, planApi, settingsApi } from '../services/api';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 
-const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType) => {
+const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly') => {
   if (!principal || !rate || !durationVal) return '';
 
   let totalDays = 0;
@@ -31,17 +31,18 @@ const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequenc
   if (N <= 0) N = 1;
 
   if (interestType === 'Flat') {
-    const interest = principal * (rate / 100);
+    const timeFactor = loanPeriod === 'yearly' ? (totalMonths / 12) : totalMonths;
+    const interest = principal * (rate / 100) * timeFactor;
     const totalPayable = principal + interest;
     return Math.round(totalPayable / N);
   } else {
     let R = 0;
     if (frequency === 'Daily') {
-      R = (rate / 100) / 365;
+      R = loanPeriod === 'yearly' ? ((rate / 100) / 365) : (((rate / 100) * 12) / 365);
     } else if (frequency === 'Weekly') {
-      R = (rate / 100) / 52;
+      R = loanPeriod === 'yearly' ? ((rate / 100) / 52) : (((rate / 100) * 12) / 52);
     } else if (frequency === 'Monthly') {
-      R = (rate / 100) / 12;
+      R = loanPeriod === 'yearly' ? ((rate / 100) / 12) : (rate / 100);
     }
 
     if (R === 0) return Math.round(principal / N);
@@ -163,6 +164,7 @@ export default function CustomerProfile() {
     start_date: new Date().toLocaleDateString('sv-SE')
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [liveSettings, setLiveSettings] = useState({});
 
   const [editForm, setEditForm] = useState({
     full_name: '',
@@ -229,7 +231,8 @@ export default function CustomerProfile() {
         Number(loanForm.duration_value) || 0,
         loanForm.duration_unit,
         loanForm.collection_frequency,
-        loanForm.interest_type
+        loanForm.interest_type,
+        liveSettings.interest_calculation_period_loan || 'monthly'
       );
       setLoanForm(prev => ({ ...prev, emi_amount: String(calculatedEmi) }));
     }
@@ -240,7 +243,8 @@ export default function CustomerProfile() {
     loanForm.duration_value,
     loanForm.duration_unit,
     loanForm.collection_frequency,
-    loanForm.interest_type
+    loanForm.interest_type,
+    liveSettings
   ]);
 
   // Live calculations for Custom Savings
@@ -298,6 +302,7 @@ export default function CustomerProfile() {
     agentApi.list().then(res => setAgents(res.data || [])).catch(() => {});
     planApi.loanPlans.list().then(res => setLoanPlans(res.data || [])).catch(() => {});
     planApi.savingPlans.list().then(res => setSavingPlans(res.data || [])).catch(() => {});
+    settingsApi.get().then(res => setLiveSettings(res.data || {})).catch(() => {});
   }, []);
 
   const openEditModal = () => {
@@ -1238,9 +1243,31 @@ export default function CustomerProfile() {
                         const duration = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.duration_value) || 0) : (Number(selectedLoanPlanObj.duration_value) || 0);
                         const durationUnit = loanForm.loan_plan_id === 'custom' ? loanForm.duration_unit : selectedLoanPlanObj.duration_unit;
                         const frequency = loanForm.loan_plan_id === 'custom' ? loanForm.collection_frequency : selectedLoanPlanObj.collection_frequency;
-                        const emi = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.emi_amount) || 0) : Math.round((principal + (type === 'Flat' ? (principal * (rate / 100)) : (principal * (rate / 100) * 0.7))) / (duration || 1));
-                        const totalInterest = type === 'Flat' ? (principal * (rate / 100)) : (principal * (rate / 100) * 0.7);
+                        let durationInMonths = 0;
+                        if (durationUnit === 'Days') durationInMonths = duration / 30;
+                        else if (durationUnit === 'Months') durationInMonths = duration;
+                        else if (durationUnit === 'Years') durationInMonths = duration * 12;
+
+                        const loanPeriod = liveSettings.interest_calculation_period_loan || 'monthly';
+                        const timeFactor = loanPeriod === 'yearly' ? (durationInMonths / 12) : durationInMonths;
+
+                        const totalInterest = type === 'Flat'
+                          ? (principal * (rate / 100) * timeFactor)
+                          : (principal * (rate / 100) * timeFactor * 0.7);
                         const totalPayable = principal + totalInterest;
+
+                        // Calculate N
+                        let N = 0;
+                        if (frequency === 'Daily') {
+                          N = durationUnit === 'Days' ? duration : (durationUnit === 'Months' ? duration * 30 : duration * 365);
+                        } else if (frequency === 'Weekly') {
+                          N = durationUnit === 'Days' ? Math.round(duration / 7) : (durationUnit === 'Months' ? Math.round((duration * 30) / 7) : duration * 52);
+                        } else if (frequency === 'Monthly') {
+                          N = durationUnit === 'Days' ? Math.round(duration / 30) : (durationUnit === 'Months' ? duration : duration * 12);
+                        }
+                        if (N <= 0) N = 1;
+
+                        const emi = loanForm.loan_plan_id === 'custom' ? (Number(loanForm.emi_amount) || 0) : Math.round(totalPayable / N);
 
                         return (
                           <>
