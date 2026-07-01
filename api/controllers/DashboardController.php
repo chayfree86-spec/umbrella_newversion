@@ -73,18 +73,19 @@ class DashboardController {
         $totalBranches = $db->query("SELECT COUNT(*) FROM branches WHERE deleted_at IS NULL")->fetchColumn();
         $totalAgents = $db->query("SELECT COUNT(*) FROM agents WHERE deleted_at IS NULL")->fetchColumn();
 
-        // 11. Recent Collections
         $qRec = "
-            SELECT 'Loan' as type, lc.receipt_no, lc.collected_amount as amount, c.full_name as customer_name, ag.name as agent_name, lc.created_at
+            SELECT 'Loan' as type, lc.receipt_no, lc.collected_amount as amount, c.full_name as customer_name, ag.name as agent_name, lc.created_at, la.loan_account_no as account_no
             FROM loan_collections lc
+            JOIN loan_accounts la ON lc.loan_account_id = la.id
             JOIN customers c ON lc.customer_id = c.id
             JOIN agents ag ON lc.agent_id = ag.id
             WHERE lc.is_reversal = 0
             
             UNION ALL
             
-            SELECT 'Saving' as type, sd.receipt_no, sd.deposit_amount as amount, c.full_name as customer_name, ag.name as agent_name, sd.created_at
+            SELECT 'Saving' as type, sd.receipt_no, sd.deposit_amount as amount, c.full_name as customer_name, ag.name as agent_name, sd.created_at, sa.saving_account_no as account_no
             FROM saving_deposits sd
+            JOIN saving_accounts sa ON sd.saving_account_id = sa.id
             JOIN customers c ON sd.customer_id = c.id
             JOIN agents ag ON sd.agent_id = ag.id
             WHERE sd.is_reversal = 0

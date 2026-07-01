@@ -390,7 +390,7 @@ export default function DailyCollection() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Amount Collected (₹) *</label>
+                <label className="block text-xs font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Amount Collected (₹) <span className="text-danger-fin">*</span></label>
                 <input
                   type="number"
                   min="0"

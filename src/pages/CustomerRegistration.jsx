@@ -1776,7 +1776,7 @@ export default function CustomerRegistration() {
                     <h4 className="text-xs font-bold text-primary-text uppercase tracking-wider">{formData.planId === 'custom' ? 'Custom Loan Details' : 'Loan Plan Parameters'}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Principal Amount *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Principal Amount <span className="text-danger-fin">*</span></label>
                         <input
                           type="number"
                           placeholder="E.g., 10000"
@@ -1786,7 +1786,7 @@ export default function CustomerRegistration() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Interest Rate (%) *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Interest Rate (%) <span className="text-danger-fin">*</span></label>
                         <input
                           type="number"
                           placeholder="E.g., 12"
@@ -1800,7 +1800,7 @@ export default function CustomerRegistration() {
                         />
                       </div>
                       <Select
-                        label="Interest Type *"
+                        label="Interest Type"
                         required={true}
                         options={[
                           { value: 'Flat', label: 'Flat Interest' },
@@ -1810,7 +1810,7 @@ export default function CustomerRegistration() {
                         onChange={(val) => setFormData(prev => ({ ...prev, customType: val }))}
                       />
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Duration *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Duration <span className="text-danger-fin">*</span></label>
                         <div className="flex gap-2">
                           <input
                             type="number"
@@ -1833,7 +1833,7 @@ export default function CustomerRegistration() {
                         </div>
                       </div>
                       <Select
-                        label="Frequency *"
+                        label="Frequency"
                         required={true}
                         options={[
                           { value: 'Daily', label: 'Daily' },
@@ -1844,7 +1844,7 @@ export default function CustomerRegistration() {
                         onChange={(val) => setFormData(prev => ({ ...prev, customFrequency: val }))}
                       />
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Installment / EMI *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Installment / EMI <span className="text-danger-fin">*</span></label>
                         <input
                           type="number"
                           placeholder="E.g., 112"
@@ -1884,7 +1884,7 @@ export default function CustomerRegistration() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Deposit Amount *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Deposit Amount <span className="text-danger-fin">*</span></label>
                         <input
                           type="number"
                           placeholder="E.g., 100"
@@ -1894,7 +1894,7 @@ export default function CustomerRegistration() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Interest Rate (%) *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Interest Rate (%) <span className="text-danger-fin">*</span></label>
                         <input
                           type="number"
                           placeholder="E.g., 6"
@@ -1910,7 +1910,7 @@ export default function CustomerRegistration() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Duration *</label>
+                        <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Duration <span className="text-danger-fin">*</span></label>
                         <div className="flex gap-2">
                           <input
                             type="number"
@@ -1934,7 +1934,7 @@ export default function CustomerRegistration() {
                       </div>
 
                       <Select
-                        label="Frequency *"
+                        label="Frequency"
                         required={true}
                         options={[
                           { value: 'Daily', label: 'Daily' },
@@ -2144,7 +2144,7 @@ export default function CustomerRegistration() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Full Name *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Full Name <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter Full Name"
@@ -2155,7 +2155,7 @@ export default function CustomerRegistration() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Mobile Number *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Mobile Number <span className="text-danger-fin">*</span></label>
                   <input
                     type="tel"
                     placeholder="Enter Mobile Number"
@@ -2344,7 +2344,7 @@ export default function CustomerRegistration() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">House Number *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">House Number <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter House Number"
@@ -2355,7 +2355,7 @@ export default function CustomerRegistration() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Street / Road *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Street / Road <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter Street / Road Name"
@@ -2366,7 +2366,7 @@ export default function CustomerRegistration() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Village / City *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Village / City <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter Village / City Name"
@@ -2388,7 +2388,7 @@ export default function CustomerRegistration() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">District *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">District <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter District Name"
@@ -2399,7 +2399,7 @@ export default function CustomerRegistration() {
                 </div>
 
                 <Select
-                  label="State *"
+                  label="State"
                   required={true}
                   options={[
                     { value: 'Uttar Pradesh', label: 'Uttar Pradesh' },
@@ -2411,7 +2411,7 @@ export default function CustomerRegistration() {
                 />
 
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">PIN Code *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">PIN Code <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter PIN Code"
@@ -2456,7 +2456,7 @@ export default function CustomerRegistration() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Aadhaar Number {isKycFieldRequired && '*'}</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Aadhaar Number {isKycFieldRequired && <span className="text-danger-fin">*</span>}</label>
                   <input
                     type="text"
                     placeholder="1234 5678 9012"
@@ -2468,7 +2468,7 @@ export default function CustomerRegistration() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">PAN Number {isKycFieldRequired && '*'}</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">PAN Number {isKycFieldRequired && <span className="text-danger-fin">*</span>}</label>
                   <input
                     type="text"
                     placeholder="ABCDE1234F"

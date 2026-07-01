@@ -1109,7 +1109,7 @@ export default function Collection() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Amount (₹) *</label>
+                  <label className="font-bold text-slate-500 text-[10px] block uppercase tracking-wide">Amount (₹) <span className="text-danger-fin">*</span></label>
                   <input 
                     type="number"
                     value={collectAmount}

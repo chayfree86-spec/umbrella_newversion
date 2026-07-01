@@ -829,7 +829,7 @@ export default function CustomerProfile() {
                   <h4 className="text-xs font-bold text-[#0A3598] uppercase tracking-wider">Personal Information</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Full Name *</label>
+                      <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Full Name <span className="text-danger-fin">*</span></label>
                       <input 
                         type="text" 
                         required
@@ -839,7 +839,7 @@ export default function CustomerProfile() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Mobile Number *</label>
+                      <label className="block text-[10px] font-bold text-[#64748B] mb-1.5 uppercase tracking-wider">Mobile Number <span className="text-danger-fin">*</span></label>
                       <input 
                         type="text" 
                         required
@@ -1130,7 +1130,7 @@ export default function CustomerProfile() {
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Principal Amount (₹) *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Principal Amount (₹) <span className="text-danger-fin">*</span></label>
                         <input 
                           type="number"
                           required
@@ -1143,7 +1143,7 @@ export default function CustomerProfile() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Rate (%) *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Rate (%) <span className="text-danger-fin">*</span></label>
                         <input 
                           type="number"
                           required
@@ -1169,7 +1169,7 @@ export default function CustomerProfile() {
                       />
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration <span className="text-danger-fin">*</span></label>
                         <div className="flex gap-2">
                           <input 
                             type="number"
@@ -1208,7 +1208,7 @@ export default function CustomerProfile() {
                       />
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Installment / EMI (₹) *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Installment / EMI (₹) <span className="text-danger-fin">*</span></label>
                         <input 
                           type="number"
                           required
@@ -1249,7 +1249,7 @@ export default function CustomerProfile() {
 
                 {loanForm.loan_plan_id && loanForm.loan_plan_id !== 'custom' && (
                   <div className="space-y-1 pt-2">
-                    <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Principal Amount (₹) *</label>
+                    <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Principal Amount (₹) <span className="text-danger-fin">*</span></label>
                     <input 
                       type="number"
                       required
@@ -1459,7 +1459,7 @@ export default function CustomerProfile() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Deposit Amount (₹) *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Deposit Amount (₹) <span className="text-danger-fin">*</span></label>
                         <input 
                           type="number"
                           required
@@ -1473,7 +1473,7 @@ export default function CustomerProfile() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Rate (%) *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Interest Rate (%) <span className="text-danger-fin">*</span></label>
                         <input 
                           type="number"
                           required
@@ -1488,7 +1488,7 @@ export default function CustomerProfile() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration *</label>
+                        <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Duration <span className="text-danger-fin">*</span></label>
                         {savingForm.saving_plan_id === 'custom' ? (
                           <div className="flex gap-2">
                             <input 
@@ -1521,7 +1521,7 @@ export default function CustomerProfile() {
 
                       {savingForm.saving_plan_id === 'custom' ? (
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Frequency *</label>
+                          <label className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider block">Frequency <span className="text-danger-fin">*</span></label>
                           <Select
                             label="Frequency"
                             required={true}

@@ -182,7 +182,7 @@ export default function Agents() {
             </div>
             <form onSubmit={handleAddAgent} className="space-y-4">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Agent Code *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Agent Code <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
@@ -193,7 +193,7 @@ export default function Agents() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Agent Name *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Agent Name <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
@@ -204,7 +204,7 @@ export default function Agents() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Mobile *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Mobile <span className="text-danger-fin">*</span></label>
                 <input
                   type="tel"
                   required

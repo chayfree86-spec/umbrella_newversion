@@ -718,7 +718,7 @@ export default function Plans() {
             </div>
             <form onSubmit={handleAddPlan} className="space-y-4">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Plan Name *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Plan Name <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
@@ -733,7 +733,7 @@ export default function Plans() {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Min Amount *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Min Amount <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         required
@@ -744,7 +744,7 @@ export default function Plans() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Max Amount *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Max Amount <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         required
@@ -757,7 +757,7 @@ export default function Plans() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Interest Rate (%) *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Interest Rate (%) <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         step="0.01"
@@ -781,7 +781,7 @@ export default function Plans() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Duration Value *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Duration Value <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         required
@@ -841,7 +841,7 @@ export default function Plans() {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Deposit Size *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Deposit Size <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         required
@@ -852,7 +852,7 @@ export default function Plans() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Interest Rate (%) *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Interest Rate (%) <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         step="0.01"
@@ -866,7 +866,7 @@ export default function Plans() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Duration Value *</label>
+                      <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Duration Value <span className="text-danger-fin">*</span></label>
                       <input
                         type="number"
                         required

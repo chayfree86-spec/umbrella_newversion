@@ -237,7 +237,7 @@ export default function Branches() {
             </div>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Branch Code *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Branch Code <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
@@ -248,7 +248,7 @@ export default function Branches() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Branch Name *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Branch Name <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required

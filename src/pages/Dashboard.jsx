@@ -95,7 +95,7 @@ export default function Dashboard() {
       desc: 'Synced cash receipts from the field',
       columns: ['Customer', 'Receipt No', 'Amount Received', 'Field Collector', 'Time Sync'],
       rows: (d?.recent_collections || []).map(c => [
-        c.customer_name, c.receipt_no, inr(c.amount), c.agent_name, fmtTime(c.created_at)
+        c.customer_name, c.receipt_no, inr(c.amount), c.agent_name, fmtTime(c.created_at), c.account_no
       ])
     },
     "Today's Due": {
@@ -362,7 +362,7 @@ export default function Dashboard() {
 
                   return paginatedRows.map((row, rowIdx) => (
                     <tr key={rowIdx} className="hover:bg-slate-50/50 transition-colors">
-                      {row.map((val, colIdx) => {
+                      {row.slice(0, activeFilterData.columns.length).map((val, colIdx) => {
                         const s = String(val ?? '');
                         const colHeader = activeFilterData.columns[colIdx];
                         return (
@@ -375,6 +375,15 @@ export default function Dashboard() {
                               )
                             ) : (colHeader === 'Amount Received' || colHeader === 'Deposited') ? (
                               <span className="text-success-fin font-black">{s}</span>
+                            ) : colHeader === 'Receipt No' ? (
+                              (() => {
+                                const accNo = row[5] || (row[1] && String(row[1]).match(/^(LN-|SV-)/) ? row[1] : null);
+                                return accNo ? (
+                                  <Link to={`/account/${accNo}`} className="text-primary font-black hover:underline">
+                                    {s}
+                                  </Link>
+                                ) : s;
+                              })()
                             ) : s.includes('High Risk') || s.includes('Debit') ? (
                               <span className="text-danger-fin font-bold">{s}</span>
                             ) : s.includes('Credit') || s.includes('Paid') ? (

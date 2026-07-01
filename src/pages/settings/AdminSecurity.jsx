@@ -51,7 +51,7 @@ export default function AdminSecurity() {
 
           <form onSubmit={handleUpdateProfile} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Admin Name *</label>
+              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Admin Name <span className="text-danger-fin">*</span></label>
               <input
                 type="text"
                 value={profile.name}
@@ -61,7 +61,7 @@ export default function AdminSecurity() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Email Address *</label>
+              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Email Address <span className="text-danger-fin">*</span></label>
               <input
                 type="email"
                 value={profile.email}
@@ -71,7 +71,7 @@ export default function AdminSecurity() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Mobile Number *</label>
+              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Mobile Number <span className="text-danger-fin">*</span></label>
               <input
                 type="tel"
                 value={profile.mobile}
@@ -100,7 +100,7 @@ export default function AdminSecurity() {
 
           <form onSubmit={handleChangeSecurity} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Current Password / PIN *</label>
+              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Current Password / PIN <span className="text-danger-fin">*</span></label>
               <input
                 type="password"
                 placeholder="••••••••"
@@ -111,7 +111,7 @@ export default function AdminSecurity() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">New Password / PIN *</label>
+              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">New Password / PIN <span className="text-danger-fin">*</span></label>
               <input
                 type="password"
                 placeholder="••••••••"
@@ -122,7 +122,7 @@ export default function AdminSecurity() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Confirm New Password / PIN *</label>
+              <label className="block text-xs font-semibold text-secondary-text mb-1.5 uppercase tracking-wider">Confirm New Password / PIN <span className="text-danger-fin">*</span></label>
               <input
                 type="password"
                 placeholder="••••••••"

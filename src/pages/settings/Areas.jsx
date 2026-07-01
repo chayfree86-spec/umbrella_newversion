@@ -172,7 +172,7 @@ export default function Areas() {
             </div>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Area Code *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Area Code <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
@@ -183,7 +183,7 @@ export default function Areas() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Area Name *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Area Name <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required

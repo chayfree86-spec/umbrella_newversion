@@ -224,7 +224,7 @@ export default function Users() {
             </div>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Full Name *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Full Name <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
@@ -235,7 +235,7 @@ export default function Users() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Mobile Number *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Mobile Number <span className="text-danger-fin">*</span></label>
                 <input
                   type="tel"
                   required

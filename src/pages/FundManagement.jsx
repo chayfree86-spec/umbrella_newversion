@@ -559,7 +559,7 @@ export default function FundManagement() {
 
               {capitalSource === 'Investor' && (
                 <div>
-                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Investor Name *</label>
+                  <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Investor Name <span className="text-danger-fin">*</span></label>
                   <input
                     type="text"
                     required
@@ -572,7 +572,7 @@ export default function FundManagement() {
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Investment Amount (₹) *</label>
+                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Investment Amount (₹) <span className="text-danger-fin">*</span></label>
                 <input
                   type="number"
                   required
@@ -657,7 +657,7 @@ export default function FundManagement() {
                )}
 
               <div>
-                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Amount to Transfer (₹) *</label>
+                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Amount to Transfer (₹) <span className="text-danger-fin">*</span></label>
                 <input
                   type="number"
                   required
@@ -728,7 +728,7 @@ export default function FundManagement() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Amount (₹) *</label>
+                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Amount (₹) <span className="text-danger-fin">*</span></label>
                 <input
                   type="number"
                   required
@@ -746,7 +746,7 @@ export default function FundManagement() {
               />
 
               <div>
-                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Description / Note *</label>
+                <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Description / Note <span className="text-danger-fin">*</span></label>
                 <textarea
                   required
                   placeholder="Enter details..."

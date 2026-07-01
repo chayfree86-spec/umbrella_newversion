@@ -325,7 +325,359 @@ export default function Reports() {
   };
 
   const handleExport = (format) => {
-    alert(`Exporting report in ${format} format...`);
+    let headers = [];
+    let rows = [];
+    let reportTitle = '';
+    let reportDesc = '';
+
+    if (!activeReport) {
+      reportTitle = "Today's Collection Ledger Preview";
+      reportDesc = `Summary list of collections for ${new Date().toLocaleDateString('en-IN')}`;
+      headers = ['Date', 'Account No', 'Customer Name', 'Amount Collected', 'Agent Name', 'Payment Mode'];
+      rows = [...todayCollections].sort((a, b) => b[1].localeCompare(a[1]));
+    } else {
+      reportTitle = activeReportDetails.title;
+      reportDesc = activeReportDetails.desc;
+      headers = activeReportDetails.columns;
+      rows = getFilteredRows(reportRows);
+    }
+
+    if (format === 'Excel') {
+      let csvContent = headers.map(h => `"${h.replace(/"/g, '""')}"`).join(',') + '\r\n';
+      rows.forEach(row => {
+        const line = row.map(cell => {
+          const val = String(cell || '').replace(/₹/g, '').trim();
+          return `"${val.replace(/"/g, '""')}"`;
+        }).join(',');
+        csvContent += line + '\r\n';
+      });
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `${reportTitle.replace(/\s+/g, '_')}_${dateStr}.csv`;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    if (format === 'Print' || format === 'PDF') {
+      const printWindow = window.open('', '_blank');
+      
+      let activeFiltersHtml = '';
+      if (!activeReport) {
+        activeFiltersHtml = `<strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}`;
+      } else {
+        const branchName = selectedBranch === 'all' ? 'All Branches' : (branches.find(b => String(b.id) === String(selectedBranch))?.name || 'Selected Branch');
+        const agentName = selectedAgent === 'all' ? 'All Agents' : (agents.find(a => String(a.id) === String(selectedAgent))?.name || 'Selected Agent');
+        const dateRange = (startDate || endDate) ? `${startDate || 'Start'} to ${endDate || 'End'}` : 'All Dates';
+        const monthName = detailMonth === 'all' ? 'All Months' : new Date(2000, parseInt(detailMonth)-1, 1).toLocaleString('en-IN', {month: 'long'});
+        
+        activeFiltersHtml = `
+          <div><strong>Branch:</strong> ${branchName}</div>
+          <div><strong>Agent:</strong> ${agentName}</div>
+          <div><strong>Date Range:</strong> ${dateRange}</div>
+          <div><strong>Filtered Month:</strong> ${monthName}</div>
+        `;
+      }
+
+      const parseAmt = (val) => {
+        if (typeof val !== 'string') return Number(val || 0);
+        return Number(val.replace(/[^\d.]/g, ''));
+      };
+
+      let summaryHtml = '';
+      if (!activeReport) {
+        const total = rows.reduce((sum, r) => sum + parseAmt(r[3]), 0);
+        const cashTotal = rows.filter(r => r[5] === 'Cash').reduce((sum, r) => sum + parseAmt(r[3]), 0);
+        summaryHtml = `
+          <div class="summary-card">
+            <span class="label">Total Collection</span>
+            <span class="value">₹${total.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Total Transactions</span>
+            <span class="value">${rows.length}</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Cash Handover</span>
+            <span class="value">₹${cashTotal.toLocaleString('en-IN')}</span>
+          </div>
+        `;
+      } else if (activeReport === 'col') {
+        const total = rows.reduce((sum, r) => sum + parseAmt(r[3]), 0);
+        const cashTotal = rows.filter(r => r[5] === 'Cash').reduce((sum, r) => sum + parseAmt(r[3]), 0);
+        summaryHtml = `
+          <div class="summary-card">
+            <span class="label">Total Collection</span>
+            <span class="value">₹${total.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Accounts Synced</span>
+            <span class="value">${rows.length} Accounts</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Cash Collection</span>
+            <span class="value">₹${cashTotal.toLocaleString('en-IN')}</span>
+          </div>
+        `;
+      } else if (activeReport === 'saving') {
+        const total = rows.reduce((sum, r) => sum + parseAmt(r[4]), 0);
+        const netBal = rows.reduce((sum, r) => sum + parseAmt(r[6]), 0);
+        summaryHtml = `
+          <div class="summary-card">
+            <span class="label">Total Savings Pool</span>
+            <span class="value">₹${total.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Active Savings Accounts</span>
+            <span class="value">${rows.length} Accounts</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Net Balance (with Interest)</span>
+            <span class="value">₹${netBal.toLocaleString('en-IN')}</span>
+          </div>
+        `;
+      } else if (activeReport === 'loan') {
+        const disbursed = rows.reduce((sum, r) => sum + parseAmt(r[4]), 0);
+        const outstanding = rows.reduce((sum, r) => sum + parseAmt(r[5]), 0);
+        summaryHtml = `
+          <div class="summary-card">
+            <span class="label">Total Disbursed Pool</span>
+            <span class="value">₹${disbursed.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Total Outstanding Balance</span>
+            <span class="value">₹${outstanding.toLocaleString('en-IN')}</span>
+          </div>
+          <div class="summary-card">
+            <span class="label">Active Accounts</span>
+            <span class="value">${rows.length} Accounts</span>
+          </div>
+        `;
+      }
+
+      const tableRowsHtml = rows.map((row, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          ${row.map(cell => `<td>${cell || 'N/A'}</td>`).join('')}
+        </tr>
+      `).join('');
+
+      const tableHeadersHtml = `
+        <th>S.No.</th>
+        ${headers.map(h => `<th>${h}</th>`).join('')}
+      `;
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${reportTitle}</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+          <style>
+            body {
+              font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              color: #1e293b;
+              margin: 0;
+              padding: 20px;
+              font-size: 11px;
+            }
+            .header-container {
+              display: flex;
+              justify-content: space-between;
+              border-bottom: 2px solid #0a3598;
+              padding-bottom: 12px;
+              margin-bottom: 20px;
+            }
+            .logo-section h1 {
+              font-size: 20px;
+              font-weight: 900;
+              color: #0a3598;
+              margin: 0;
+              letter-spacing: 0.5px;
+              line-height: 1.1;
+            }
+            .logo-section p {
+              font-size: 9px;
+              font-weight: 700;
+              color: #f59e0b;
+              margin: 2px 0 0 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              line-height: 1.1;
+            }
+            .meta-section {
+              text-align: right;
+              font-size: 10px;
+              line-height: 1.4;
+            }
+            .report-title-container {
+              margin-bottom: 20px;
+            }
+            .report-title-container h2 {
+              font-size: 15px;
+              font-weight: 800;
+              color: #0f172a;
+              margin: 0;
+              text-transform: uppercase;
+            }
+            .report-title-container p {
+              font-size: 10px;
+              color: #64748b;
+              margin: 4px 0 0 0;
+              font-weight: 500;
+            }
+            .filters-summary {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 10px;
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 10px;
+              margin-bottom: 20px;
+              font-size: 9.5px;
+            }
+            .summary-cards-container {
+              display: flex;
+              gap: 12px;
+              margin-bottom: 20px;
+            }
+            .summary-card {
+              flex: 1;
+              background: #fff;
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              padding: 10px 12px;
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+            }
+            .summary-card .label {
+              font-size: 8.5px;
+              font-weight: 700;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .summary-card .value {
+              font-size: 14px;
+              font-weight: 900;
+              color: #0a3598;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #e2e8f0;
+              padding: 7px 10px;
+              text-align: left;
+            }
+            th {
+              background-color: #f8fafc;
+              font-weight: 800;
+              color: #475569;
+              font-size: 9px;
+              text-transform: uppercase;
+            }
+            tr:nth-child(even) td {
+              background-color: #fafbfc;
+            }
+            .footer {
+              margin-top: 40px;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 10px;
+              text-align: center;
+              font-size: 8.5px;
+              color: #94a3b8;
+              font-weight: 500;
+            }
+            @media print {
+              body {
+                padding: 0;
+              }
+              button {
+                display: none;
+              }
+              @page {
+                margin: 1.5cm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <div class="logo-section" style="display: flex; align-items: center; gap: 10px;">
+              <img src="${window.location.origin}/logo.png" class="logo-img" alt="Logo" style="height: 40px; width: 40px; object-fit: contain;">
+              <div>
+                <h1>UMBRELLA FINANCE</h1>
+                <p>Chhote Kadam, Bade Sapne</p>
+              </div>
+            </div>
+            <div class="meta-section">
+              <strong>Printed On:</strong> ${new Date().toLocaleString('en-IN')}<br>
+              <strong>System Status:</strong> Live
+            </div>
+          </div>
+
+          <div class="report-title-container">
+            <h2>${reportTitle}</h2>
+            <p>${reportDesc}</p>
+          </div>
+
+          <div class="filters-summary">
+            ${activeFiltersHtml}
+          </div>
+
+          ${summaryHtml ? `<div class="summary-cards-container">${summaryHtml}</div>` : ''}
+
+          <table>
+            <thead>
+              <tr>${tableHeadersHtml}</tr>
+            </thead>
+            <tbody>
+              ${tableRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            This is a computer-generated report from Umbrella Finance Live Core Ledger System. Page 1 of 1.
+          </div>
+
+          <script>
+            function startPrint() {
+              Promise.all([
+                document.fonts.ready,
+                new Promise(resolve => {
+                  const img = document.querySelector('.logo-img');
+                  if (img.complete) resolve();
+                  else img.onload = resolve;
+                })
+              ]).then(() => {
+                setTimeout(() => {
+                  window.print();
+                  setTimeout(() => { window.close(); }, 500);
+                }, 300);
+              });
+            }
+            window.onload = startPrint;
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    }
   };
 
   const activeReportDetails = activeReport ? reportsData[activeReport] : null;
@@ -556,21 +908,21 @@ export default function Reports() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleExport('PDF')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.98]"
+                  className="flex items-center gap-1.5 px-3.5 py-2 border border-border-fin hover:border-red-200 hover:text-red-600 hover:bg-red-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs"
                 >
-                  <span className="material-symbols-rounded text-sm select-none">picture_as_pdf</span>
+                  <span className="material-symbols-rounded text-sm select-none text-red-500">picture_as_pdf</span>
                   PDF
                 </button>
                 <button
                   onClick={() => handleExport('Excel')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.98]"
+                  className="flex items-center gap-1.5 px-3.5 py-2 border border-border-fin hover:border-emerald-200 hover:text-emerald-600 hover:bg-emerald-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs"
                 >
-                  <span className="material-symbols-rounded text-sm select-none">table_chart</span>
+                  <span className="material-symbols-rounded text-sm select-none text-emerald-500">table_chart</span>
                   Excel
                 </button>
                 <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer active:scale-[0.98]"
+                  onClick={() => handleExport('Print')}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#FFD54A] to-[#E67E00] hover:brightness-105 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-md"
                 >
                   <span className="material-symbols-rounded text-sm select-none">print</span>
                   Print
@@ -659,21 +1011,21 @@ export default function Reports() {
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => handleExport('PDF')}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.98] flex-1 sm:flex-initial"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-border-fin hover:border-red-200 hover:text-red-600 hover:bg-red-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs flex-1 sm:flex-initial"
               >
-                <span className="material-symbols-rounded text-sm select-none">picture_as_pdf</span>
+                <span className="material-symbols-rounded text-sm select-none text-red-500">picture_as_pdf</span>
                 PDF
               </button>
               <button
                 onClick={() => handleExport('Excel')}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.98] flex-1 sm:flex-initial"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-border-fin hover:border-emerald-200 hover:text-emerald-600 hover:bg-emerald-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs flex-1 sm:flex-initial"
               >
-                <span className="material-symbols-rounded text-sm select-none">table_chart</span>
+                <span className="material-symbols-rounded text-sm select-none text-emerald-500">table_chart</span>
                 Excel
               </button>
               <button
-                onClick={() => window.print()}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer active:scale-[0.98] flex-1 sm:flex-initial"
+                onClick={() => handleExport('Print')}
+                className="flex items-center justify-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-[#FFD54A] to-[#E67E00] hover:brightness-105 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-md flex-1 sm:flex-initial"
               >
                 <span className="material-symbols-rounded text-sm select-none">print</span>
                 Print

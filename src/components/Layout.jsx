@@ -9,6 +9,15 @@ export function Layout({ children }) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [notifications, setNotifications] = useState([]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   const loggedInName = localStorage.getItem('username') || '';
   const loggedInRole = localStorage.getItem('userRole') || '';
@@ -169,64 +178,105 @@ export function Layout({ children }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background-fin">
       {/* Desktop Left Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-72 lg:flex-shrink-0 bg-surface border-r border-border-fin z-20">
+      <aside className={`relative hidden lg:flex lg:flex-col lg:flex-shrink-0 bg-surface border-r border-border-fin z-20 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-72'}`}>
+        {/* Toggle Button */}
+        <button
+          onClick={toggleSidebar}
+          className="hidden lg:flex absolute top-6 -right-3 w-6 h-6 rounded-full border border-border-fin bg-surface hover:bg-background-fin text-secondary-text hover:text-primary-text items-center justify-center shadow-sm cursor-pointer active:scale-95 transition-all z-30"
+          title={isSidebarCollapsed ? "Expand Menu" : "Collapse Menu"}
+        >
+          <span className="material-symbols-rounded select-none text-[16px]">
+            {isSidebarCollapsed ? 'chevron_right' : 'chevron_left'}
+          </span>
+        </button>
+
         {/* Brand Header */}
-        <div className="py-4 px-5 border-b border-border-fin flex items-center gap-3 overflow-hidden select-none">
+        <div className={`py-4 ${isSidebarCollapsed ? 'px-4 justify-center' : 'px-5'} border-b border-border-fin flex items-center gap-3 overflow-hidden select-none h-16`}>
           <img src="/logo.png" className="h-11 w-11 object-contain flex-shrink-0" alt="Umbrella Finance Logo" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-lg uppercase tracking-tight mb-0.5" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900, lineHeight: 1.1 }}>
-              <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
-            </span>
-            <span className="text-[9px] font-bold text-secondary-text tracking-wide whitespace-nowrap">
-              Chhote Kadam, Bade Sapne
-            </span>
-          </div>
+          {!isSidebarCollapsed && (
+            <div className="flex flex-col min-w-0 animate-fade-in">
+              <span className="text-lg uppercase tracking-tight mb-0.5" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900, lineHeight: 1.1 }}>
+                <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+              </span>
+              <span className="text-[9px] font-bold text-secondary-text tracking-wide whitespace-nowrap">
+                Chhote Kadam, Bade Sapne
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Nav */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-3 overflow-visible' : 'px-4 overflow-y-auto'} py-6 space-y-1.5`}>
           {navigationItems.map((item) => (
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+              className={`relative group flex items-center ${isSidebarCollapsed ? 'justify-center px-0 h-11 w-11 mx-auto' : 'gap-3.5 px-4 py-3'} rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] ${
                 isActive(item.path)
                   ? 'bg-primary text-surface shadow-md shadow-primary/10'
                   : 'text-secondary-text hover:text-primary-text hover:bg-background-fin'
               }`}
             >
               <span className="material-symbols-rounded select-none">{item.icon}</span>
-              <span>{item.name}</span>
+              {!isSidebarCollapsed && <span className="animate-fade-in">{item.name}</span>}
+              
+              {/* Custom Animated Tooltip */}
+              {isSidebarCollapsed && (
+                <div className="absolute left-full ml-4 px-3 py-2 bg-primary text-white text-xs font-bold rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap shadow-md z-50 transform translate-x-[-10px] group-hover:translate-x-0 flex items-center gap-1 pointer-events-none">
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-primary"></div>
+                  {item.name}
+                </div>
+              )}
             </Link>
           ))}
         </nav>
 
         {/* User Info / Footer */}
         <div className="p-4 border-t border-border-fin bg-background-fin">
-          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+          <div className={`flex ${isSidebarCollapsed ? 'flex-col items-center gap-3.5' : 'items-center justify-between gap-3'} px-2 py-1.5`}>
             <Link
               to={userId ? `/settings/user/${userId}` : '#'}
-              className={`flex items-center gap-3 min-w-0 flex-1 hover:bg-border-fin/50 p-1.5 rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.98] ${userId ? '' : 'pointer-events-none'}`}
+              className={`relative group flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3 min-w-0 flex-1'} hover:bg-border-fin/50 p-1.5 rounded-xl transition-all duration-200 cursor-pointer active:scale-[0.98] ${userId ? '' : 'pointer-events-none'}`}
             >
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
                 {initials}
               </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-sm font-bold text-primary-text block truncate leading-none mb-1" title={loggedInName}>
-                  {loggedInName}
-                </span>
-                <span className="text-xs font-medium text-secondary-text block truncate" title={loggedInRole}>
-                  {loggedInRole}
-                </span>
-              </div>
+              {!isSidebarCollapsed && (
+                <div className="min-w-0 flex-1 animate-fade-in">
+                  <span className="text-sm font-bold text-primary-text block truncate leading-none mb-1" title={loggedInName}>
+                    {loggedInName}
+                  </span>
+                  <span className="text-xs font-medium text-secondary-text block truncate" title={loggedInRole}>
+                    {loggedInRole}
+                  </span>
+                </div>
+              )}
+
+              {/* Custom Animated Tooltip */}
+              {isSidebarCollapsed && (
+                <div className="absolute left-full ml-4 px-3 py-2 bg-primary text-white text-xs font-bold rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap shadow-md z-50 transform translate-x-[-10px] group-hover:translate-x-0 flex items-center gap-1 pointer-events-none">
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-primary"></div>
+                  {loggedInName} ({loggedInRole})
+                </div>
+              )}
             </Link>
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center flex-shrink-0"
-              title="Logout"
-            >
-              <span className="material-symbols-rounded select-none block text-lg">logout</span>
-            </button>
+
+            <div className="relative group">
+              <button
+                onClick={handleLogout}
+                className={`p-2 rounded-xl text-danger-fin hover:bg-danger-fin/10 transition-all cursor-pointer active:scale-[0.95] flex items-center justify-center`}
+              >
+                <span className="material-symbols-rounded select-none block text-lg">logout</span>
+              </button>
+              
+              {/* Custom Animated Tooltip */}
+              {isSidebarCollapsed && (
+                <div className="absolute left-full ml-4 px-3 py-2 bg-danger-fin text-white text-xs font-bold rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap shadow-md z-50 transform translate-x-[-10px] group-hover:translate-x-0 flex items-center gap-1 pointer-events-none">
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-danger-fin"></div>
+                  Logout
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </aside>

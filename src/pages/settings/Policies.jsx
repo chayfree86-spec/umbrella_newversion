@@ -376,7 +376,7 @@ export default function Policies() {
             </div>
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Policy Name *</label>
+                <label className="block text-[10px] font-bold text-secondary-text uppercase tracking-wider">Policy Name <span className="text-danger-fin">*</span></label>
                 <input
                   type="text"
                   required
