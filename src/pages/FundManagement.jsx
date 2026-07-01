@@ -340,6 +340,8 @@ export default function FundManagement() {
   // Derive values from API summary
   const totalCapital = Number(summary?.total_capital || 0);
   const totalSavings = Number(summary?.total_savings || 0);
+  const availableSavingsCash = Number(summary?.available_savings_cash || 0);
+  const netSavingsTransferred = Number(summary?.net_savings_transferred || 0);
   const loanPool = Number(summary?.loan_pool || 0);
   const totalDisbursed = Number(summary?.total_disbursed || 0);
   const interestReceived = Number(summary?.total_interest || 0);
@@ -410,7 +412,14 @@ export default function FundManagement() {
             <span className="material-symbols-rounded text-base text-[#D97706] select-none">savings</span>
           </div>
           <h3 className="text-lg font-extrabold text-[#D97706]">{inr(totalSavings)}</h3>
-          <p className="text-[9px] text-[#64748B]">Deposited by customers</p>
+          <p className="text-[9px] text-[#64748B] leading-snug">
+            Available Cash: <span className="font-bold text-slate-800">{inr(availableSavingsCash)}</span>
+            {netSavingsTransferred > 0 && (
+              <span className="block text-[8px] text-[#EA580C] font-semibold mt-0.5">
+                (Transferred {inr(netSavingsTransferred)} to Loan)
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Card 3: Loans Disbursed */}
@@ -430,7 +439,18 @@ export default function FundManagement() {
             <span className="material-symbols-rounded text-base text-[#16A34A] select-none">payments</span>
           </div>
           <h3 className="text-lg font-extrabold text-[#16A34A]">{inr(availableLoanFund)}</h3>
-          <p className="text-[9px] text-[#64748B]">Ready for new disbursements</p>
+          <p className="text-[9px] text-[#64748B] leading-snug">
+            {netSavingsTransferred > 0 ? (
+              <>
+                Ready for loans
+                <span className="block text-[8px] text-[#16A34A] font-semibold mt-0.5">
+                  (Includes {inr(netSavingsTransferred)} from Savings)
+                </span>
+              </>
+            ) : (
+              'Ready for new disbursements'
+            )}
+          </p>
         </div>
 
         {/* Card 5: Overall Cash Balance */}

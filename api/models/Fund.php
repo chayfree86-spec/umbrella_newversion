@@ -5,10 +5,10 @@
 class Fund {
 
     public static function getSummary($db) {
-        // Total Capital (Owner Equity + Investor Funding)
+        // Total raw capital from database (contains accumulated transfers if previously added)
         $stmt = $db->prepare("SELECT COALESCE(SUM(total_invested), 0) FROM fund_sources WHERE status = 'Active'");
         $stmt->execute();
-        $totalCapital = $stmt->fetchColumn();
+        $rawTotalCapital = (float)$stmt->fetchColumn();
 
         // Total Savings Deposited (Customer balances)
         $stmt = $db->prepare("SELECT COALESCE(SUM(total_deposited), 0) FROM saving_accounts WHERE deleted_at IS NULL");
@@ -16,20 +16,26 @@ class Fund {
         $customerSavings = (float)$stmt->fetchColumn();
 
         // Calculate net transfers between Savings and Loan Pool (to adjust virtual balances)
-        // Savings to Loan Transfer increases capital, decreases savings
+        // Savings to Loan Transfer
         $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) FROM capital_entries WHERE description LIKE '%Savings to Loan%' OR description = 'Savings to Loan Fund Transfer'");
         $stmt->execute();
         $savingsToLoan = (float)$stmt->fetchColumn();
 
-        // Loan to Savings Transfer decreases capital, increases savings
+        // Loan to Savings Transfer
         $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) FROM capital_entries WHERE description LIKE '%Loan to Savings%' OR description = 'Loan to Savings Fund Transfer'");
         $stmt->execute();
         $loanToSavings = (float)$stmt->fetchColumn();
 
         $netSavingsTransferred = $savingsToLoan - $loanToSavings;
 
-        // Virtual savings balance of the branch
-        $totalSavings = max(0, $customerSavings - $netSavingsTransferred);
+        // Strictly Owner Capital (subtracting virtual transfers to keep equity correct)
+        $totalCapital = $rawTotalCapital - $netSavingsTransferred;
+
+        // Total savings represents the actual sum of customer accounts (liability)
+        $totalSavings = $customerSavings;
+
+        // Available cash in the savings pool
+        $availableSavingsCash = max(0.0, $customerSavings - $netSavingsTransferred);
 
         // Total Disbursed Loans (Approved principal)
         $stmt = $db->prepare("SELECT COALESCE(SUM(principal_amount), 0) FROM loan_accounts WHERE account_status NOT IN ('Processing', 'Rejected') AND deleted_at IS NULL");
@@ -52,18 +58,23 @@ class Fund {
         $principalRepaid = $stmt->fetchColumn();
 
         // Overall Cash Balance = (Capital + Savings + Interest + Penalties + Principal Repaid) - Disbursed
-        $overallCash = ($totalCapital + $totalSavings + $interestReceived + $penaltiesReceived + $principalRepaid) - $totalDisbursed;
+        // Using $rawTotalCapital + $availableSavingsCash is mathematically identical to ($totalCapital + $customerSavings)
+        $overallCash = ($totalCapital + $customerSavings + $interestReceived + $penaltiesReceived + $principalRepaid) - $totalDisbursed;
 
-        // Loan pool size (100% allocation, no reserve)
-        $loanPool = $totalCapital;
+        // Loan pool size (includes pure capital + net transfers from savings)
+        $loanPool = $totalCapital + $netSavingsTransferred;
 
-        $availableLoanFund = max(0, $loanPool - $totalDisbursed + $principalRepaid + $interestReceived + $penaltiesReceived);
+        $availableLoanFund = max(0.0, $loanPool - $totalDisbursed + $principalRepaid + $interestReceived + $penaltiesReceived);
 
         return [
             'totalCapital' => (float)$totalCapital,
             'total_capital' => (float)$totalCapital,
             'totalSavings' => (float)$totalSavings,
             'total_savings' => (float)$totalSavings,
+            'availableSavingsCash' => (float)$availableSavingsCash,
+            'available_savings_cash' => (float)$availableSavingsCash,
+            'netSavingsTransferred' => (float)$netSavingsTransferred,
+            'net_savings_transferred' => (float)$netSavingsTransferred,
             'loanPool' => (float)$loanPool,
             'loan_pool' => (float)$loanPool,
             'totalDisbursed' => (float)$totalDisbursed,
