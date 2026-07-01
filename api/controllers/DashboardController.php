@@ -116,7 +116,7 @@ class DashboardController {
 
         // 14. Active Saving rows
         $qActiveSavings = "
-            SELECT sa.saving_account_no, sa.total_deposited, sa.interest_rate, sa.maturity_date, c.full_name, sp.name as plan_name
+            SELECT sa.saving_account_no, sa.total_deposited, sa.interest_rate, sa.maturity_date, c.full_name, sa.plan_name as plan_name
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
             LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
@@ -141,7 +141,7 @@ class DashboardController {
 
         // 16. Today's Maturity rows
         $qMatRows = "
-            SELECT sa.saving_account_no, sa.maturity_amount, c.full_name, sp.name as plan_name, sa.account_status
+            SELECT sa.saving_account_no, sa.maturity_amount, c.full_name, sa.plan_name as plan_name, sa.account_status
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
             LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
@@ -202,6 +202,44 @@ class DashboardController {
         $totalLoanPortfolio = (float)$db->query("SELECT COALESCE(SUM(outstanding_amount), 0) FROM loan_accounts WHERE account_status IN ('Approved','Active','Defaulter','NPA') AND deleted_at IS NULL")->fetchColumn();
         $totalSavingPortfolio = (float)$db->query("SELECT COALESCE(SUM(total_deposited), 0) FROM saving_accounts WHERE account_status IN ('Approved','Active') AND deleted_at IS NULL")->fetchColumn();
 
+        // 22. Earned Interest Calculation
+        $qEarnedInterest = "SELECT COALESCE(SUM(interest_amount), 0) FROM loan_collections WHERE is_reversal = 0";
+        if ($branchId) $qEarnedInterest .= " AND branch_id = " . (int)$branchId;
+        $earnedInterest = (float)$db->query($qEarnedInterest)->fetchColumn();
+
+        // 23. Pending Interest Calculation
+        $qPendingInterest = "SELECT COALESCE(SUM(li.interest_component * (1 - li.paid_amount / li.total_due)), 0) 
+                             FROM loan_installments li 
+                             JOIN loan_accounts la ON li.loan_account_id = la.id 
+                             WHERE li.due_date <= CURRENT_DATE() AND li.status != 'Paid' AND la.account_status IN ('Approved', 'Active', 'Defaulter') AND la.deleted_at IS NULL";
+        if ($branchId) $qPendingInterest .= " AND la.branch_id = " . (int)$branchId;
+        $pendingInterest = (float)$db->query($qPendingInterest)->fetchColumn();
+
+        // 24. Earned Interest Rows
+        $qEarnedRows = "
+            SELECT la.loan_account_no, c.full_name, lc.receipt_no, lc.interest_amount, lc.collection_date, lc.payment_mode
+            FROM loan_collections lc
+            JOIN loan_accounts la ON lc.loan_account_id = la.id
+            JOIN customers c ON lc.customer_id = c.id
+            WHERE lc.is_reversal = 0 AND lc.interest_amount > 0
+        ";
+        if ($branchId) $qEarnedRows .= " AND lc.branch_id = " . (int)$branchId;
+        $qEarnedRows .= " ORDER BY lc.id DESC LIMIT 10";
+        $earnedInterestRows = $db->query($qEarnedRows)->fetchAll();
+
+        // 25. Pending Interest Rows
+        $qPendingRows = "
+            SELECT la.loan_account_no, c.full_name, li.due_date, (li.interest_component * (1 - li.paid_amount / li.total_due)) as pending_interest, ag.name as agent_name
+            FROM loan_installments li
+            JOIN loan_accounts la ON li.loan_account_id = la.id
+            JOIN customers c ON la.customer_id = c.id
+            JOIN agents ag ON la.agent_id = ag.id
+            WHERE li.due_date <= CURRENT_DATE() AND li.status != 'Paid' AND la.account_status IN ('Approved', 'Active', 'Defaulter') AND la.deleted_at IS NULL
+        ";
+        if ($branchId) $qPendingRows .= " AND la.branch_id = " . (int)$branchId;
+        $qPendingRows .= " ORDER BY li.due_date ASC, pending_interest DESC LIMIT 10";
+        $pendingInterestRows = $db->query($qPendingRows)->fetchAll();
+
         Response::success([
             'total_customers' => (int)$totalCustomers,
             'active_loans' => (int)$activeLoans,
@@ -215,6 +253,8 @@ class DashboardController {
             'outstanding_amount' => (float)$outstandingAmount,
             'overall_cash_balance' => (float)$overallCash,
             'available_loan_fund' => (float)$availableLoanFund,
+            'earned_interest' => (float)$earnedInterest,
+            'pending_interest' => (float)$pendingInterest,
             'total_branches' => (int)$totalBranches,
             'total_agents' => (int)$totalAgents,
             'recent_collections' => $recentCollections,
@@ -228,7 +268,9 @@ class DashboardController {
             'fund_entry_rows' => $fundEntryRows,
             'collection_trend' => $collectionTrend,
             'portfolio_loan' => $totalLoanPortfolio,
-            'portfolio_saving' => $totalSavingPortfolio
+            'portfolio_saving' => $totalSavingPortfolio,
+            'earned_interest_rows' => $earnedInterestRows,
+            'pending_interest_rows' => $pendingInterestRows
         ]);
     }
 }

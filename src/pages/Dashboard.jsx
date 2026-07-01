@@ -53,8 +53,9 @@ export default function Dashboard() {
     { name: "Today's Due",         value: d ? inr(d.today_due) : placeholder,                                        icon: 'schedule',               change: 'Pending EMI payments',      type: 'warning' },
     { name: "Today's Maturity",    value: d ? `${num(d.today_maturity)} Accounts` : placeholder,                     icon: 'workspace_premium',      change: 'Savings maturities today',  type: 'accent' },
     { name: 'Outstanding Amount',  value: d ? inr(d.outstanding_amount) : placeholder,                               icon: 'pending_actions',        change: 'Outstanding loan portfolio',type: 'danger' },
-    { name: 'Overall Cash Balance',value: d ? inr(d.overall_cash_balance) : placeholder,                             icon: 'wallet',                 change: 'Cash in hand balance',      type: 'success' },
-    { name: 'Available Loan Fund', value: d ? inr(d.available_loan_fund) : placeholder,                              icon: 'account_balance_wallet', change: 'Ready for disbursal',       type: 'primary' }
+    { name: 'Available Loan Fund', value: d ? inr(d.available_loan_fund) : placeholder,                              icon: 'account_balance_wallet', change: 'Ready for disbursal',       type: 'primary' },
+    { name: 'Earned Interest',     value: d ? inr(d.earned_interest) : placeholder,                                  icon: 'trending_up',            change: 'Collected interest income', type: 'success' },
+    { name: 'Pending Interest',    value: d ? inr(d.pending_interest) : placeholder,                                 icon: 'hourglass_empty',        change: 'Overdue & due interest',    type: 'warning' }
   ];
 
   // Drill-down table data — all rows come from API
@@ -140,6 +141,22 @@ export default function Dashboard() {
         r.transaction_no || '—',
         inr(r.amount)
       ])
+    },
+    'Earned Interest': {
+      title: 'Collected Interest Income Ledger',
+      desc: 'Real-time list of collected interest from loan repayments',
+      columns: ['Customer', 'Account No', 'Receipt No', 'Interest Amount', 'Collection Date', 'Payment Mode'],
+      rows: (d?.earned_interest_rows || []).map(r => [
+        r.full_name, r.loan_account_no, r.receipt_no, inr(r.interest_amount), fmtDate(r.collection_date), r.payment_mode
+      ])
+    },
+    'Pending Interest': {
+      title: 'Pending / Overdue Interest Receivables',
+      desc: 'Outstanding interest components from due and overdue installments',
+      columns: ['Customer', 'Account No', 'Due Date', 'Pending Interest', 'Assigned Agent'],
+      rows: (d?.pending_interest_rows || []).map(r => [
+        r.full_name, r.loan_account_no, fmtDate(r.due_date), inr(r.pending_interest), r.agent_name || '—'
+      ])
     }
   };
 
@@ -213,7 +230,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Page Header (Fintech Style Banner) */}
-      <div className="relative overflow-hidden bg-primary rounded-3xl p-6 md:p-8 text-surface shadow-lg shadow-primary/5">
+      <div className="relative overflow-hidden bg-primary rounded-3xl p-6 md:p-8 text-surface shadow-lg shadow-primary/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-15 bg-radial-gradient from-accent to-transparent pointer-events-none"></div>
         <div className="relative z-10 max-w-2xl space-y-2">
           <span className="bg-surface/10 text-accent px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-1.5 inline-block">
@@ -224,11 +241,28 @@ export default function Dashboard() {
           </h2>
           <p className="text-sm text-surface/80 max-w-[60ch] leading-relaxed font-semibold">
             {d ? (
-              <>Umbrella Finance collection today is <strong className="text-accent font-black">{inr(d.today_collection)}</strong>. Click on any card below to filter the detailed drill-down data table instantly.</>
+              <>Umbrella Finance collection today is <strong className="text-accent font-black">{inr(d.today_collection)}</strong>.</>
             ) : (
               <>{error ? <span className="text-accent">{error}</span> : 'Loading live collection data…'}</>
             )}
           </p>
+        </div>
+
+        {/* Highlighted Cash Balance */}
+        <div 
+          onClick={() => setActiveFilter('Overall Cash Balance')}
+          className={`relative z-10 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-5 min-w-[240px] shadow-inner flex flex-col items-start md:items-end self-stretch md:self-auto cursor-pointer select-none transition-all active:scale-[0.98] ${
+            activeFilter === 'Overall Cash Balance' ? 'ring-2 ring-accent bg-white/20' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="material-symbols-rounded text-accent text-lg">wallet</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-white/80">Overall Cash Balance</span>
+          </div>
+          <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+            {d ? inr(d.overall_cash_balance) : placeholder}
+          </h3>
+          <span className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">Cash in hand balance</span>
         </div>
       </div>
 

@@ -108,9 +108,9 @@ class Customer {
 
         // Loan Accounts
         $stmt = $db->prepare("
-            SELECT la.*, lp.name as plan_name 
+            SELECT la.*, la.plan_name as plan_name 
             FROM loan_accounts la
-            JOIN loan_plans lp ON la.loan_plan_id = lp.id
+            LEFT JOIN loan_plans lp ON la.loan_plan_id = lp.id
             WHERE la.customer_id = :id AND la.deleted_at IS NULL
         ");
         $stmt->execute(['id' => $id]);
@@ -118,9 +118,9 @@ class Customer {
 
         // Saving Accounts
         $stmt = $db->prepare("
-            SELECT sa.*, sp.name as plan_name 
+            SELECT sa.*, sa.plan_name as plan_name 
             FROM saving_accounts sa
-            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
             WHERE sa.customer_id = :id AND sa.deleted_at IS NULL
         ");
         $stmt->execute(['id' => $id]);

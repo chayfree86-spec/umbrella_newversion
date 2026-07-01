@@ -45,7 +45,7 @@ class LoanAccount {
         $stmt = $db->prepare("
             SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            lp.name as plan_name,
+            la.plan_name as plan_name,
             (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
                 FROM loan_installments li
                 WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid') as today_due,
@@ -59,7 +59,7 @@ class LoanAccount {
             JOIN branches b ON la.branch_id = b.id
             JOIN areas ar ON la.area_id = ar.id
             JOIN agents ag ON la.agent_id = ag.id
-            JOIN loan_plans lp ON la.loan_plan_id = lp.id
+            LEFT JOIN loan_plans lp ON la.loan_plan_id = lp.id
             WHERE $whereSql
             ORDER BY la.id DESC
             LIMIT :limit OFFSET :offset
@@ -80,7 +80,7 @@ class LoanAccount {
         $stmt = $db->prepare("
             SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            lp.name as plan_name,
+            la.plan_name as plan_name,
             (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
                 FROM loan_installments li
                 WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid') as today_due,
@@ -94,7 +94,7 @@ class LoanAccount {
             JOIN branches b ON la.branch_id = b.id
             JOIN areas ar ON la.area_id = ar.id
             JOIN agents ag ON la.agent_id = ag.id
-            JOIN loan_plans lp ON la.loan_plan_id = lp.id
+            LEFT JOIN loan_plans lp ON la.loan_plan_id = lp.id
             WHERE la.id = :id AND la.deleted_at IS NULL
         ");
         $stmt->execute(['id' => $id]);
@@ -105,7 +105,7 @@ class LoanAccount {
         $stmt = $db->prepare("
             SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            lp.name as plan_name,
+            la.plan_name as plan_name,
             (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
                 FROM loan_installments li
                 WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid') as today_due,
@@ -119,7 +119,7 @@ class LoanAccount {
             JOIN branches b ON la.branch_id = b.id
             JOIN areas ar ON la.area_id = ar.id
             JOIN agents ag ON la.agent_id = ag.id
-            JOIN loan_plans lp ON la.loan_plan_id = lp.id
+            LEFT JOIN loan_plans lp ON la.loan_plan_id = lp.id
             WHERE la.loan_account_no = :acc_no AND la.deleted_at IS NULL
         ");
         $stmt->execute(['acc_no' => $accNo]);
@@ -129,14 +129,24 @@ class LoanAccount {
     public static function create($db, $data) {
         $accNo = NumberGenerator::generate($db, PREFIX_LOAN);
 
+        $planName = 'Custom Loan Plan';
+        if (!empty($data['loan_plan_id'])) {
+            $planStmt = $db->prepare("SELECT name FROM loan_plans WHERE id = :id");
+            $planStmt->execute(['id' => $data['loan_plan_id']]);
+            $resName = $planStmt->fetchColumn();
+            if ($resName) {
+                $planName = $resName;
+            }
+        }
+
         $stmt = $db->prepare("
             INSERT INTO loan_accounts (
-                uuid, loan_account_no, customer_id, loan_plan_id, branch_id, area_id, agent_id,
+                uuid, loan_account_no, customer_id, loan_plan_id, plan_name, branch_id, area_id, agent_id,
                 principal_amount, interest_rate, interest_type, interest_amount, processing_fee,
                 total_payable, emi_amount, duration_days, duration_months, collection_frequency,
                 start_date, end_date, outstanding_amount, account_status, created_by
             ) VALUES (
-                :uuid, :loan_account_no, :customer_id, :loan_plan_id, :branch_id, :area_id, :agent_id,
+                :uuid, :loan_account_no, :customer_id, :loan_plan_id, :plan_name, :branch_id, :area_id, :agent_id,
                 :principal_amount, :interest_rate, :interest_type, :interest_amount, :processing_fee,
                 :total_payable, :emi_amount, :duration_days, :duration_months, :collection_frequency,
                 :start_date, :end_date, :outstanding_amount, :account_status, :created_by
@@ -149,6 +159,7 @@ class LoanAccount {
             'loan_account_no' => $accNo,
             'customer_id' => $data['customer_id'],
             'loan_plan_id' => $data['loan_plan_id'],
+            'plan_name' => $planName,
             'branch_id' => $data['branch_id'],
             'area_id' => $data['area_id'],
             'agent_id' => $data['agent_id'],

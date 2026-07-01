@@ -45,7 +45,7 @@ class SavingAccount {
         $stmt = $db->prepare("
             SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            sp.name as plan_name,
+            sa.plan_name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,
             (SELECT COALESCE(SUM(si.total_due - si.paid_amount), 0)
                 FROM saving_installments si
@@ -58,7 +58,7 @@ class SavingAccount {
             JOIN branches b ON sa.branch_id = b.id
             JOIN areas ar ON sa.area_id = ar.id
             JOIN agents ag ON sa.agent_id = ag.id
-            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
             WHERE $whereSql
             ORDER BY sa.id DESC
             LIMIT :limit OFFSET :offset
@@ -79,7 +79,7 @@ class SavingAccount {
         $stmt = $db->prepare("
             SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            sp.name as plan_name,
+            sa.plan_name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,
             (SELECT COALESCE(SUM(si.total_due - si.paid_amount), 0)
                 FROM saving_installments si
@@ -92,7 +92,7 @@ class SavingAccount {
             JOIN branches b ON sa.branch_id = b.id
             JOIN areas ar ON sa.area_id = ar.id
             JOIN agents ag ON sa.agent_id = ag.id
-            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
             WHERE sa.id = :id AND sa.deleted_at IS NULL
         ");
         $stmt->execute(['id' => $id]);
@@ -103,7 +103,7 @@ class SavingAccount {
         $stmt = $db->prepare("
             SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
-            sp.name as plan_name,
+            sa.plan_name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,
             (SELECT COALESCE(SUM(si.total_due - si.paid_amount), 0)
                 FROM saving_installments si
@@ -116,7 +116,7 @@ class SavingAccount {
             JOIN branches b ON sa.branch_id = b.id
             JOIN areas ar ON sa.area_id = ar.id
             JOIN agents ag ON sa.agent_id = ag.id
-            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
             WHERE sa.saving_account_no = :acc_no AND sa.deleted_at IS NULL
         ");
         $stmt->execute(['acc_no' => $accNo]);
@@ -126,13 +126,23 @@ class SavingAccount {
     public static function create($db, $data) {
         $accNo = NumberGenerator::generate($db, PREFIX_SAVING);
 
+        $planName = 'Custom Savings Plan';
+        if (!empty($data['saving_plan_id'])) {
+            $planStmt = $db->prepare("SELECT name FROM saving_plans WHERE id = :id");
+            $planStmt->execute(['id' => $data['saving_plan_id']]);
+            $resName = $planStmt->fetchColumn();
+            if ($resName) {
+                $planName = $resName;
+            }
+        }
+
         $stmt = $db->prepare("
             INSERT INTO saving_accounts (
-                uuid, saving_account_no, customer_id, saving_plan_id, branch_id, area_id, agent_id,
+                uuid, saving_account_no, customer_id, saving_plan_id, plan_name, branch_id, area_id, agent_id,
                 deposit_amount, interest_rate, duration_months, maturity_amount, collection_frequency,
                 total_deposited, start_date, maturity_date, account_status, created_by
             ) VALUES (
-                :uuid, :saving_account_no, :customer_id, :saving_plan_id, :branch_id, :area_id, :agent_id,
+                :uuid, :saving_account_no, :customer_id, :saving_plan_id, :plan_name, :branch_id, :area_id, :agent_id,
                 :deposit_amount, :interest_rate, :duration_months, :maturity_amount, :collection_frequency,
                 0.00, :start_date, :maturity_date, :account_status, :created_by
             )
@@ -144,6 +154,7 @@ class SavingAccount {
             'saving_account_no' => $accNo,
             'customer_id' => $data['customer_id'],
             'saving_plan_id' => $data['saving_plan_id'],
+            'plan_name' => $planName,
             'branch_id' => $data['branch_id'],
             'area_id' => $data['area_id'],
             'agent_id' => $data['agent_id'],

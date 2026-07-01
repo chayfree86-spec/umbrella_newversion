@@ -66,12 +66,12 @@ class ReportController {
                 FROM loan_installments li
                 WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid'
             ) as InterestOverdue,
-            CONCAT(lp.name, ' (', lp.interest_rate, '% ', lp.interest_type, ')') as LoanPlan,
+            CONCAT(la.plan_name, ' (', la.interest_rate, '% ', la.interest_type, ')') as LoanPlan,
             la.account_status as Status,
             b.name as BranchName
             FROM loan_accounts la
             JOIN customers c ON la.customer_id = c.id
-            JOIN loan_plans lp ON la.loan_plan_id = lp.id
+            LEFT JOIN loan_plans lp ON la.loan_plan_id = lp.id
             JOIN branches b ON la.branch_id = b.id
             WHERE $whereSql
             ORDER BY la.id DESC
@@ -100,15 +100,15 @@ class ReportController {
             sa.interest_rate as InterestRate,
             sa.start_date as StartDate, sa.maturity_date as MaturityDate,
             sa.maturity_amount as MaturityValue,
-            CONCAT(sp.name, ' (', sa.interest_rate, '%)') as PlanDetails,
-            sp.name as PlanName,
+            CONCAT(sa.plan_name, ' (', sa.interest_rate, '%)') as PlanDetails,
+            sa.plan_name as PlanName,
             ROUND(sa.total_deposited * sa.interest_rate / 100, 2) as InterestPaid,
             ROUND(sa.total_deposited + (sa.total_deposited * sa.interest_rate / 100), 2) as NetBalance,
             sa.account_status as Status,
             b.name as BranchName
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
-            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
             JOIN branches b ON sa.branch_id = b.id
             WHERE $whereSql
             ORDER BY sa.id DESC
@@ -165,7 +165,7 @@ class ReportController {
             sa.maturity_date as MaturityDate,
             sa.maturity_amount as MaturityValue,
             sa.total_deposited as TotalDeposited,
-            sp.name as PlanName,
+            sa.plan_name as PlanName,
             CASE
                 WHEN sa.account_status = 'Matured' THEN 'Completed'
                 WHEN sa.account_status = 'Closed' THEN 'Closed'
@@ -175,7 +175,7 @@ class ReportController {
             b.name as BranchName
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
-            JOIN saving_plans sp ON sa.saving_plan_id = sp.id
+            LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id
             JOIN branches b ON sa.branch_id = b.id
             WHERE $whereSql
             ORDER BY sa.id DESC

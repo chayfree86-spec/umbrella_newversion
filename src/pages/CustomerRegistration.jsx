@@ -916,6 +916,7 @@ export default function CustomerRegistration() {
     rate: Number(p.interest_rate),
     type: p.interest_type,
     duration: Number(p.duration_value),
+    durationUnit: p.duration_unit || 'Days',
     frequency: p.collection_frequency,
     emi: Math.round((Number(p.min_amount) + (Number(p.min_amount) * (Number(p.interest_rate) / 100))) / Number(p.duration_value)),
     processingFee: Number(p.processing_fee),
@@ -928,6 +929,7 @@ export default function CustomerRegistration() {
     dailyDeposit: Number(p.deposit_amount),
     rate: Number(p.interest_rate),
     duration: Number(p.duration_value),
+    durationUnit: p.duration_unit || 'Days',
     frequency: p.collection_frequency,
     maturity: Number(p.maturity_amount)
   }));
@@ -1542,30 +1544,67 @@ export default function CustomerRegistration() {
                       ...(formData.accountType === 'Loan' ? loanPlans : savingPlans),
                       { value: 'custom', label: 'Custom Plan (Enter Manually)' }
                     ]}
-                    value={formData.planId}
                     onChange={(val) => {
-                       setFormData(prev => ({ 
-                         ...prev, 
-                         planId: val,
-                         customAmount: '',
-                         customRate: localStorage.getItem('custom_interest_rate') || '',
-                         customDuration: '',
-                         customDurationUnit: 'Days',
-                         customFrequency: 'Daily',
-                         customType: 'Flat',
-                         customEmi: '',
-                         customProcessingFee: '0',
-                         customPenalty: '0',
-                         customDailyDeposit: '',
-                         customMaturity: ''
-                       }));
+                      if (val === 'custom') {
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          planId: val,
+                          customAmount: '',
+                          customRate: localStorage.getItem('custom_interest_rate') || '',
+                          customDuration: '',
+                          customDurationUnit: 'Days',
+                          customFrequency: 'Daily',
+                          customType: 'Flat',
+                          customEmi: '',
+                          customProcessingFee: '0',
+                          customPenalty: '0',
+                          customDailyDeposit: '',
+                          customMaturity: ''
+                        }));
+                      } else {
+                        if (formData.accountType === 'Loan') {
+                          const plan = loanPlans.find(p => p.value === val);
+                          setFormData(prev => ({
+                            ...prev,
+                            planId: val,
+                            customAmount: plan ? String(plan.amount) : '',
+                            customRate: plan ? String(plan.rate) : '',
+                            customDuration: plan ? String(plan.duration) : '',
+                            customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
+                            customFrequency: plan ? plan.frequency : 'Daily',
+                            customType: plan ? plan.type : 'Flat',
+                            customEmi: '', 
+                            customProcessingFee: plan ? String(plan.processingFee) : '0',
+                            customPenalty: plan ? String(plan.penalty) : '0',
+                            customDailyDeposit: '',
+                            customMaturity: ''
+                          }));
+                        } else {
+                          const plan = savingPlans.find(p => p.value === val);
+                          setFormData(prev => ({
+                            ...prev,
+                            planId: val,
+                            customAmount: '',
+                            customRate: plan ? String(plan.rate) : '',
+                            customDuration: plan ? String(plan.duration) : '',
+                            customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
+                            customFrequency: plan ? plan.frequency : 'Daily',
+                            customType: 'Flat',
+                            customEmi: '',
+                            customProcessingFee: '0',
+                            customPenalty: '0',
+                            customDailyDeposit: plan ? String(plan.dailyDeposit) : '',
+                            customMaturity: '' 
+                          }));
+                        }
+                      }
                     }}
                   />
                 )}
 
-                {formData.planId === 'custom' && formData.accountType === 'Loan' && (
+                {formData.planId && formData.planId !== '' && formData.accountType === 'Loan' && (
                   <div className="border-t border-[#E2E8F0] pt-4 mt-2 space-y-4">
-                    <h4 className="text-xs font-bold text-primary-text uppercase tracking-wider">Custom Loan Details</h4>
+                    <h4 className="text-xs font-bold text-primary-text uppercase tracking-wider">{formData.planId === 'custom' ? 'Custom Loan Details' : 'Loan Plan Parameters'}</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Principal Amount *</label>
@@ -1711,7 +1750,6 @@ export default function CustomerRegistration() {
                             onChange={(e) => setFormData(prev => ({ ...prev, customDuration: e.target.value }))}
                             className="flex-1 min-w-0 px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                           />
-                          {formData.planId === 'custom' ? (
                             <div className="w-32">
                               <Select
                                 options={[
@@ -1723,34 +1761,20 @@ export default function CustomerRegistration() {
                                 onChange={(val) => setFormData(prev => ({ ...prev, customDurationUnit: val }))}
                               />
                             </div>
-                          ) : (
-                            <div className="w-32 flex items-center justify-center bg-slate-100 border border-border-fin rounded-xl text-xs font-bold text-secondary-text select-none">
-                              {formData.customDurationUnit}
-                            </div>
-                          )}
                         </div>
                       </div>
 
-                      {formData.planId === 'custom' ? (
-                        <Select
-                          label="Frequency *"
-                          required={true}
-                          options={[
-                            { value: 'Daily', label: 'Daily' },
-                            { value: 'Weekly', label: 'Weekly' },
-                            { value: 'Monthly', label: 'Monthly' }
-                          ]}
-                          value={formData.customFrequency}
-                          onChange={(val) => setFormData(prev => ({ ...prev, customFrequency: val }))}
-                        />
-                      ) : (
-                        <div>
-                          <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Frequency</label>
-                          <div className="w-full px-4 py-3 bg-slate-100 border border-border-fin rounded-xl text-sm font-semibold text-secondary-text select-none">
-                            {formData.customFrequency}
-                          </div>
-                        </div>
-                      )}
+                      <Select
+                        label="Frequency *"
+                        required={true}
+                        options={[
+                          { value: 'Daily', label: 'Daily' },
+                          { value: 'Weekly', label: 'Weekly' },
+                          { value: 'Monthly', label: 'Monthly' }
+                        ]}
+                        value={formData.customFrequency}
+                        onChange={(val) => setFormData(prev => ({ ...prev, customFrequency: val }))}
+                      />
 
                       <div className="sm:col-span-2">
                         <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Estimated Maturity Amount</label>
