@@ -53,6 +53,28 @@ class CustomerController {
         Response::success($data);
     }
 
+    public static function checkMobile($db, $authUser) {
+        $mobile = $_GET['mobile'] ?? '';
+        if (empty($mobile)) {
+            Response::error('Mobile number is required.', 400);
+        }
+
+        $customer = Customer::getByCodeOrMobile($db, $mobile);
+        if ($customer) {
+            Response::success([
+                'registered' => true,
+                'customer' => [
+                    'full_name' => $customer['full_name'],
+                    'customer_code' => $customer['customer_code']
+                ]
+            ]);
+        } else {
+            Response::success([
+                'registered' => false
+            ]);
+        }
+    }
+
     public static function profile($db, $authUser, $id) {
         self::show($db, $authUser, $id);
     }
@@ -72,6 +94,12 @@ class CustomerController {
         }
         if (!Agent::getById($db, $input['agent_id'])) {
             Response::error('Invalid agent selected.', 422);
+        }
+
+        // Validate unique mobile number
+        $existing = Customer::getByCodeOrMobile($db, $input['mobile']);
+        if ($existing) {
+            Response::error("Mobile number is already registered with {$existing['full_name']} ({$existing['customer_code']}).", 422);
         }
 
         $db->beginTransaction();
@@ -134,47 +162,62 @@ class CustomerController {
             $createdAccountType = '';
 
             // 5. Open Selected Account (Loan or Saving Plan)
-            // 5. Open Selected Account (Loan or Saving Plan)
-            if (!empty($input['plan_type'])) {
-                if ($input['plan_type'] === 'Loan') {
-                    if (empty($input['plan_id'])) {
-                        // Find or create "Custom Loan Plan"
-                        $stmtCustom = $db->prepare("SELECT id FROM loan_plans WHERE name = 'Custom Loan Plan' LIMIT 1");
-                        $stmtCustom->execute();
-                        $customPlanId = $stmtCustom->fetchColumn();
-                        if (!$customPlanId) {
-                            $stmtInsert = $db->prepare("
-                                INSERT INTO loan_plans (uuid, name, min_amount, max_amount, interest_rate, interest_type, duration_value, duration_unit, collection_frequency, processing_fee, penalty_per_day, status, created_by)
-                                VALUES (UUID(), 'Custom Loan Plan', 0.00, 0.00, 0.00, 'Flat', 0, 'Days', 'Daily', 0.00, 0.00, 'Active', :created_by)
-                            ");
-                            $stmtInsert->execute(['created_by' => $authUser['id']]);
-                            $customPlanId = $db->lastInsertId();
-                        }
-                        $planId = $customPlanId;
-                    } else {
-                        $planId = $input['plan_id'];
-                    }
+            if (empty($input['plan_type']) || !in_array($input['plan_type'], ['Loan', 'Saving'])) {
+                throw new Exception("Plan type is required and must be either 'Loan' or 'Saving'.");
+            }
 
-                    $plan = LoanPlan::getById($db, $planId);
-                    if ($plan) {
+            if ($input['plan_type'] === 'Loan') {
+                if (empty($input['plan_id'])) {
+                    // Find or create "Custom Loan Plan"
+                    $stmtCustom = $db->prepare("SELECT id FROM loan_plans WHERE name = 'Custom Loan Plan' AND deleted_at IS NULL LIMIT 1");
+                    $stmtCustom->execute();
+                    $customPlanId = $stmtCustom->fetchColumn();
+                    if (!$customPlanId) {
+                        $stmtInsert = $db->prepare("
+                            INSERT INTO loan_plans (uuid, name, min_amount, max_amount, interest_rate, interest_type, duration_value, duration_unit, collection_frequency, processing_fee, penalty_per_day, status, created_by)
+                            VALUES (UUID(), 'Custom Loan Plan', 0.00, 0.00, 0.00, 'Flat', 0, 'Days', 'Daily', 0.00, 0.00, 'Active', :created_by)
+                        ");
+                        $stmtInsert->execute(['created_by' => $authUser['id']]);
+                        $customPlanId = $db->lastInsertId();
+                    }
+                    $planId = $customPlanId;
+                } else {
+                    $planId = $input['plan_id'];
+                }
+
+                $plan = LoanPlan::getById($db, $planId);
+                if (!$plan) {
+                    throw new Exception("Selected loan plan not found (ID: " . var_export($planId, true) . ").");
+                }
+                if ($plan) {
                         $pAmt = $input['principal_amount'] ?? $plan['min_amount'];
                         $rate = $input['interest_rate'] ?? $plan['interest_rate'];
                         $type = !empty($input['interest_type']) ? $input['interest_type'] : $plan['interest_type'];
                         $durVal = !empty($input['duration_value']) ? intval($input['duration_value']) : intval($plan['duration_value']);
                         $durUnit = !empty($input['duration_unit']) ? $input['duration_unit'] : $plan['duration_unit'];
                         $freq = !empty($input['collection_frequency']) ? $input['collection_frequency'] : $plan['collection_frequency'];
+                        $startDateStr = !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d');
+                        $startDateTime = new DateTime($startDateStr);
+                        $endDateTime = clone $startDateTime;
 
                         $durationDays = 0;
                         $durationMonths = 0;
                         if ($durUnit === 'Days') {
                             $durationDays = $durVal;
-                            $durationMonths = $durVal / 30;
+                            $durationMonths = $durVal / 30.4375;
                         } elseif ($durUnit === 'Months') {
                             $durationMonths = $durVal;
-                            $durationDays = $durVal * 30;
+                            $startDay = (int)$startDateTime->format('j');
+                            $endDateTime->modify("+$durVal month");
+                            $endDay = (int)$endDateTime->format('j');
+                            if ($startDay !== $endDay && $endDay < 7) {
+                                $endDateTime->modify('last day of last month');
+                            }
+                            $durationDays = $endDateTime->diff($startDateTime)->days;
                         } elseif ($durUnit === 'Years') {
                             $durationMonths = $durVal * 12;
-                            $durationDays = $durVal * 365;
+                            $endDateTime->modify("+$durVal year");
+                            $durationDays = $endDateTime->diff($startDateTime)->days;
                         }
 
                         // Calculate interest component & total payable using live setting
@@ -232,7 +275,7 @@ class CustomerController {
                 } elseif ($input['plan_type'] === 'Saving') {
                     if (empty($input['plan_id'])) {
                         // Find or create "Custom Savings Plan"
-                        $stmtCustom = $db->prepare("SELECT id FROM saving_plans WHERE name = 'Custom Savings Plan' LIMIT 1");
+                        $stmtCustom = $db->prepare("SELECT id FROM saving_plans WHERE name = 'Custom Savings Plan' AND deleted_at IS NULL LIMIT 1");
                         $stmtCustom->execute();
                         $customPlanId = $stmtCustom->fetchColumn();
                         if (!$customPlanId) {
@@ -249,12 +292,21 @@ class CustomerController {
                     }
 
                     $plan = SavingPlan::getById($db, $planId);
+                    if (!$plan) {
+                        throw new Exception("Selected savings plan not found (ID: " . var_export($planId, true) . ").");
+                    }
                     if ($plan) {
+                        $durVal = !empty($input['duration_value']) ? intval($input['duration_value']) : intval($plan['duration_value']);
+                        $durUnit = !empty($input['duration_unit']) ? $input['duration_unit'] : $plan['duration_unit'];
+                        $freq = !empty($input['collection_frequency']) ? $input['collection_frequency'] : $plan['collection_frequency'];
+
                         $durationMonths = 12;
-                        if ($plan['duration_unit'] === 'Days') {
-                            $durationMonths = ceil($plan['duration_value'] / 30);
-                        } elseif ($plan['duration_unit'] === 'Years') {
-                            $durationMonths = $plan['duration_value'] * 12;
+                        if ($durUnit === 'Days') {
+                            $durationMonths = ceil($durVal / 30);
+                        } elseif ($durUnit === 'Years') {
+                            $durationMonths = $durVal * 12;
+                        } else {
+                            $durationMonths = $durVal;
                         }
 
                         // Allow overriding from input payload
@@ -272,7 +324,7 @@ class CustomerController {
                             'interest_rate' => $rate,
                             'duration_months' => $durationMonths,
                             'maturity_amount' => $maturityAmt,
-                            'collection_frequency' => $plan['collection_frequency'],
+                            'collection_frequency' => $freq,
                             'start_date' => !empty($input['start_date']) ? $input['start_date'] : date('Y-m-d'),
                             'maturity_date' => date('Y-m-d', strtotime((!empty($input['start_date']) ? $input['start_date'] : date('Y-m-d')) . " +$durationMonths months")),
                             'account_status' => 'Processing', // Set to Processing for verification workflow
@@ -285,7 +337,6 @@ class CustomerController {
                         $createdAccountType = 'Saving';
                     }
                 }
-            }
 
             // Sync Notification & Event
             $stmtSync = $db->prepare("

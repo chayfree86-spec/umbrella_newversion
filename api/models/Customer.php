@@ -76,9 +76,9 @@ class Customer {
     public static function getByCodeOrMobile($db, $codeOrMobile) {
         $stmt = $db->prepare("
             SELECT * FROM customers 
-            WHERE (customer_code = :val OR mobile = :val) AND deleted_at IS NULL
+            WHERE (customer_code = :code OR mobile = :mobile) AND deleted_at IS NULL
         ");
-        $stmt->execute(['val' => $codeOrMobile]);
+        $stmt->execute(['code' => $codeOrMobile, 'mobile' => $codeOrMobile]);
         return $stmt->fetch();
     }
 

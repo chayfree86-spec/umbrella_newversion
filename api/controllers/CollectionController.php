@@ -590,22 +590,14 @@ class CollectionController {
                            ->execute(['alloc' => json_encode($allocs), 'id' => $dep['id']]);
                     }
 
-                    // Update saving account balance
-                    $stmtAccount = $db->prepare("SELECT target_amount FROM saving_accounts WHERE id = :id");
-                    $stmtAccount->execute(['id' => $savingAccountId]);
-                    $savingAcc = $stmtAccount->fetch();
-
-                    $newOutstanding = max(0, $savingAcc['target_amount'] - $totalDeposited);
-
+                    // Update saving account total_deposited
                     $stmtUpdateAccount = $db->prepare("
                         UPDATE saving_accounts 
-                        SET total_deposited = :total_deposited, balance = :total_deposited, outstanding_amount = :outstanding_amount
+                        SET total_deposited = :total_deposited
                         WHERE id = :id
                     ");
                     $stmtUpdateAccount->execute([
                         'total_deposited' => $totalDeposited,
-                        'balance' => $totalDeposited,
-                        'outstanding_amount' => $newOutstanding,
                         'id' => $savingAccountId
                     ]);
                 }
@@ -925,22 +917,14 @@ class CollectionController {
                            ->execute(['alloc' => json_encode($allocs), 'id' => $dep['id']]);
                     }
 
-                    // Update saving account balance
-                    $stmtAccount = $db->prepare("SELECT target_amount FROM saving_accounts WHERE id = :id");
-                    $stmtAccount->execute(['id' => $savingAccountId]);
-                    $savingAcc = $stmtAccount->fetch();
-
-                    $newOutstanding = max(0, $savingAcc['target_amount'] - $totalDeposited);
-
+                    // Update saving account total_deposited
                     $stmtUpdateAccount = $db->prepare("
                         UPDATE saving_accounts 
-                        SET total_deposited = :total_deposited, balance = :total_deposited, outstanding_amount = :outstanding_amount
+                        SET total_deposited = :total_deposited
                         WHERE id = :id
                     ");
                     $stmtUpdateAccount->execute([
                         'total_deposited' => $totalDeposited,
-                        'balance' => $totalDeposited,
-                        'outstanding_amount' => $newOutstanding,
                         'id' => $savingAccountId
                     ]);
                 }

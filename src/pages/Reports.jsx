@@ -5,6 +5,8 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { reportApi, branchApi, agentApi, collectionApi } from '../services/api';
 import { Pagination } from '../components/ui/Pagination';
 
+const inr = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function Reports() {
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [selectedAgent, setSelectedAgent] = useState('all');
@@ -53,19 +55,19 @@ export default function Reports() {
             row.Date || 'N/A',
             row.AccountNo || 'N/A',
             row.CustomerName || 'N/A',
-            '₹' + Number(row.AmountCollected || 0).toLocaleString('en-IN'),
+            inr(row.AmountCollected),
             row.AgentName || 'N/A',
             row.PaymentMode || 'N/A'
           ];
         case 'saving':
           return [
-            row.MaturityDate || row.StartDate || 'N/A',
+            row.LastDepositDate || 'N/A',
             row.CustomerName || 'N/A',
             row.AccountNo || 'N/A',
             row.PlanDetails || (row.PlanName ? `${row.PlanName} (${row.InterestRate || 0}%)` : 'N/A'),
-            '₹' + Number(row.DepositedAmount || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.InterestPaid || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.NetBalance || row.DepositedAmount || 0).toLocaleString('en-IN')
+            inr(row.DepositedAmount),
+            inr(row.InterestPaid),
+            inr(row.NetBalance || row.DepositedAmount)
           ];
         case 'loan':
           return [
@@ -73,10 +75,10 @@ export default function Reports() {
             row.AccountNo || 'N/A',
             row.CustomerName || 'N/A',
             row.LoanPlan || 'N/A',
-            '₹' + Number(row.ApprovedAmount || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.OutstandingBalance || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.InterestCollected || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.InterestOverdue || 0).toLocaleString('en-IN'),
+            inr(row.ApprovedAmount),
+            inr(row.OutstandingBalance),
+            inr(row.InterestCollected),
+            inr(row.InterestOverdue),
             row.Status || 'N/A'
           ];
         case 'agent':
@@ -85,8 +87,8 @@ export default function Reports() {
             row.AgentName || 'N/A',
             row.AreaName || 'N/A',
             String(row.AssignedCustomers || 0),
-            '₹' + Number(row.TargetCollection || 0).toLocaleString('en-IN'),
-            '₹' + Number(row.ActualCollected || 0).toLocaleString('en-IN'),
+            inr(row.TargetCollection),
+            inr(row.ActualCollected),
             row.PerformanceRate || '0%'
           ];
         case 'cashbook':
@@ -95,8 +97,8 @@ export default function Reports() {
             row.RefNo || 'N/A',
             row.Particulars || row.Category || 'N/A',
             (row.Type || '').toLowerCase() === 'credit' ? 'Credit' : 'Debit',
-            (row.Type || '').toLowerCase() === 'debit' ? '₹' + Number(row.Amount || 0).toLocaleString('en-IN') : '-',
-            (row.Type || '').toLowerCase() === 'credit' ? '₹' + Number(row.Amount || 0).toLocaleString('en-IN') : '-'
+            (row.Type || '').toLowerCase() === 'debit' ? inr(row.Amount) : '-',
+            (row.Type || '').toLowerCase() === 'credit' ? inr(row.Amount) : '-'
           ];
         case 'maturity':
           return [
@@ -104,7 +106,7 @@ export default function Reports() {
             row.CustomerName || 'N/A',
             row.AccountNo || 'N/A',
             row.PlanName || 'N/A',
-            '₹' + Number(row.MaturityValue || 0).toLocaleString('en-IN'),
+            inr(row.MaturityValue),
             row.Status || 'N/A'
           ];
         default:
@@ -124,43 +126,43 @@ export default function Reports() {
       case 'col': {
         const total = rows.reduce((sum, r) => sum + parseAmt(r[3]), 0);
         return [
-          { label: "Total Collection", value: "₹" + total.toLocaleString('en-IN'), sub: `From ${rows.length} transactions`, type: "success", filterVal: "all" },
-          { label: "Accounts Synced", value: `${rows.length} Accounts`, sub: `Avg ₹${rows.length ? Math.round(total / rows.length).toLocaleString('en-IN') : 0} per Acc`, type: "primary", filterVal: "all" },
-          { label: "Cash Collections", value: "₹" + rows.filter(r => r[5] === 'Cash').reduce((sum, r) => sum + parseAmt(r[3]), 0).toLocaleString('en-IN'), sub: "Collected in hand", type: "accent", filterVal: "Cash" }
+          { label: "Total Collection", value: inr(total), sub: `From ${rows.length} transactions`, type: "success", filterVal: "all" },
+          { label: "Accounts Synced", value: `${rows.length} Accounts`, sub: `Avg ${rows.length ? inr(Math.round(total / rows.length)) : inr(0)} per Acc`, type: "primary", filterVal: "all" },
+          { label: "Cash Collections", value: inr(rows.filter(r => r[5] === 'Cash').reduce((sum, r) => sum + parseAmt(r[3]), 0)), sub: "Collected in hand", type: "accent", filterVal: "Cash" }
         ];
       }
       case 'saving': {
         const total = rows.reduce((sum, r) => sum + parseAmt(r[4]), 0);
         return [
-          { label: "Total Savings Pool", value: "₹" + total.toLocaleString('en-IN'), sub: "Total customer deposits", type: "success", filterVal: "all" },
-          { label: "Active Savings Accs", value: `${rows.length} Accounts`, sub: `Avg ₹${rows.length ? Math.round(total / rows.length).toLocaleString('en-IN') : 0} deposit`, type: "primary", filterVal: "all" },
-          { label: "Net Balance", value: "₹" + rows.reduce((sum, r) => sum + parseAmt(r[6]), 0).toLocaleString('en-IN'), sub: "Including interest credit", type: "accent", filterVal: "all" }
+          { label: "Total Savings Pool", value: inr(total), sub: "Total customer deposits", type: "success", filterVal: "all" },
+          { label: "Active Savings Accs", value: `${rows.length} Accounts`, sub: `Avg ${rows.length ? inr(Math.round(total / rows.length)) : inr(0)} deposit`, type: "primary", filterVal: "all" },
+          { label: "Net Balance", value: inr(rows.reduce((sum, r) => sum + parseAmt(r[6]), 0)), sub: "Including interest credit", type: "accent", filterVal: "all" }
         ];
       }
       case 'loan': {
         const disbursed = rows.reduce((sum, r) => sum + parseAmt(r[4]), 0);
         const outstanding = rows.reduce((sum, r) => sum + parseAmt(r[5]), 0);
         return [
-          { label: "Total Disbursed Pool", value: "₹" + disbursed.toLocaleString('en-IN'), sub: "Total principal disbursed", type: "primary", filterVal: "all" },
-          { label: "Total Outstanding Bal", value: "₹" + outstanding.toLocaleString('en-IN'), sub: "Remaining recovery principal", type: "danger", filterVal: "all" },
-          { label: "Active Loan Accounts", value: `${rows.length} Accounts`, sub: `Avg ₹${rows.length ? Math.round(outstanding / rows.length).toLocaleString('en-IN') : 0} outstanding`, type: "warning", filterVal: "active" }
+          { label: "Total Disbursed Pool", value: inr(disbursed), sub: "Total principal disbursed", type: "primary", filterVal: "all" },
+          { label: "Total Outstanding Bal", value: inr(outstanding), sub: "Remaining recovery principal", type: "danger", filterVal: "all" },
+          { label: "Active Loan Accounts", value: `${rows.length} Accounts`, sub: `Avg ${rows.length ? inr(Math.round(outstanding / rows.length)) : inr(0)} outstanding`, type: "warning", filterVal: "active" }
         ];
       }
       case 'agent': {
         const totalCollected = rows.reduce((sum, r) => sum + parseAmt(r[5]), 0);
         return [
           { label: "Active Field Agents", value: `${rows.length} Agents`, sub: "Assigned to various branches", type: "primary", filterVal: "all" },
-          { label: "Total Collected", value: "₹" + totalCollected.toLocaleString('en-IN'), sub: "Accumulated agent collection", type: "success", filterVal: "all" },
-          { label: "Avg Collection/Agent", value: "₹" + (rows.length ? Math.round(totalCollected / rows.length).toLocaleString('en-IN') : 0), sub: "Performance rate calculated", type: "accent", filterVal: "all" }
+          { label: "Total Collected", value: inr(totalCollected), sub: "Accumulated agent collection", type: "success", filterVal: "all" },
+          { label: "Avg Collection/Agent", value: rows.length ? inr(Math.round(totalCollected / rows.length)) : inr(0), sub: "Performance rate calculated", type: "accent", filterVal: "all" }
         ];
       }
       case 'cashbook': {
         const inflows = rows.filter(r => r[3] === 'Credit').reduce((sum, r) => sum + parseAmt(r[5]), 0);
         const outflows = rows.filter(r => r[4] !== '-').reduce((sum, r) => sum + parseAmt(r[4]), 0);
         return [
-          { label: "Opening Cash Bal", value: "₹" + (inflows - outflows).toLocaleString('en-IN'), sub: "Carry forward balance", type: "primary", filterVal: "all" },
-          { label: "Total Cash Inflows", value: "₹" + inflows.toLocaleString('en-IN'), sub: "EMI + Savings Deposit", type: "success", filterVal: "Credit" },
-          { label: "Total Cash Outflows", value: "₹" + outflows.toLocaleString('en-IN'), sub: "Withdrawals + Disbursal", type: "danger", filterVal: "Debit" }
+          { label: "Opening Cash Bal", value: inr(inflows - outflows), sub: "Carry forward balance", type: "primary", filterVal: "all" },
+          { label: "Total Cash Inflows", value: inr(inflows), sub: "EMI + Savings Deposit", type: "success", filterVal: "Credit" },
+          { label: "Total Cash Outflows", value: inr(outflows), sub: "Withdrawals + Disbursal", type: "danger", filterVal: "Debit" }
         ];
       }
       case 'maturity': {
@@ -180,9 +182,9 @@ export default function Reports() {
         const totalPending = pendingPayout.reduce((sum, r) => sum + parseAmt(r[4]), 0);
 
         return [
-          { label: "Maturing Today", value: `${maturingTodayRows.length} Accounts`, sub: `Total ₹${totalMaturityToday.toLocaleString('en-IN')}`, type: "warning", filterVal: "all" },
-          { label: "Maturity Paid", value: "₹" + totalCompleted.toLocaleString('en-IN'), sub: `${completedMaturity.length} Completed payouts`, type: "success", filterVal: "Completed" },
-          { label: "Pending Payout Pool", value: "₹" + totalPending.toLocaleString('en-IN'), sub: `${pendingPayout.length} Payouts pending`, type: "accent", filterVal: "Pending Pay Out" }
+          { label: "Maturing Today", value: `${maturingTodayRows.length} Accounts`, sub: `Total ${inr(totalMaturityToday)}`, type: "warning", filterVal: "all" },
+          { label: "Maturity Paid", value: inr(totalCompleted), sub: `${completedMaturity.length} Completed payouts`, type: "success", filterVal: "Completed" },
+          { label: "Pending Payout Pool", value: inr(totalPending), sub: `${pendingPayout.length} Payouts pending`, type: "accent", filterVal: "Pending Pay Out" }
         ];
       }
       default:
@@ -721,7 +723,7 @@ export default function Reports() {
             const npaLoss = reportRows
               .filter(r => /Defaulter|NPA|Overdue/.test(String(r[8] || '')))
               .reduce((s, r) => s + parseAmt(r[7]), 0);
-            const fmt = (v) => '₹' + Number(v || 0).toLocaleString('en-IN');
+            const fmt = (v) => inr(v);
             return (
               <div className="space-y-3">
                 <h4 className="text-xs font-extrabold text-primary-text uppercase tracking-wider pl-1">Interest Analysis</h4>

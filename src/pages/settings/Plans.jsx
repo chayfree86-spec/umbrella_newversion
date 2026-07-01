@@ -19,6 +19,106 @@ const EMPTY_PLAN = {
   maturity_amount: ''
 };
 
+const getDaysInYear = (dateStr) => {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const year = isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+  return (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365;
+};
+
+const getActualDays = (startDateStr, durationVal, durationUnit) => {
+  const start = startDateStr ? new Date(startDateStr) : new Date();
+  const dur = Number(durationVal) || 0;
+  if (isNaN(start.getTime())) {
+    if (durationUnit === 'Months') return Math.round(dur * 30.44);
+    if (durationUnit === 'Years') return Math.round(dur * 365.24);
+    return dur;
+  }
+  const end = new Date(start);
+  if (durationUnit === 'Days') {
+    return dur;
+  } else if (durationUnit === 'Months') {
+    const expectedMonth = (start.getMonth() + dur) % 12;
+    end.setMonth(start.getMonth() + dur);
+    if (end.getMonth() !== expectedMonth) {
+      end.setDate(0);
+    }
+  } else if (durationUnit === 'Years') {
+    end.setFullYear(start.getFullYear() + dur);
+  }
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
+const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency, startDate) => {
+  const dAmt = parseFloat(depositAmt) || 0;
+  const rVal = parseFloat(rate) || 0;
+  const dur = parseFloat(durationVal) || 0;
+  if (!dAmt || !dur) return '';
+
+  let totalDays = 0;
+  let totalMonths = 0;
+  if (durationUnit === 'Days') {
+    totalDays = dur;
+    totalMonths = dur / 30.4375;
+  } else if (durationUnit === 'Months') {
+    totalDays = getActualDays(startDate, dur, 'Months');
+    totalMonths = dur;
+  } else if (durationUnit === 'Years') {
+    totalDays = getActualDays(startDate, dur, 'Years');
+    totalMonths = dur * 12;
+  }
+
+  let instPerYear = 0;
+  if (frequency === 'Daily') {
+    instPerYear = getDaysInYear(startDate);
+  } else if (frequency === 'Weekly') {
+    instPerYear = 52;
+  } else if (frequency === 'Monthly') {
+    instPerYear = 12;
+  }
+
+  let totalInstallments = 0;
+  if (frequency === 'Daily') {
+    totalInstallments = Math.round(totalDays);
+  } else if (frequency === 'Weekly') {
+    totalInstallments = Math.round(totalDays / 7);
+  } else if (frequency === 'Monthly') {
+    totalInstallments = Math.round(totalMonths);
+  }
+  if (totalInstallments <= 0) totalInstallments = 1;
+
+  const fullYears = Math.floor(totalMonths / 12);
+  const remainingMonths = totalMonths % 12;
+
+  let balance = 0;
+  let remainingInstallments = totalInstallments;
+
+  // Process full years
+  for (let i = 0; i < fullYears; i++) {
+    const installmentsThisYear = Math.min(instPerYear, remainingInstallments);
+    remainingInstallments -= installmentsThisYear;
+
+    const principalAdded = dAmt * installmentsThisYear;
+    const interestOnNew = principalAdded * (rVal / 100);
+    const interestOnBalance = balance * (rVal / 100);
+
+    balance = balance + interestOnBalance + principalAdded + interestOnNew;
+  }
+
+  // Process remaining fractional year
+  if (remainingMonths > 0 && remainingInstallments > 0) {
+    const fracYear = remainingMonths / 12;
+    const principalAdded = dAmt * remainingInstallments;
+    const interestOnNew = principalAdded * (rVal / 100) * fracYear;
+    const interestOnBalance = balance * (rVal / 100) * fracYear;
+
+    balance = balance + interestOnBalance + principalAdded + interestOnNew;
+  }
+
+  return Math.round(balance);
+};
+
 export default function Plans() {
   const [activePlanTab, setActivePlanTab] = useState('loan');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -42,6 +142,43 @@ export default function Plans() {
     fetchPlans();
     fetchTerms();
   }, []);
+
+  // Auto-calculate Savings Plan Maturity
+  useEffect(() => {
+    if (activePlanTab === 'saving' && showAddForm) {
+      const deposit = parseFloat(newPlan.deposit_amount) || 0;
+      const rate = parseFloat(newPlan.interest_rate) || 0;
+      const duration = parseFloat(newPlan.duration_value) || 0;
+      const durUnit = newPlan.duration_unit || 'Days';
+      const freq = newPlan.collection_frequency || 'Daily';
+      
+      if (deposit && duration) {
+        const todayStr = new Date().toLocaleDateString('sv-SE');
+        const calculatedMaturity = calculateCustomMaturity(
+          deposit,
+          rate,
+          duration,
+          durUnit,
+          freq,
+          todayStr
+        );
+        setNewPlan(prev => {
+          if (prev.maturity_amount !== String(calculatedMaturity)) {
+            return { ...prev, maturity_amount: String(calculatedMaturity) };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [
+    activePlanTab,
+    showAddForm,
+    newPlan.deposit_amount,
+    newPlan.interest_rate,
+    newPlan.duration_value,
+    newPlan.duration_unit,
+    newPlan.collection_frequency
+  ]);
 
   const fetchPlans = () => {
     planApi.loanPlans.list()

@@ -5,6 +5,8 @@ import { Select } from '../components/ui/Select';
 import { fundApi } from '../services/api';
 import { Pagination } from '../components/ui/Pagination';
 
+const inr = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function MonthPicker({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [year, setYear] = useState(() => value ? parseInt(value.split('-')[0]) : new Date().getFullYear());
@@ -397,7 +399,7 @@ export default function FundManagement() {
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Total Capital</span>
             <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">account_balance</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#0F172A]">₹{totalCapital.toLocaleString('en-IN')}</h3>
+          <h3 className="text-lg font-extrabold text-[#0F172A]">{inr(totalCapital)}</h3>
           <p className="text-[9px] text-[#64748B]">Owner & Investors Equity</p>
         </div>
 
@@ -407,7 +409,7 @@ export default function FundManagement() {
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Savings Balance</span>
             <span className="material-symbols-rounded text-base text-[#D97706] select-none">savings</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#D97706]">₹{totalSavings.toLocaleString('en-IN')}</h3>
+          <h3 className="text-lg font-extrabold text-[#D97706]">{inr(totalSavings)}</h3>
           <p className="text-[9px] text-[#64748B]">Deposited by customers</p>
         </div>
 
@@ -417,7 +419,7 @@ export default function FundManagement() {
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Active Loans</span>
             <span className="material-symbols-rounded text-base text-[#EA580C] select-none">credit_score</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#EA580C]">₹{totalDisbursed.toLocaleString('en-IN')}</h3>
+          <h3 className="text-lg font-extrabold text-[#EA580C]">{inr(totalDisbursed)}</h3>
           <p className="text-[9px] text-[#64748B]">Out on field</p>
         </div>
 
@@ -427,7 +429,7 @@ export default function FundManagement() {
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Available Loan Fund</span>
             <span className="material-symbols-rounded text-base text-[#16A34A] select-none">payments</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#16A34A]">₹{availableLoanFund.toLocaleString('en-IN')}</h3>
+          <h3 className="text-lg font-extrabold text-[#16A34A]">{inr(availableLoanFund)}</h3>
           <p className="text-[9px] text-[#64748B]">Ready for new disbursements</p>
         </div>
 
@@ -437,7 +439,7 @@ export default function FundManagement() {
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Overall Cash</span>
             <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">wallet</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#1E3A8A]">₹{overallCashBalance.toLocaleString('en-IN')}</h3>
+          <h3 className="text-lg font-extrabold text-[#1E3A8A]">{inr(overallCashBalance)}</h3>
           <p className="text-[9px] text-[#64748B]">Total actual cash in hand</p>
         </div>
       </div>
@@ -497,7 +499,7 @@ export default function FundManagement() {
                           ? 'text-success-fin'
                           : 'text-danger-fin'
                       }`}>
-                        ₹{Number(txn.amount || 0).toLocaleString('en-IN')}
+                        {inr(txn.amount)}
                       </td>
                       <td className="whitespace-nowrap px-6 py-3.5 text-xs font-medium text-[#64748B]">{txn.created_by || txn.user}</td>
                       <td className="whitespace-nowrap px-6 py-3.5 text-right text-xs font-medium flex justify-end gap-1.5">
@@ -644,15 +646,15 @@ export default function FundManagement() {
 
               {transferType === 'saving_to_loan' ? (
                 <div className="p-3.5 bg-amber-500/10 rounded-2xl border border-amber-500/20 space-y-0.5">
-                  <span className="text-[10px] text-secondary-text block font-bold uppercase tracking-wider">Available Savings Cash</span>
-                  <span className="text-lg font-extrabold text-amber-600">₹{totalSavings.toLocaleString('en-IN')}</span>
+                   <span className="text-[10px] text-secondary-text block font-bold uppercase tracking-wider">Available Savings Cash</span>
+                   <span className="text-lg font-extrabold text-amber-600">{inr(totalSavings)}</span>
                 </div>
-              ) : (
+               ) : (
                 <div className="p-3.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 space-y-0.5">
-                  <span className="text-[10px] text-secondary-text block font-bold uppercase tracking-wider">Available Loan Fund</span>
-                  <span className="text-lg font-extrabold text-emerald-600">₹{availableLoanFund.toLocaleString('en-IN')}</span>
+                   <span className="text-[10px] text-secondary-text block font-bold uppercase tracking-wider">Available Loan Fund</span>
+                   <span className="text-lg font-extrabold text-emerald-600">{inr(availableLoanFund)}</span>
                 </div>
-              )}
+               )}
 
               <div>
                 <label className="block text-[10px] font-bold text-secondary-text mb-1.5 uppercase tracking-wider">Amount to Transfer (₹) *</label>

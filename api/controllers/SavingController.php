@@ -417,7 +417,7 @@ class SavingController {
             // Reset savings account
             $db->prepare("
                 UPDATE saving_accounts 
-                SET total_deposited = 0.00, balance = 0.00, outstanding_amount = target_amount
+                SET total_deposited = 0.00
                 WHERE id = :id
             ")->execute(['id' => $account['id']]);
 

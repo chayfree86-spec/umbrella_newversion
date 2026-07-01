@@ -266,6 +266,9 @@ try {
             RoleGuard::check($authUser, 'customers.create');
             CustomerController::register($db, $authUser, $input);
         }
+        elseif ($uri === '/customers/check-mobile' && $method === 'GET') {
+            CustomerController::checkMobile($db, $authUser);
+        }
         elseif (preg_match('#^/customers/search$#', $uri) && $method === 'GET') {
             CustomerController::search($db, $authUser);
         }

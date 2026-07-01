@@ -85,21 +85,31 @@ class LoanController {
         $input['interest_rate'] = $isCustom ? (isset($input['interest_rate']) ? floatval($input['interest_rate']) : floatval($plan['interest_rate'])) : floatval($plan['interest_rate']);
         $input['interest_type'] = $isCustom ? ($input['interest_type'] ?? $plan['interest_type']) : $plan['interest_type'];
         $input['collection_frequency'] = $isCustom ? ($input['collection_frequency'] ?? $plan['collection_frequency']) : $plan['collection_frequency'];
-
         $durationDays = 0;
         $durationMonths = 0;
         $durVal = $isCustom ? (isset($input['duration_value']) ? intval($input['duration_value']) : intval($plan['duration_value'])) : intval($plan['duration_value']);
         $durUnit = $isCustom ? ($input['duration_unit'] ?? $plan['duration_unit']) : $plan['duration_unit'];
 
+        $startDateStr = $input['start_date'] ?? date('Y-m-d');
+        $startDateTime = new DateTime($startDateStr);
+        $endDateTime = clone $startDateTime;
+
         if ($durUnit === 'Days') {
             $durationDays = $durVal;
-            $durationMonths = $durVal / 30;
+            $durationMonths = $durVal / 30.4375;
         } elseif ($durUnit === 'Months') {
             $durationMonths = $durVal;
-            $durationDays = $durVal * 30;
+            $startDay = (int)$startDateTime->format('j');
+            $endDateTime->modify("+$durVal month");
+            $endDay = (int)$endDateTime->format('j');
+            if ($startDay !== $endDay && $endDay < 7) {
+                $endDateTime->modify('last day of last month');
+            }
+            $durationDays = $endDateTime->diff($startDateTime)->days;
         } elseif ($durUnit === 'Years') {
             $durationMonths = $durVal * 12;
-            $durationDays = $durVal * 365;
+            $endDateTime->modify("+$durVal year");
+            $durationDays = $endDateTime->diff($startDateTime)->days;
         }
 
         $input['duration_days'] = $durationDays;
@@ -135,8 +145,9 @@ class LoanController {
 
         $input['emi_amount'] = $isCustom ? (isset($input['emi_amount']) ? floatval($input['emi_amount']) : round($totalPayable / $N, 2)) : round($totalPayable / $N, 2);
         
-        $input['start_date'] = $input['start_date'] ?? date('Y-m-d');
-        $input['end_date'] = date('Y-m-d', strtotime("+$durationDays days", strtotime($input['start_date'])));
+        $input['start_date'] = $startDateStr;
+        $input['end_date'] = $endDateTime->format('Y-m-d');
+
         $input['account_status'] = 'Processing'; // Awaiting approval by default
 
         $id = LoanAccount::create($db, $input);
@@ -310,13 +321,20 @@ class LoanController {
             $frequency = $account['collection_frequency'] ?? 'Daily';
             $emi = (float)$account['emi_amount'];
             $totalPayable = (float)$account['total_payable'];
-
             if ($durationDays <= 0 && $emi > 0 && $totalPayable > 0) {
                 $installmentsCount = (int)ceil($totalPayable / $emi);
-                if ($frequency === 'Daily') $durationDays = $installmentsCount;
-                elseif ($frequency === 'Weekly') $durationDays = $installmentsCount * 7;
-                elseif ($frequency === 'Monthly') $durationDays = $installmentsCount * 30;
+                if ($frequency === 'Daily') {
+                    $durationDays = $installmentsCount;
+                } elseif ($frequency === 'Weekly') {
+                    $durationDays = $installmentsCount * 7;
+                } elseif ($frequency === 'Monthly') {
+                    $startDateTime = new DateTime($startDate);
+                    $endDateTime = clone $startDateTime;
+                    $endDateTime->modify("+$installmentsCount month");
+                    $durationDays = $endDateTime->diff($startDateTime)->days;
+                }
             }
+
             if ($durationDays <= 0) {
                 throw new Exception('Cannot derive loan duration. Check plan duration and account EMI.');
             }

@@ -7,7 +7,8 @@ class Area {
     public static function getAll($db) {
         $stmt = $db->prepare("
             SELECT a.*, b.name as branch_name, u.name as manager_name,
-            (SELECT COUNT(*) FROM agents ag WHERE ag.area_id = a.id AND ag.deleted_at IS NULL) as agents_count
+            (SELECT COUNT(*) FROM agents ag WHERE ag.area_id = a.id AND ag.deleted_at IS NULL) as agents_count,
+            (SELECT COUNT(*) FROM customers c WHERE c.area_id = a.id AND c.deleted_at IS NULL) as customers_count
             FROM areas a
             JOIN branches b ON a.branch_id = b.id
             LEFT JOIN users u ON a.manager_id = u.id
@@ -33,7 +34,8 @@ class Area {
     public static function getByBranch($db, $branchId) {
         $stmt = $db->prepare("
             SELECT a.*, b.name as branch_name, u.name as manager_name,
-            (SELECT COUNT(*) FROM agents ag WHERE ag.area_id = a.id AND ag.deleted_at IS NULL) as agents_count
+            (SELECT COUNT(*) FROM agents ag WHERE ag.area_id = a.id AND ag.deleted_at IS NULL) as agents_count,
+            (SELECT COUNT(*) FROM customers c WHERE c.area_id = a.id AND c.deleted_at IS NULL) as customers_count
             FROM areas a
             JOIN branches b ON a.branch_id = b.id
             LEFT JOIN users u ON a.manager_id = u.id

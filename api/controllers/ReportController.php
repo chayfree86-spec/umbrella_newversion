@@ -62,7 +62,7 @@ class ReportController {
             la.total_paid as PaidPrincipal, la.outstanding_amount as OutstandingBalance,
             la.interest_amount as InterestAmount,
             (SELECT COALESCE(SUM(interest_amount), 0) FROM loan_collections WHERE loan_account_id = la.id AND is_reversal = 0) as InterestCollected,
-            (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
+            (SELECT COALESCE(SUM(li.interest_component * (1 - li.paid_amount / li.total_due)), 0)
                 FROM loan_installments li
                 WHERE li.loan_account_id = la.id AND li.due_date <= CURRENT_DATE() AND li.status != 'Paid'
             ) as InterestOverdue,
@@ -105,7 +105,8 @@ class ReportController {
             ROUND(sa.total_deposited * sa.interest_rate / 100, 2) as InterestPaid,
             ROUND(sa.total_deposited + (sa.total_deposited * sa.interest_rate / 100), 2) as NetBalance,
             sa.account_status as Status,
-            b.name as BranchName
+            b.name as BranchName,
+            COALESCE((SELECT MAX(deposit_date) FROM saving_deposits WHERE saving_account_id = sa.id AND is_reversal = 0), sa.start_date) as LastDepositDate
             FROM saving_accounts sa
             JOIN customers c ON sa.customer_id = c.id
             LEFT JOIN saving_plans sp ON sa.saving_plan_id = sp.id

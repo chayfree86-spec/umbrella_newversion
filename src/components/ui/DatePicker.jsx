@@ -56,6 +56,7 @@ export function DatePicker({
   const [isMonthOpen, setIsMonthOpen] = useState(false);
   const [isYearOpen, setIsYearOpen] = useState(false);
   const [yearSearch, setYearSearch] = useState('');
+  const [openDirection, setOpenDirection] = useState('down');
   
   const [currentYear, setCurrentYear] = useState(getInitialYear());
   const [currentMonth, setCurrentMonth] = useState(initialDate.getMonth()); // 0-11
@@ -75,7 +76,7 @@ export function DatePicker({
     }
   }, [value]);
 
-  // Auto-open month list when calendar is opened (only for DOB picker)
+  // Auto-open month list when calendar is opened (only for DOB picker) & measure screen space
   useEffect(() => {
     if (isOpen) {
       if (isDobPicker) {
@@ -86,10 +87,23 @@ export function DatePicker({
         setIsYearOpen(false);
       }
       setSelectedDay(getDayFromValue());
+
+      // Measure screen space to decide open direction
+      if (wrapperRef.current) {
+        const rect = wrapperRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        if (spaceBelow < 340 && spaceAbove > spaceBelow) {
+          setOpenDirection('up');
+        } else {
+          setOpenDirection('down');
+        }
+      }
     } else {
       setIsMonthOpen(false);
       setIsYearOpen(false);
       setYearSearch('');
+      setOpenDirection('down');
     }
   }, [isOpen, isDobPicker]);
 
@@ -397,7 +411,11 @@ export function DatePicker({
       )}
 
       {isOpen && (
-        <div className={`absolute z-50 mt-1.5 bg-surface border border-border-fin rounded-2xl shadow-xl p-4 w-80 transform origin-top transition-all duration-200 ${customTrigger ? 'right-0' : 'left-0 md:left-auto'}`}>
+        <div className={`absolute z-50 bg-surface border border-border-fin rounded-2xl shadow-xl p-4 w-80 transform transition-all duration-200 ${
+          openDirection === 'up' 
+            ? 'bottom-full mb-1.5 origin-bottom' 
+            : 'top-full mt-1.5 origin-top'
+        } ${customTrigger ? 'right-0' : 'left-0 md:left-auto'}`}>
           {/* Calendar Header */}
           <div className="flex justify-between items-center mb-3">
             <button

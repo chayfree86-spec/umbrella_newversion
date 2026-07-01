@@ -131,6 +131,7 @@ export const customerApi = {
   update: (id, data) => api.put(`/customers/${id}`, data),
   delete: (id) => api.delete(`/customers/${id}`),
   search: (q) => api.get(`/customers/search`, { params: { q } }),
+  checkMobile: (mobile) => api.get('/customers/check-mobile', { params: { mobile } }),
   uploadDocs: (id, formData) => api.post(`/customers/${id}/documents`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),

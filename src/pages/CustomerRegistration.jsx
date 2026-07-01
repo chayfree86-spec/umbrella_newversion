@@ -2,14 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
-import { branchApi, areaApi, agentApi, planApi, customerApi, settingsApi } from '../services/api';
+import { branchApi, areaApi, agentApi, planApi, customerApi, settingsApi, fundApi } from '../services/api';
+
+const inr = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+
 
 const getTodayDateString = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency) => {
+const getDaysInYear = (dateStr) => {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const year = isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+  return (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365;
+};
+
+const getActualDays = (startDateStr, durationVal, durationUnit) => {
+  const start = startDateStr ? new Date(startDateStr) : new Date();
+  const dur = Number(durationVal) || 0;
+  if (isNaN(start.getTime())) {
+    if (durationUnit === 'Months') return Math.round(dur * 30.44);
+    if (durationUnit === 'Years') return Math.round(dur * 365.24);
+    return dur;
+  }
+  const end = new Date(start);
+  if (durationUnit === 'Days') {
+    return dur;
+  } else if (durationUnit === 'Months') {
+    const expectedMonth = (start.getMonth() + dur) % 12;
+    end.setMonth(start.getMonth() + dur);
+    if (end.getMonth() !== expectedMonth) {
+      end.setDate(0);
+    }
+  } else if (durationUnit === 'Years') {
+    end.setFullYear(start.getFullYear() + dur);
+  }
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
+const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency, startDate) => {
   const dAmt = parseFloat(depositAmt) || 0;
   const rVal = parseFloat(rate) || 0;
   const dur = parseFloat(durationVal) || 0;
@@ -19,18 +54,18 @@ const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, fr
   let totalMonths = 0;
   if (durationUnit === 'Days') {
     totalDays = dur;
-    totalMonths = dur / 30;
+    totalMonths = dur / 30.4375;
   } else if (durationUnit === 'Months') {
-    totalDays = dur * 30;
+    totalDays = getActualDays(startDate, dur, 'Months');
     totalMonths = dur;
   } else if (durationUnit === 'Years') {
-    totalDays = dur * 360;
+    totalDays = getActualDays(startDate, dur, 'Years');
     totalMonths = dur * 12;
   }
 
   let instPerYear = 0;
   if (frequency === 'Daily') {
-    instPerYear = 360;
+    instPerYear = getDaysInYear(startDate);
   } else if (frequency === 'Weekly') {
     instPerYear = 52;
   } else if (frequency === 'Monthly') {
@@ -78,19 +113,19 @@ const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, fr
   return Math.round(balance);
 };
 
-const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly') => {
+const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly', startDate) => {
   if (!principal || !rate || !durationVal) return '';
 
   let totalDays = 0;
   let totalMonths = 0;
   if (durationUnit === 'Days') {
     totalDays = durationVal;
-    totalMonths = durationVal / 30;
+    totalMonths = durationVal / 30.4375;
   } else if (durationUnit === 'Months') {
-    totalDays = durationVal * 30;
+    totalDays = getActualDays(startDate, durationVal, 'Months');
     totalMonths = durationVal;
   } else if (durationUnit === 'Years') {
-    totalDays = durationVal * 365;
+    totalDays = getActualDays(startDate, durationVal, 'Years');
     totalMonths = durationVal * 12;
   }
 
@@ -111,8 +146,9 @@ const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequenc
     return Math.round(totalPayable / N);
   } else {
     let R = 0;
+    const daysInYear = getDaysInYear(startDate);
     if (frequency === 'Daily') {
-      R = loanPeriod === 'yearly' ? ((rate / 100) / 365) : (((rate / 100) * 12) / 365);
+      R = loanPeriod === 'yearly' ? ((rate / 100) / daysInYear) : (((rate / 100) * 12) / daysInYear);
     } else if (frequency === 'Weekly') {
       R = loanPeriod === 'yearly' ? ((rate / 100) / 52) : (((rate / 100) * 12) / 52);
     } else if (frequency === 'Monthly') {
@@ -402,6 +438,7 @@ export default function CustomerRegistration() {
   const [dbLoanPlans, setDbLoanPlans] = useState([]);
   const [dbSavingPlans, setDbSavingPlans] = useState([]);
   const [liveSettings, setLiveSettings] = useState({});
+  const [availableLoanFund, setAvailableLoanFund] = useState(0);
 
   // Load initial form data from localStorage or default
   const getInitialFormData = () => {
@@ -437,7 +474,6 @@ export default function CustomerRegistration() {
       gender: 'Male',
       fatherHusbandName: '',
       occupation: '',
-      monthlyIncome: '',
       branch: '',
       area: '',
       agent: '',
@@ -705,6 +741,10 @@ export default function CustomerRegistration() {
     settingsApi.get()
       .then(res => setLiveSettings(res.data || {}))
       .catch(() => {});
+
+    fundApi.summary()
+      .then(res => setAvailableLoanFund(Number(res.data?.available_loan_fund || 0)))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -903,7 +943,8 @@ export default function CustomerRegistration() {
           accountType: 'Loan', planId: '', startDate: getTodayDateString(),
           customAmount: '', customRate: localStorage.getItem('custom_interest_rate') || '', customDuration: '', customDurationUnit: 'Days', customFrequency: 'Daily', customType: 'Flat', customEmi: '', customProcessingFee: '0', customPenalty: '0', customDailyDeposit: '', customMaturity: '',
           fullName: '', mobile: '', altMobile: '', dob: '', gender: 'Male',
-          fatherHusbandName: '', occupation: '', monthlyIncome: '', branch: '', area: '', agent: '', photo: null,
+          fatherHusbandName: '', occupation: '', monthlyIncome: '',
+          branch: '', area: '', agent: '', photo: null,
           houseNumber: '', street: '', villageCity: '', landmark: '', district: '', state: 'Uttar Pradesh', pinCode: '',
           aadhaarNumber: '', panNumber: '', bankName: '', bankAccountNo: '', bankIfsc: '', chequeUpload: null, aadhaarFront: null, aadhaarBack: null, panUpload: null, signature: null,
           guarantorPhoto: null, guarantorName: '', guarantorMobile: '', guarantorRelation: '', guarantorAddress: '', guarantorAadhaar: '', guarantorAadhaarFront: null, guarantorAadhaarBack: null
@@ -919,7 +960,7 @@ export default function CustomerRegistration() {
     const durVal = Number(p.duration_value);
     const durUnit = p.duration_unit || 'Days';
     let durationInMonths = 0;
-    if (durUnit === 'Days') durationInMonths = durVal / 30;
+    if (durUnit === 'Days') durationInMonths = durVal / 30.4375;
     else if (durUnit === 'Months') durationInMonths = durVal;
     else if (durUnit === 'Years') durationInMonths = durVal * 12;
 
@@ -937,11 +978,11 @@ export default function CustomerRegistration() {
     let N = 0;
     const freq = p.collection_frequency;
     if (freq === 'Daily') {
-      N = durUnit === 'Days' ? durVal : (durUnit === 'Months' ? durVal * 30 : durVal * 365);
+      N = durUnit === 'Days' ? durVal : getActualDays(formData.startDate, durVal, durUnit);
     } else if (freq === 'Weekly') {
-      N = durUnit === 'Days' ? Math.round(durVal / 7) : (durUnit === 'Months' ? Math.round((durVal * 30) / 7) : durVal * 52);
+      N = durUnit === 'Days' ? Math.round(durVal / 7) : Math.round(getActualDays(formData.startDate, durVal, durUnit) / 7);
     } else if (freq === 'Monthly') {
-      N = durUnit === 'Days' ? Math.round(durVal / 30) : (durUnit === 'Months' ? durVal : durVal * 12);
+      N = durUnit === 'Days' ? Math.round(durVal / 30.4375) : (durUnit === 'Months' ? durVal : durVal * 12);
     }
     if (N <= 0) N = 1;
 
@@ -993,6 +1034,7 @@ export default function CustomerRegistration() {
           dailyDeposit: Number(formData.customDailyDeposit) || 0,
           rate: Number(formData.customRate) || 0,
           duration: Number(formData.customDuration) || 0,
+          durationUnit: formData.customDurationUnit || 'Days',
           frequency: formData.customFrequency || 'Daily',
           maturity: Number(formData.customMaturity) || 0
         })
@@ -1007,6 +1049,8 @@ export default function CustomerRegistration() {
             dailyDeposit: formData.customDailyDeposit !== '' ? Number(formData.customDailyDeposit) : plan.dailyDeposit,
             rate: formData.customRate !== '' ? Number(formData.customRate) : plan.rate,
             duration: formData.customDuration !== '' ? Number(formData.customDuration) : plan.duration,
+            durationUnit: formData.customDurationUnit !== '' ? formData.customDurationUnit : plan.durationUnit,
+            frequency: formData.customFrequency !== '' ? formData.customFrequency : plan.frequency,
             maturity: formData.customMaturity !== '' ? Number(formData.customMaturity) : plan.maturity
           };
         })()
@@ -1019,7 +1063,11 @@ export default function CustomerRegistration() {
       if (durationUnit === 'Days') {
         date.setDate(date.getDate() + duration);
       } else if (durationUnit === 'Months') {
+        const expectedMonth = (date.getMonth() + duration) % 12;
         date.setMonth(date.getMonth() + duration);
+        if (date.getMonth() !== expectedMonth) {
+          date.setDate(0);
+        }
       } else if (durationUnit === 'Years') {
         date.setFullYear(date.getFullYear() + duration);
       }
@@ -1030,7 +1078,11 @@ export default function CustomerRegistration() {
     } else if (freq === 'Weekly') {
       date.setDate(date.getDate() + (duration * 7));
     } else if (freq === 'Monthly') {
+      const expectedMonth = (date.getMonth() + duration) % 12;
       date.setMonth(date.getMonth() + duration);
+      if (date.getMonth() !== expectedMonth) {
+        date.setDate(0);
+      }
     }
     return date.toISOString().split('T')[0];
   };
@@ -1040,7 +1092,7 @@ export default function CustomerRegistration() {
         formData.startDate, 
         selectedPlan.duration, 
         selectedPlan.frequency,
-        formData.planId === 'custom' ? formData.customDurationUnit : null
+        selectedPlan.durationUnit
       )
     : '';
 
@@ -1053,7 +1105,8 @@ export default function CustomerRegistration() {
         formData.customDurationUnit || 'Days',
         formData.customFrequency || 'Daily',
         formData.customType || 'Flat',
-        liveSettings.interest_calculation_period_loan || 'monthly'
+        liveSettings.interest_calculation_period_loan || 'monthly',
+        formData.startDate
       );
       setFormData(prev => {
         if (prev.customEmi !== String(calculatedEmi)) {
@@ -1071,12 +1124,14 @@ export default function CustomerRegistration() {
       if (formData.planId !== 'custom') {
         const plan = dbSavingPlans.find(p => String(p.id) === formData.planId);
         if (plan) {
-          durUnit = plan.duration_unit;
-          freq = plan.collection_frequency;
+          durUnit = formData.customDurationUnit !== '' ? formData.customDurationUnit : plan.duration_unit;
+          freq = formData.customFrequency !== '' ? formData.customFrequency : plan.collection_frequency;
           if (formData.customDailyDeposit === '' && formData.customRate === '' && formData.customDuration === '') {
             deposit = Number(plan.deposit_amount);
             rate = Number(plan.interest_rate);
             duration = Number(plan.duration_value);
+            durUnit = plan.duration_unit;
+            freq = plan.collection_frequency;
             
             setFormData(prev => ({
               ...prev,
@@ -1096,7 +1151,8 @@ export default function CustomerRegistration() {
         rate,
         duration,
         durUnit,
-        freq
+        freq,
+        formData.startDate
       );
 
       setFormData(prev => {
@@ -1116,6 +1172,7 @@ export default function CustomerRegistration() {
     formData.customFrequency,
     formData.customType,
     formData.customDailyDeposit,
+    formData.startDate,
     dbSavingPlans,
     liveSettings
   ]);
@@ -1124,7 +1181,7 @@ export default function CustomerRegistration() {
     if (!selectedPlan) return 0;
     const durVal = selectedPlan.duration;
     const durUnit = selectedPlan.durationUnit || (formData.planId === 'custom' ? formData.customDurationUnit : 'Days');
-    if (durUnit === 'Days') return durVal / 30;
+    if (durUnit === 'Days') return durVal / 30.4375;
     if (durUnit === 'Months') return durVal;
     if (durUnit === 'Years') return durVal * 12;
     return 0;
@@ -1158,8 +1215,8 @@ export default function CustomerRegistration() {
   };
 
   const isStep2Valid = () => {
-    const selectedBranchObj = branches.find(b => b.name === formData.branch);
-    const isBranchRegSuspended = selectedBranchObj && selectedBranchObj.allowRegistrations === false;
+    const selectedBranchObj = branches.find(b => String(b.id) === String(formData.branch));
+    const isBranchRegSuspended = selectedBranchObj && selectedBranchObj.allow_registrations === false;
     if (isBranchRegSuspended) return false;
     return formData.fullName && formData.mobile && formData.dob && formData.gender && formData.branch && formData.area && formData.agent;
   };
@@ -1306,8 +1363,8 @@ export default function CustomerRegistration() {
         else if (!formData.customEmi) { missingField = 'customEmi'; missingLabel = 'Custom EMI'; }
       }
     } else if (currentStep === 2) {
-      const selectedBranchObj = branches.find(b => b.name === formData.branch);
-      const isBranchRegSuspended = selectedBranchObj && selectedBranchObj.allowRegistrations === false;
+      const selectedBranchObj = branches.find(b => String(b.id) === String(formData.branch));
+      const isBranchRegSuspended = selectedBranchObj && selectedBranchObj.allow_registrations === false;
       if (isBranchRegSuspended) {
         showWarning('Registration Suspended', 'Registrations are currently suspended for this branch.');
         return;
@@ -1363,6 +1420,33 @@ export default function CustomerRegistration() {
   const handleSubmit = (e, print = false) => {
     e.preventDefault();
 
+    // Enforce full step-by-step validations before submitting
+    if (!isStep1Valid()) {
+      setCurrentStep(1);
+      showWarning('Required Field Missing', 'Please complete Step 1 (Account Setup) details before saving.');
+      return;
+    }
+    if (!isStep2Valid()) {
+      setCurrentStep(2);
+      showWarning('Required Field Missing', 'Please complete Step 2 (Customer Profile) details before saving.');
+      return;
+    }
+    if (!isStep3Valid()) {
+      setCurrentStep(3);
+      showWarning('Required Field Missing', 'Please complete Step 3 (Address Details) details before saving.');
+      return;
+    }
+    if (!isStep4Valid()) {
+      setCurrentStep(4);
+      showWarning('Required Field Missing', 'Please complete Step 4 (KYC Details) details before saving.');
+      return;
+    }
+    if (!isStep5Valid()) {
+      setCurrentStep(5);
+      showWarning('Required Field Missing', 'Please complete Step 5 (Guarantor Details) details before saving.');
+      return;
+    }
+
     let missingField = null;
     let missingLabel = '';
 
@@ -1413,6 +1497,16 @@ export default function CustomerRegistration() {
       start_date: formData.startDate,
       principal_amount: parseFloat(formData.customAmount) || (selectedPlan?.amount ?? 0),
       interest_rate: parseFloat(formData.customRate) || (selectedPlan?.rate ?? 0),
+      interest_type: formData.accountType === 'Saving' ? 'Flat' : (formData.planId === 'custom' ? formData.customType : (selectedPlan?.interestType ?? 'Flat')),
+      duration_value: formData.planId === 'custom'
+        ? (parseInt(formData.customDuration) || 0)
+        : (selectedPlan?.duration ?? 0),
+      duration_unit: formData.planId === 'custom'
+        ? formData.customDurationUnit
+        : (selectedPlan?.durationUnit ?? (selectedPlan?.frequency === 'Daily' ? 'Days' : 'Months')),
+      collection_frequency: formData.planId === 'custom'
+        ? formData.customFrequency
+        : (selectedPlan?.frequency ?? 'Daily'),
       emi_amount: parseFloat(formData.accountType === 'Saving' ? formData.customDailyDeposit : formData.customEmi) || (selectedPlan?.emi ?? 0),
       deposit_amount: formData.accountType === 'Saving'
         ? (parseFloat(formData.customDailyDeposit) || selectedPlan?.dailyDeposit || 0)
@@ -1504,13 +1598,18 @@ export default function CustomerRegistration() {
                 }}
                 className="flex flex-col items-center gap-2 relative z-10 flex-1 cursor-pointer group"
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 group-hover:scale-105 ${
-                  currentStep === step.num
-                    ? 'bg-primary text-white ring-4 ring-primary/10 scale-105'
-                    : currentStep > step.num
-                    ? 'bg-[#16A34A] text-white'
-                    : 'bg-background-fin border border-[#CBD5E1] text-[#64748B] group-hover:border-primary/50'
-                }`}>
+                <div 
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 group-hover:scale-105 ${
+                    currentStep === step.num
+                      ? (formData.accountType === 'Saving'
+                          ? 'text-slate-950 ring-4 ring-[#FBBF24]/30 scale-105 border border-[#F59E0B]/30'
+                          : 'bg-primary text-white ring-4 ring-primary/10 scale-105')
+                      : currentStep > step.num
+                      ? 'bg-[#16A34A] text-white'
+                      : 'bg-background-fin border border-[#CBD5E1] text-[#64748B] group-hover:border-primary/50'
+                  }`}
+                  style={currentStep === step.num && formData.accountType === 'Saving' ? { background: 'linear-gradient(135deg, #FFD54A 0%, #FBBF24 35%, #F59E0B 70%, #E67E00 100%)' } : {}}
+                >
                   {currentStep > step.num ? (
                     <span className="material-symbols-rounded text-xs select-none">check</span>
                   ) : (
@@ -1518,7 +1617,9 @@ export default function CustomerRegistration() {
                   )}
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wider text-center transition-colors ${
-                  currentStep === step.num ? 'text-primary' : 'text-[#64748B] group-hover:text-primary-text'
+                  currentStep === step.num
+                    ? (formData.accountType === 'Saving' ? 'text-[#B45309]' : 'text-primary')
+                    : 'text-[#64748B] group-hover:text-primary-text'
                 }`}>
                   {step.name}
                 </span>
@@ -1592,69 +1693,82 @@ export default function CustomerRegistration() {
                 />
 
                 {formData.accountType && (
-                  <Select
-                    label="Select Plan"
-                    required={true}
-                    options={[
-                      ...(formData.accountType === 'Loan' ? loanPlans : savingPlans),
-                      { value: 'custom', label: 'Custom Plan (Enter Manually)' }
-                    ]}
-                    onChange={(val) => {
-                      if (val === 'custom') {
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          planId: val,
-                          customAmount: '',
-                          customRate: localStorage.getItem('custom_interest_rate') || '',
-                          customDuration: '',
-                          customDurationUnit: 'Days',
-                          customFrequency: 'Daily',
-                          customType: 'Flat',
-                          customEmi: '',
-                          customProcessingFee: '0',
-                          customPenalty: '0',
-                          customDailyDeposit: '',
-                          customMaturity: ''
-                        }));
-                      } else {
-                        if (formData.accountType === 'Loan') {
-                          const plan = loanPlans.find(p => p.value === val);
-                          setFormData(prev => ({
-                            ...prev,
-                            planId: val,
-                            customAmount: plan ? String(plan.amount) : '',
-                            customRate: plan ? String(plan.rate) : '',
-                            customDuration: plan ? String(plan.duration) : '',
-                            customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
-                            customFrequency: plan ? plan.frequency : 'Daily',
-                            customType: plan ? plan.type : 'Flat',
-                            customEmi: '', 
-                            customProcessingFee: plan ? String(plan.processingFee) : '0',
-                            customPenalty: plan ? String(plan.penalty) : '0',
-                            customDailyDeposit: '',
-                            customMaturity: ''
-                          }));
-                        } else {
-                          const plan = savingPlans.find(p => p.value === val);
-                          setFormData(prev => ({
-                            ...prev,
+                  <>
+                    <Select
+                      label="Select Plan"
+                      required={true}
+                      value={formData.planId}
+                      options={[
+                        ...(formData.accountType === 'Loan' ? loanPlans : savingPlans),
+                        { value: 'custom', label: 'Custom Plan (Enter Manually)' }
+                      ]}
+                      onChange={(val) => {
+                        if (val === 'custom') {
+                          setFormData(prev => ({ 
+                            ...prev, 
                             planId: val,
                             customAmount: '',
-                            customRate: plan ? String(plan.rate) : '',
-                            customDuration: plan ? String(plan.duration) : '',
-                            customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
-                            customFrequency: plan ? plan.frequency : 'Daily',
+                            customRate: localStorage.getItem('custom_interest_rate') || '',
+                            customDuration: '',
+                            customDurationUnit: 'Days',
+                            customFrequency: 'Daily',
                             customType: 'Flat',
                             customEmi: '',
                             customProcessingFee: '0',
                             customPenalty: '0',
-                            customDailyDeposit: plan ? String(plan.dailyDeposit) : '',
-                            customMaturity: '' 
+                            customDailyDeposit: '',
+                            customMaturity: ''
                           }));
+                        } else {
+                          if (formData.accountType === 'Loan') {
+                            const plan = loanPlans.find(p => p.value === val);
+                            setFormData(prev => ({
+                              ...prev,
+                              planId: val,
+                              customAmount: plan ? String(plan.amount) : '',
+                              customRate: plan ? String(plan.rate) : '',
+                              customDuration: plan ? String(plan.duration) : '',
+                              customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
+                              customFrequency: plan ? plan.frequency : 'Daily',
+                              customType: plan ? plan.type : 'Flat',
+                              customEmi: '', 
+                              customProcessingFee: plan ? String(plan.processingFee) : '0',
+                              customPenalty: plan ? String(plan.penalty) : '0',
+                              customDailyDeposit: '',
+                              customMaturity: ''
+                            }));
+                          } else {
+                            const plan = savingPlans.find(p => p.value === val);
+                            setFormData(prev => ({
+                              ...prev,
+                              planId: val,
+                              customAmount: '',
+                              customRate: plan ? String(plan.rate) : '',
+                              customDuration: plan ? String(plan.duration) : '',
+                              customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
+                              customFrequency: plan ? plan.frequency : 'Daily',
+                              customType: 'Flat',
+                              customEmi: '',
+                              customProcessingFee: '0',
+                              customPenalty: '0',
+                              customDailyDeposit: plan ? String(plan.dailyDeposit) : '',
+                              customMaturity: '' 
+                            }));
+                          }
                         }
-                      }
-                    }}
-                  />
+                      }}
+                    />
+
+                    {formData.accountType === 'Loan' && (
+                      <div className="mt-4 flex items-center justify-between p-3.5 bg-emerald-50/50 border border-emerald-100/80 rounded-xl animate-fadeIn">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-rounded text-emerald-600 text-lg">account_balance_wallet</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Available Loan Fund</span>
+                        </div>
+                        <span className="text-sm font-extrabold text-emerald-600">{inr(availableLoanFund)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {formData.planId && formData.planId !== '' && formData.accountType === 'Loan' && (
@@ -1880,7 +1994,7 @@ export default function CustomerRegistration() {
                             <div className="flex justify-between items-center text-xs font-semibold bg-primary/5 border border-primary/10 px-3 py-2 rounded-xl transition-all duration-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
                               <span className="text-primary font-bold">Duration</span>
                               <span className="font-black text-primary-text bg-white px-2 py-0.5 rounded-md border border-[#E2E8F0] shadow-sm">
-                                {selectedPlan.duration} {formData.planId === 'custom' ? formData.customDurationUnit : (selectedPlan.frequency === 'Daily' ? 'Days' : 'Months')}
+                                {selectedPlan.duration} {selectedPlan.durationUnit}
                               </span>
                             </div>
                             <div className="flex justify-between items-center text-xs font-semibold bg-primary/5 border border-primary/10 px-3 py-2 rounded-xl transition-all duration-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
@@ -1915,7 +2029,7 @@ export default function CustomerRegistration() {
                             <div className="flex justify-between items-center text-xs font-semibold bg-primary/5 border border-primary/10 px-3 py-2 rounded-xl transition-all duration-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
                               <span className="text-primary font-bold">Duration</span>
                               <span className="font-black text-primary bg-white px-2 py-0.5 rounded-md border border-primary/20 shadow-sm">
-                                {selectedPlan.duration} {formData.planId === 'custom' ? formData.customDurationUnit : (selectedPlan.frequency === 'Daily' ? 'Days' : 'Months')}
+                                {selectedPlan.duration} {selectedPlan.durationUnit}
                               </span>
                             </div>
                             <div className="border-t border-dashed border-[#CBD5E1] pt-3 mt-2">
@@ -2046,7 +2160,22 @@ export default function CustomerRegistration() {
                     type="tel"
                     placeholder="Enter Mobile Number"
                     value={formData.mobile}
-                    onChange={(e) => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData(prev => ({ ...prev, mobile: val }));
+                      if (val.length === 10) {
+                        customerApi.checkMobile(val)
+                          .then(res => {
+                            if (res.data && res.data.registered) {
+                              showWarning(
+                                'Mobile Number Registered',
+                                `Mobile number is already registered with ${res.data.customer.full_name} (${res.data.customer.customer_code}).`
+                              );
+                            }
+                          })
+                          .catch(() => {});
+                      }
+                    }}
                     className="w-full px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                   />
                 </div>
@@ -2120,7 +2249,30 @@ export default function CustomerRegistration() {
                     required={true}
                     options={branches.map(b => ({ value: String(b.id), label: `${b.name} (${b.code})` }))}
                     value={formData.branch}
-                    onChange={(val) => setFormData(prev => ({ ...prev, branch: val, area: '', agent: '' }))}
+                    onChange={(val) => {
+                      const filteredAreas = areas.filter(a => String(a.branch_id) === String(val));
+                      let bestAreaId = '';
+                      if (filteredAreas.length > 0) {
+                        const sortedAreas = [...filteredAreas].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
+                        bestAreaId = String(sortedAreas[0].id);
+                      }
+
+                      let bestAgentId = '';
+                      if (bestAreaId) {
+                        const filteredAgents = agents.filter(ag => String(ag.branch_id) === String(val) && String(ag.area_id) === String(bestAreaId));
+                        if (filteredAgents.length > 0) {
+                          const sortedAgents = [...filteredAgents].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
+                          bestAgentId = String(sortedAgents[0].id);
+                        }
+                      }
+
+                      setFormData(prev => ({
+                        ...prev,
+                        branch: val,
+                        area: bestAreaId,
+                        agent: bestAgentId
+                      }));
+                    }}
                   />
                   {(() => {
                     const selBranch = branches.find(b => String(b.id) === String(formData.branch));
@@ -2142,7 +2294,20 @@ export default function CustomerRegistration() {
                     .filter(a => !formData.branch || String(a.branch_id) === String(formData.branch))
                     .map(a => ({ value: String(a.id), label: `${a.name} (${a.code})` }))}
                   value={formData.area}
-                  onChange={(val) => setFormData(prev => ({ ...prev, area: val, agent: '' }))}
+                  onChange={(val) => {
+                    const filteredAgents = agents.filter(ag => String(ag.branch_id) === String(formData.branch) && String(ag.area_id) === String(val));
+                    let bestAgentId = '';
+                    if (filteredAgents.length > 0) {
+                      const sortedAgents = [...filteredAgents].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
+                      bestAgentId = String(sortedAgents[0].id);
+                    }
+
+                    setFormData(prev => ({
+                      ...prev,
+                      area: val,
+                      agent: bestAgentId
+                    }));
+                  }}
                 />
 
                 <Select
@@ -2152,7 +2317,9 @@ export default function CustomerRegistration() {
                     .filter(ag => (!formData.branch || String(ag.branch_id) === String(formData.branch)) && (!formData.area || String(ag.area_id) === String(formData.area)))
                     .map(ag => ({ value: String(ag.id), label: `${ag.name} (${ag.code})` }))}
                   value={formData.agent}
-                  onChange={(val) => setFormData(prev => ({ ...prev, agent: val }))}
+                  onChange={(val) => {
+                    setFormData(prev => ({ ...prev, agent: val }));
+                  }}
                 />
               </div>
             </div>
@@ -2235,9 +2402,9 @@ export default function CustomerRegistration() {
                   label="State *"
                   required={true}
                   options={[
-                    { value: 'UP', label: 'Uttar Pradesh' },
-                    { value: 'MP', label: 'Madhya Pradesh' },
-                    { value: 'BI', label: 'Bihar' }
+                    { value: 'Uttar Pradesh', label: 'Uttar Pradesh' },
+                    { value: 'Madhya Pradesh', label: 'Madhya Pradesh' },
+                    { value: 'Bihar', label: 'Bihar' }
                   ]}
                   value={formData.state}
                   onChange={(val) => setFormData(prev => ({ ...prev, state: val }))}
@@ -2649,7 +2816,7 @@ export default function CustomerRegistration() {
             <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
               <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <h3 className="text-base font-bold text-primary-text border-b border-border-fin pb-3 mb-2">Account & Plan Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-semibold">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-xs font-semibold">
                   <div>
                     <span className="text-secondary-text block mb-1">Account Type</span>
                     <span className="font-bold text-primary-text">{formData.accountType === 'Loan' ? 'Loan Account' : 'Savings Account'}</span>
@@ -2669,7 +2836,21 @@ export default function CustomerRegistration() {
                         <span className="font-bold text-primary">₹{selectedPlan?.amount.toLocaleString()}</span>
                       </div>
                       <div>
-                        <span className="text-secondary-text block mb-1">Interest</span>
+                        <span className="text-secondary-text block mb-1">Interest Rate</span>
+                        <span className="font-bold text-primary-text">{selectedPlan?.rate}% ({selectedPlan?.type})</span>
+                      </div>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Duration</span>
+                        <span className="font-bold text-primary-text">
+                          {selectedPlan?.duration} {selectedPlan?.durationUnit}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Installment (EMI)</span>
+                        <span className="font-bold text-primary-text">₹{selectedPlan?.emi.toLocaleString()} ({selectedPlan?.frequency})</span>
+                      </div>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Total Interest</span>
                         <span className="font-bold text-primary-text">₹{totalInterest.toLocaleString()}</span>
                       </div>
                       <div>
@@ -2678,10 +2859,26 @@ export default function CustomerRegistration() {
                       </div>
                     </>
                   ) : (
-                    <div>
-                      <span className="text-secondary-text block mb-1">Maturity Amount</span>
-                      <span className="font-bold text-success-fin">₹{selectedPlan?.maturity.toLocaleString()}</span>
-                    </div>
+                    <>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Deposit Amount</span>
+                        <span className="font-bold text-primary">₹{selectedPlan?.dailyDeposit.toLocaleString()} ({selectedPlan?.frequency})</span>
+                      </div>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Interest Rate</span>
+                        <span className="font-bold text-primary-text">{selectedPlan?.rate}%</span>
+                      </div>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Duration</span>
+                        <span className="font-bold text-primary-text">
+                          {selectedPlan?.duration} {selectedPlan?.durationUnit}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-secondary-text block mb-1">Maturity Amount</span>
+                        <span className="font-bold text-success-fin">₹{selectedPlan?.maturity.toLocaleString()}</span>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -2834,14 +3031,24 @@ export default function CustomerRegistration() {
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, false)}
-                className="px-6 py-3 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                className={`px-6 py-3 rounded-xl text-xs font-bold active:scale-[0.98] transition-all cursor-pointer shadow-sm ${
+                  formData.accountType === 'Saving'
+                    ? 'text-slate-950 hover:opacity-95'
+                    : 'bg-[#0A3598] hover:bg-[#0A3598]/90 text-white'
+                }`}
+                style={formData.accountType === 'Saving' ? { background: 'linear-gradient(135deg, #FFD54A 0%, #FBBF24 35%, #F59E0B 70%, #E67E00 100%)' } : {}}
               >
                 Save
               </button>
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
-                className="flex items-center gap-2 px-6 py-3 bg-[#FFC107] text-white rounded-xl text-xs font-bold hover:bg-[#FFC107]/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold active:scale-[0.98] transition-all cursor-pointer shadow-sm ${
+                  formData.accountType === 'Saving'
+                    ? 'text-slate-950 hover:opacity-95'
+                    : 'bg-[#0A3598] hover:bg-[#0A3598]/90 text-white'
+                }`}
+                style={formData.accountType === 'Saving' ? { background: 'linear-gradient(135deg, #FFD54A 0%, #FBBF24 35%, #F59E0B 70%, #E67E00 100%)' } : {}}
               >
                 <span className="material-symbols-rounded text-sm select-none">print</span>
                 Save & Print

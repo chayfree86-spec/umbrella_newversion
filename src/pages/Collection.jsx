@@ -229,7 +229,7 @@ export default function Collection() {
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const selectedDateYMD = `${year}-${month}-${day}`;
 
-    const isDue = acc.nextDueDate && acc.nextDueDate <= selectedDateYMD;
+    const isDue = acc.type === 'Saving' || (acc.nextDueDate && acc.nextDueDate <= selectedDateYMD);
 
     const isStatusMatch = (['Approved', 'Active', 'Defaulter', 'NPA'].includes(status) && isDue) || hasCollectionOnDate;
     const isTypeMatch = filterType === 'All' || acc.type === filterType;

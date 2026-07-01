@@ -6,7 +6,8 @@ class Agent {
 
     public static function getAll($db) {
         $stmt = $db->prepare("
-            SELECT a.*, b.name as branch_name, ar.name as area_name, p.name as policy_name 
+            SELECT a.*, b.name as branch_name, ar.name as area_name, p.name as policy_name,
+            (SELECT COUNT(*) FROM customers c WHERE c.agent_id = a.id AND c.deleted_at IS NULL) as customers_count
             FROM agents a
             JOIN branches b ON a.branch_id = b.id
             JOIN areas ar ON a.area_id = ar.id
@@ -20,7 +21,8 @@ class Agent {
 
     public static function getById($db, $id) {
         $stmt = $db->prepare("
-            SELECT a.*, b.name as branch_name, ar.name as area_name, p.name as policy_name 
+            SELECT a.*, b.name as branch_name, ar.name as area_name, p.name as policy_name,
+            (SELECT COUNT(*) FROM customers c WHERE c.agent_id = a.id AND c.deleted_at IS NULL) as customers_count
             FROM agents a
             JOIN branches b ON a.branch_id = b.id
             JOIN areas ar ON a.area_id = ar.id
@@ -33,7 +35,8 @@ class Agent {
 
     public static function getByArea($db, $areaId) {
         $stmt = $db->prepare("
-            SELECT a.*, b.name as branch_name, ar.name as area_name, p.name as policy_name 
+            SELECT a.*, b.name as branch_name, ar.name as area_name, p.name as policy_name,
+            (SELECT COUNT(*) FROM customers c WHERE c.agent_id = a.id AND c.deleted_at IS NULL) as customers_count
             FROM agents a
             JOIN branches b ON a.branch_id = b.id
             JOIN areas ar ON a.area_id = ar.id

@@ -46,18 +46,18 @@ class Fund {
         $stmt->execute();
         $penaltiesReceived = $stmt->fetchColumn();
 
-        // Overall Cash Balance = (Capital + Savings + Interest + Penalties) - Disbursed
-        $overallCash = ($totalCapital + $totalSavings + $interestReceived + $penaltiesReceived) - $totalDisbursed;
-
-        // Loan pool size (100% allocation, no reserve)
-        $loanPool = $totalCapital;
-
         // Principal repaid (from loan collections)
         $stmt = $db->prepare("SELECT COALESCE(SUM(principal_amount), 0) FROM loan_collections WHERE is_reversal = 0");
         $stmt->execute();
         $principalRepaid = $stmt->fetchColumn();
 
-        $availableLoanFund = max(0, $loanPool - $totalDisbursed + $principalRepaid);
+        // Overall Cash Balance = (Capital + Savings + Interest + Penalties + Principal Repaid) - Disbursed
+        $overallCash = ($totalCapital + $totalSavings + $interestReceived + $penaltiesReceived + $principalRepaid) - $totalDisbursed;
+
+        // Loan pool size (100% allocation, no reserve)
+        $loanPool = $totalCapital;
+
+        $availableLoanFund = max(0, $loanPool - $totalDisbursed + $principalRepaid + $interestReceived + $penaltiesReceived);
 
         return [
             'totalCapital' => (float)$totalCapital,

@@ -3,21 +3,52 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import Chart from 'react-apexcharts';
-import { loanApi, savingApi, customerApi, collectionApi, planApi, settingsApi } from '../services/api';
+import { loanApi, savingApi, customerApi, collectionApi, planApi, settingsApi, fundApi } from '../services/api';
 
-const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly') => {
+const getDaysInYear = (dateStr) => {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const year = isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+  return (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365;
+};
+
+const getActualDays = (startDateStr, durationVal, durationUnit) => {
+  const start = startDateStr ? new Date(startDateStr) : new Date();
+  const dur = Number(durationVal) || 0;
+  if (isNaN(start.getTime())) {
+    if (durationUnit === 'Months') return Math.round(dur * 30.44);
+    if (durationUnit === 'Years') return Math.round(dur * 365.24);
+    return dur;
+  }
+  const end = new Date(start);
+  if (durationUnit === 'Days') {
+    return dur;
+  } else if (durationUnit === 'Months') {
+    const expectedMonth = (start.getMonth() + dur) % 12;
+    end.setMonth(start.getMonth() + dur);
+    if (end.getMonth() !== expectedMonth) {
+      end.setDate(0);
+    }
+  } else if (durationUnit === 'Years') {
+    end.setFullYear(start.getFullYear() + dur);
+  }
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+
+const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly', startDate) => {
   if (!principal || !rate || !durationVal) return '';
 
   let totalDays = 0;
   let totalMonths = 0;
   if (durationUnit === 'Days') {
     totalDays = durationVal;
-    totalMonths = durationVal / 30;
+    totalMonths = durationVal / 30.4375;
   } else if (durationUnit === 'Months') {
-    totalDays = durationVal * 30;
+    totalDays = getActualDays(startDate, durationVal, 'Months');
     totalMonths = durationVal;
   } else if (durationUnit === 'Years') {
-    totalDays = durationVal * 365;
+    totalDays = getActualDays(startDate, durationVal, 'Years');
     totalMonths = durationVal * 12;
   }
 
@@ -38,8 +69,9 @@ const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequenc
     return Math.round(totalPayable / N);
   } else {
     let R = 0;
+    const daysInYear = getDaysInYear(startDate);
     if (frequency === 'Daily') {
-      R = loanPeriod === 'yearly' ? ((rate / 100) / 365) : (((rate / 100) * 12) / 365);
+      R = loanPeriod === 'yearly' ? ((rate / 100) / daysInYear) : (((rate / 100) * 12) / daysInYear);
     } else if (frequency === 'Weekly') {
       R = loanPeriod === 'yearly' ? ((rate / 100) / 52) : (((rate / 100) * 12) / 52);
     } else if (frequency === 'Monthly') {
@@ -54,7 +86,7 @@ const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequenc
   }
 };
 
-const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency) => {
+const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency, startDate) => {
   const dAmt = parseFloat(depositAmt) || 0;
   const rVal = parseFloat(rate) || 0;
   const dur = parseFloat(durationVal) || 0;
@@ -64,18 +96,18 @@ const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, fr
   let totalMonths = 0;
   if (durationUnit === 'Days') {
     totalDays = dur;
-    totalMonths = dur / 30;
+    totalMonths = dur / 30.4375;
   } else if (durationUnit === 'Months') {
-    totalDays = dur * 30;
+    totalDays = getActualDays(startDate, dur, 'Months');
     totalMonths = dur;
   } else if (durationUnit === 'Years') {
-    totalDays = dur * 360;
+    totalDays = getActualDays(startDate, dur, 'Years');
     totalMonths = dur * 12;
   }
 
   let instPerYear = 0;
   if (frequency === 'Daily') {
-    instPerYear = 360;
+    instPerYear = getDaysInYear(startDate);
   } else if (frequency === 'Weekly') {
     instPerYear = 52;
   } else if (frequency === 'Monthly') {
@@ -253,6 +285,7 @@ export default function AccountDetails() {
   const [isAddSavingModalOpen, setIsAddSavingModalOpen] = useState(false);
   const [loanPlans, setLoanPlans] = useState([]);
   const [savingPlans, setSavingPlans] = useState([]);
+  const [availableLoanFund, setAvailableLoanFund] = useState(0);
   const [loanForm, setLoanForm] = useState({
     loan_plan_id: '',
     principal_amount: '',
@@ -305,6 +338,7 @@ export default function AccountDetails() {
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
+
   // Live calculations for Custom Loan
   useEffect(() => {
     if (loanForm.loan_plan_id === 'custom') {
@@ -315,7 +349,8 @@ export default function AccountDetails() {
         loanForm.duration_unit,
         loanForm.collection_frequency,
         loanForm.interest_type,
-        liveSettings.interest_calculation_period_loan || 'monthly'
+        liveSettings.interest_calculation_period_loan || 'monthly',
+        loanForm.start_date
       );
       setLoanForm(prev => ({ ...prev, emi_amount: String(calculatedEmi) }));
     }
@@ -327,6 +362,7 @@ export default function AccountDetails() {
     loanForm.duration_unit,
     loanForm.collection_frequency,
     loanForm.interest_type,
+    loanForm.start_date,
     liveSettings
   ]);
 
@@ -338,7 +374,8 @@ export default function AccountDetails() {
         Number(savingForm.interest_rate) || 0,
         Number(savingForm.duration_value) || 0,
         savingForm.duration_unit,
-        savingForm.collection_frequency
+        savingForm.collection_frequency,
+        savingForm.start_date
       );
       setSavingForm(prev => ({ ...prev, maturity_amount: String(calculatedMaturity) }));
     }
@@ -348,7 +385,8 @@ export default function AccountDetails() {
     savingForm.interest_rate,
     savingForm.duration_value,
     savingForm.duration_unit,
-    savingForm.collection_frequency
+    savingForm.collection_frequency,
+    savingForm.start_date
   ]);
 
   // Derived plan details for review card
@@ -4136,7 +4174,7 @@ export default function AccountDetails() {
                       const durationUnit = loanForm.loan_plan_id === 'custom' ? loanForm.duration_unit : selectedLoanPlanObj.duration_unit;
                       const frequency = loanForm.loan_plan_id === 'custom' ? loanForm.collection_frequency : selectedLoanPlanObj.collection_frequency;
                       let durationInMonths = 0;
-                      if (durationUnit === 'Days') durationInMonths = duration / 30;
+                      if (durationUnit === 'Days') durationInMonths = duration / 30.4375;
                       else if (durationUnit === 'Months') durationInMonths = duration;
                       else if (durationUnit === 'Years') durationInMonths = duration * 12;
 
@@ -4151,11 +4189,11 @@ export default function AccountDetails() {
                       // Calculate N
                       let N = 0;
                       if (frequency === 'Daily') {
-                        N = durationUnit === 'Days' ? duration : (durationUnit === 'Months' ? duration * 30 : duration * 365);
+                        N = durationUnit === 'Days' ? duration : getActualDays(loanForm.start_date, duration, durationUnit);
                       } else if (frequency === 'Weekly') {
-                        N = durationUnit === 'Days' ? Math.round(duration / 7) : (durationUnit === 'Months' ? Math.round((duration * 30) / 7) : duration * 52);
+                        N = durationUnit === 'Days' ? Math.round(duration / 7) : Math.round(getActualDays(loanForm.start_date, duration, durationUnit) / 7);
                       } else if (frequency === 'Monthly') {
-                        N = durationUnit === 'Days' ? Math.round(duration / 30) : (durationUnit === 'Months' ? duration : duration * 12);
+                        N = durationUnit === 'Days' ? Math.round(duration / 30.4375) : (durationUnit === 'Months' ? duration : duration * 12);
                       }
                       if (N <= 0) N = 1;
 
