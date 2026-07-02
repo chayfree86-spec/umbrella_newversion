@@ -495,9 +495,9 @@ export default function Collection() {
         </div>
       )}
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         {activeTab === 'single' ? (
-          <div className="flex flex-wrap items-center gap-3 flex-1">
+          <div className="w-full flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 flex-1">
             {/* Branch Filter */}
             <Select 
               options={[{ value: 'All', label: 'All Branches' }, ...branches.map(b => ({ value: b.name, label: b.name }))] }
@@ -530,12 +530,12 @@ export default function Collection() {
             />
 
             {/* Today's Pay Status Tabs */}
-            <div className="flex bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shrink-0">
+            <div className="w-full sm:w-auto flex bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shrink-0">
               {['All', 'Pending', 'Paid'].map(s => (
                 <button
                   key={s}
                   onClick={() => setFilterStatus(s)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
                     filterStatus === s 
                       ? 'bg-[#0A3598] text-white shadow-sm'
                       : 'text-[#64748B] hover:text-[#0F172A]'
@@ -547,7 +547,7 @@ export default function Collection() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3 flex-1">
+          <div className="w-full flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 flex-1">
             <Select 
               options={agents.map(a => ({ value: a.name, label: `${a.name} (${a.code})` }))}
               value={selectedAgentForBulk}
@@ -579,18 +579,18 @@ export default function Collection() {
         )}
 
         {/* Horizontal Date Selection Bar */}
-        <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shadow-sm shrink-0">
+        <div className="w-full xl:w-auto flex items-center justify-between gap-1 bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shadow-sm shrink-0">
           {/* Prev Day Button */}
           <button 
             type="button"
             onClick={handlePrevDay}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+            className="w-8 h-8 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
           >
             <span className="material-symbols-rounded text-base select-none">chevron_left</span>
           </button>
 
           {/* Selected Date Text */}
-          <div className="flex items-center">
+          <div className="flex-1 flex items-center justify-center">
             <span className="text-[11px] font-black text-[#0A3598] min-w-[72px] text-center select-none tracking-tight">
               {selectedDateStr}
             </span>
@@ -600,7 +600,7 @@ export default function Collection() {
           <button 
             type="button"
             onClick={handleNextDay}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+            className="w-8 h-8 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
           >
             <span className="material-symbols-rounded text-base select-none">chevron_right</span>
           </button>
@@ -614,7 +614,7 @@ export default function Collection() {
               }
             }}
             customTrigger={
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
+              <div className="w-8 h-8 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
                 <span className="material-symbols-rounded text-base select-none">event</span>
               </div>
             }
@@ -623,46 +623,46 @@ export default function Collection() {
       </div>
 
       {/* Metrics Bento Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Target Collection</span>
-            <span className="material-symbols-rounded text-slate-300 text-lg select-none">track_changes</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Target Collection</span>
+            <span className="material-symbols-rounded text-slate-300 text-base sm:text-lg select-none">track_changes</span>
           </div>
-          <strong className="text-xl font-black text-[#0F172A] block">₹{totalTargetToday.toLocaleString()}</strong>
-          <span className="text-[9px] text-[#64748B] block">Expected EMI collections today</span>
+          <strong className="text-base sm:text-xl font-black text-[#0F172A] block">₹{totalTargetToday.toLocaleString()}</strong>
+          <span className="text-[8.5px] sm:text-[9px] text-[#64748B] block leading-tight">Expected EMI collections today</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected Today</span>
-            <span className="material-symbols-rounded text-emerald-400 text-lg select-none">payments</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected Today</span>
+            <span className="material-symbols-rounded text-emerald-400 text-base sm:text-lg select-none">payments</span>
           </div>
-          <strong className="text-xl font-black text-[#16A34A] block">₹{totalCollectedToday.toLocaleString()}</strong>
-          <span className="text-[9px] text-emerald-600 font-semibold block">EMI payments recorded</span>
+          <strong className="text-base sm:text-xl font-black text-[#16A34A] block">₹{totalCollectedToday.toLocaleString()}</strong>
+          <span className="text-[8.5px] sm:text-[9px] text-emerald-600 font-semibold block leading-tight">EMI payments recorded</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pending Balance</span>
-            <span className="material-symbols-rounded text-amber-400 text-lg select-none">hourglass_empty</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pending Balance</span>
+            <span className="material-symbols-rounded text-amber-400 text-base sm:text-lg select-none">hourglass_empty</span>
           </div>
-          <strong className="text-xl font-black text-[#EA580C] block">₹{totalPendingToday.toLocaleString()}</strong>
-          <span className="text-[9px] text-[#EA580C] font-semibold block">Remaining to collect</span>
+          <strong className="text-base sm:text-xl font-black text-[#EA580C] block">₹{totalPendingToday.toLocaleString()}</strong>
+          <span className="text-[8.5px] sm:text-[9px] text-[#EA580C] font-semibold block leading-tight">Remaining to collect</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completion Rate</span>
-            <span className="text-xs font-bold text-[#0A3598] bg-[#0A3598]/5 px-2 py-0.5 rounded">{progressPercent}%</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completion Rate</span>
+            <span className="text-[10px] sm:text-xs font-bold text-[#0A3598] bg-[#0A3598]/5 px-1.5 sm:px-2 py-0.5 rounded">{progressPercent}%</span>
           </div>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
+          <div className="w-full bg-slate-100 h-1.5 sm:h-2 rounded-full overflow-hidden mt-2">
             <div 
               className="bg-[#0A3598] h-full rounded-full transition-all duration-500" 
               style={{ width: `${Math.min(100, progressPercent)}%` }}
             ></div>
           </div>
-          <span className="text-[9px] text-[#64748B] block mt-1">Today's collection progress</span>
+          <span className="text-[8.5px] sm:text-[9px] text-[#64748B] block leading-tight">Today's collection progress</span>
         </div>
       </div>
 
@@ -697,8 +697,8 @@ export default function Collection() {
       {/* Tab 1: Single Collection checklist */}
       {activeTab === 'single' && (
         <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 space-y-5 animate-fade-in">
-          {/* Collection Checklist Table */}
-          <div className="overflow-x-auto -mx-6">
+          {/* Desktop Table (Hidden on Mobile) */}
+          <div className="hidden lg:block overflow-x-auto -mx-6">
             <div className="inline-block min-w-full align-middle">
               <table className="min-w-full divide-y divide-[#E2E8F0]">
                 <thead className="bg-[#F8FAFC]">
@@ -815,12 +815,124 @@ export default function Collection() {
                 </tbody>
               </table>
             </div>
-            <Pagination 
-              currentPage={currentPage}
-              totalPages={Math.ceil(filteredAccounts.length / 20)}
-              onPageChange={setCurrentPage}
-            />
           </div>
+
+          {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
+          <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+            {(() => {
+              const sortedAccounts = [...filteredAccounts].sort((a, b) => {
+                return b.accNo.localeCompare(a.accNo);
+              });
+              const paginatedAccounts = sortedAccounts.slice((currentPage - 1) * 20, currentPage * 20);
+
+              if (paginatedAccounts.length === 0) {
+                return (
+                  <div className="text-center py-8 text-[#64748B] font-bold text-xs">
+                    No active collection accounts found for today matching the filters.
+                  </div>
+                );
+              }
+
+              return paginatedAccounts.map((acc) => {
+                const name = acc.customer?.name || acc.name || 'Customer';
+                const phone = acc.customer?.phone || acc.phone || 'N/A';
+                
+                // Check today status
+                const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
+                const todayPaid = !!todayPayment;
+                const todayRejected = !todayPayment && !!acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Rejected');
+
+                return (
+                  <div 
+                    key={acc.accNo} 
+                    className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3.5 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer"
+                    onClick={() => navigate(`/account/${acc.accNo}`)}
+                  >
+                    {/* Header: Acc No & Status */}
+                    <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
+                      <span className="font-extrabold text-[#0A3598] text-xs">
+                        {acc.accNo}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${
+                          acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
+                        }`}>
+                          {acc.type}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${
+                          todayPaid 
+                            ? 'bg-[#16A34A]/10 text-[#16A34A]' 
+                            : todayRejected
+                              ? 'bg-[#EF4444]/10 text-[#EF4444]'
+                              : 'bg-[#EA580C]/10 text-[#EA580C]'
+                        }`}>
+                          {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Details */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="col-span-2 space-y-0.5">
+                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Customer</span>
+                        <span className="text-[#0F172A] font-extrabold block">{name}</span>
+                        <span className="text-[10px] text-[#64748B] font-semibold block">{phone}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Daily EMI / Deposit</span>
+                        <span className="text-[#0F172A] font-black text-xs">₹{(acc.emiAmt || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="border-t border-[#E2E8F0]/50 pt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                      {todayPaid ? (
+                        <button
+                          onClick={() => {
+                            setReceiptAccountNo(acc.accNo);
+                            setReceiptTxn(todayPayment);
+                            setShowReceipt(true);
+                          }}
+                          className="w-full py-2 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                          Receipt
+                        </button>
+                      ) : isFutureDate ? (
+                        <button
+                          disabled
+                          className="w-full py-2 rounded-xl text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none text-center"
+                        >
+                          Scheduled
+                        </button>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 w-full">
+                          <button
+                            onClick={() => handleOpenCollect(acc)}
+                            className="w-full py-2 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                          >
+                            <span className="material-symbols-rounded text-sm select-none">payments</span>
+                            Collect
+                          </button>
+                          {todayRejected && (
+                            <span className="text-[9px] text-[#EF4444] font-black uppercase tracking-wider mt-1.5 block">
+                              Rejected Today
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredAccounts.length / 20)}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

@@ -415,7 +415,7 @@ export function DatePicker({
           openDirection === 'up' 
             ? 'bottom-full mb-1.5 origin-bottom' 
             : 'top-full mt-1.5 origin-top'
-        } ${customTrigger ? 'right-0' : 'left-0 md:left-auto'}`}>
+        } ${customTrigger ? 'right-0' : 'right-0 sm:left-0'}`}>
           {/* Calendar Header */}
           <div className="flex justify-between items-center mb-3">
             <button

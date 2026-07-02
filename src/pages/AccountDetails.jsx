@@ -1773,6 +1773,23 @@ export default function AccountDetails() {
 
         return (
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
+            <style>{`
+              .calendar-icon {
+                font-size: 10px !important;
+                width: 10px !important;
+                height: 10px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+              }
+              @media (min-width: 640px) {
+                .calendar-icon {
+                  font-size: 14px !important;
+                  width: 14px !important;
+                  height: 14px !important;
+                }
+              }
+            `}</style>
             <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-[#F1F5F9] pb-3.5">
               <div className="flex items-center gap-3">
                 <div>
@@ -1858,10 +1875,10 @@ export default function AccountDetails() {
               <div>Sun</div>
             </div>
 
-            <div className="grid grid-cols-7 gap-2.5">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2.5">
               {/* Padding Offset Cells */}
               {Array.from({ length: startOffset }).map((_, idx) => (
-                <div key={`empty-${idx}`} className="h-14 sm:h-20 bg-slate-50/30 border border-dashed border-slate-100 rounded-xl"></div>
+                <div key={`empty-${idx}`} className="aspect-square h-auto sm:h-20 bg-slate-50/30 border border-dashed border-slate-100 rounded-xl"></div>
               ))}
 
               {displayDays.map((d, index) => {
@@ -1881,9 +1898,9 @@ export default function AccountDetails() {
                   return (
                     <div
                       key={index}
-                      className="h-14 sm:h-20 flex flex-col justify-start p-1.5 sm:p-2 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
+                      className="aspect-square h-auto sm:h-20 flex flex-col justify-start p-1 sm:p-2 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
                     >
-                      <span className="text-xs sm:text-sm md:text-base font-black text-slate-300">{d.day}</span>
+                      <span className="text-[10px] sm:text-sm font-black text-slate-300">{d.day}</span>
                     </div>
                   );
                 }
@@ -1894,7 +1911,7 @@ export default function AccountDetails() {
                     <div
                       key={index}
                       onClick={() => handleDayClick(d)}
-                      className={`h-14 sm:h-20 flex flex-col justify-between p-1.5 sm:p-2 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
+                      className={`aspect-square h-auto sm:h-20 flex flex-col justify-between p-1 sm:p-2 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
                         isClosedDate ? 'ring-2 ring-[#DC2626] border-[#DC2626] shadow-md z-10' : isToday ? 'ring-2 ring-amber-500 border-amber-500 shadow-md z-10' : ''
                       } ${
                         isPaid ? 'bg-[#16A34A]/5 border-[#16A34A]/25 text-[#16A34A] hover:bg-[#16A34A]/10' :
@@ -1906,74 +1923,78 @@ export default function AccountDetails() {
                       }`}
                     >
                       {/* Top Row: Date on left, icon indicator on right */}
-                      <div className="flex justify-between items-center w-full">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <span className="text-xs sm:text-sm md:text-base font-black text-[#0F172A]">{d.day}</span>
+                      <div className="flex justify-between items-center w-full min-h-[14px]">
+                        {/* Left: Day Number */}
+                        <span className="text-[10px] sm:text-xs font-black text-[#0F172A]">{d.day}</span>
+                        
+                        {/* Right: Badges & Status Icons */}
+                        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                           {isToday && (
-                            <span className="text-[7px] md:text-[8px] bg-amber-500 text-white font-extrabold px-1 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                            <span className="text-[6.5px] sm:text-[8px] bg-amber-500 text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
                               <span className="hidden sm:inline">Today</span>
                               <span className="sm:hidden">T</span>
                             </span>
                           )}
                           {isStart && (
-                            <span className="text-[7px] md:text-[8px] bg-[#16A34A] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                            <span className="text-[6.5px] sm:text-[8px] bg-[#16A34A] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
                               <span className="hidden sm:inline">Start</span>
                               <span className="sm:hidden">S</span>
                             </span>
                           )}
                           {isApproved && (
-                            <span className="text-[7px] md:text-[8px] bg-[#4F46E5] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                            <span className="text-[6.5px] sm:text-[8px] bg-[#4F46E5] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
                               <span className="hidden sm:inline">Approved</span>
                               <span className="sm:hidden">A</span>
                             </span>
                           )}
                           {isEnd && (
-                            <span className="text-[7px] md:text-[8px] bg-[#E11D48] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                            <span className="text-[6.5px] sm:text-[8px] bg-[#E11D48] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
                               <span className="hidden sm:inline">End</span>
                               <span className="sm:hidden">E</span>
                             </span>
                           )}
                           {isClosedDate && (
-                            <span className="text-[7px] md:text-[8px] bg-[#DC2626] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                            <span className="text-[6.5px] sm:text-[8px] bg-[#DC2626] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
                               <span className="hidden sm:inline">Closed</span>
                               <span className="sm:hidden">C</span>
                             </span>
                           )}
+
+                          {isPaid && (
+                            <span className="material-symbols-rounded calendar-icon select-none text-[#16A34A] leading-none shrink-0">check_circle</span>
+                          )}
+                          {isSettled && (
+                            <span className="material-symbols-rounded calendar-icon select-none text-[#6366F1] leading-none shrink-0">handshake</span>
+                          )}
+                          {isUnpaid && (
+                            <span className="material-symbols-rounded calendar-icon select-none text-[#E11D48] leading-none shrink-0">cancel</span>
+                          )}
+                          {isPartial && (
+                            <span className="material-symbols-rounded calendar-icon select-none text-[#D97706] leading-none shrink-0">adjust</span>
+                          )}
+                          {isAdvance && (
+                            <span className="material-symbols-rounded calendar-icon select-none text-[#7C3AED] leading-none shrink-0">verified</span>
+                          )}
+                          {isSchedule && d.hasRecord && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] animate-pulse shrink-0"></span>
+                          )}
                         </div>
-                        {isPaid && (
-                          <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#16A34A]">check_circle</span>
-                        )}
-                        {isSettled && (
-                          <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#6366F1]">handshake</span>
-                        )}
-                        {isUnpaid && (
-                          <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#E11D48]">cancel</span>
-                        )}
-                        {isPartial && (
-                          <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#D97706]">adjust</span>
-                        )}
-                        {isAdvance && (
-                          <span className="material-symbols-rounded text-xs sm:text-sm select-none text-[#7C3AED]">verified</span>
-                        )}
-                        {isSchedule && d.hasRecord && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] animate-pulse"></span>
-                        )}
                       </div>
 
                       {/* Middle/Bottom: Display Amount */}
                       <div className="text-center w-full pb-0.5">
                         {isSettled ? (
-                          <span className="text-[9px] sm:text-xs font-black block tracking-wider text-[#6366F1] uppercase">
+                          <span className="text-[8px] sm:text-xs font-black block tracking-wider text-[#6366F1] uppercase">
                             Settled
                           </span>
                         ) : isPartial ? (
-                          <span className="text-[9px] sm:text-xs font-black block tracking-tight">
+                          <span className="text-[7.5px] sm:text-xs font-black block tracking-tight leading-none">
                             <span className="text-[#D97706]">₹{(d.amt || 0).toLocaleString()}</span>
                             <span className="text-slate-300 mx-0.5">/</span>
                             <span className="text-[#E11D48]">₹{Math.max(0, account.emiAmt - (d.amt || 0)).toLocaleString()}</span>
                           </span>
                         ) : (
-                          <span className={`text-[10px] sm:text-xs font-black block tracking-tight ${
+                          <span className={`text-[8.5px] sm:text-xs font-black block tracking-tight ${
                             isPaid ? 'text-[#16A34A]' :
                             isUnpaid ? 'text-[#E11D48]' :
                             isAdvance ? 'text-[#7C3AED]' :
@@ -2382,21 +2403,21 @@ export default function AccountDetails() {
             <div className="flex gap-2 pt-2 flex-wrap sm:flex-nowrap">
               <button 
                 onClick={() => setIsPassbookModalOpen(true)}
-                className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
               >
                 <span className="material-symbols-rounded text-sm">visibility</span>
-                View Passbook
+                View
               </button>
               <button 
                 onClick={() => setIsPassbookModalOpen(true)}
-                className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
               >
                 <span className="material-symbols-rounded text-sm">print</span>
                 Print
               </button>
               <button 
                 onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, sharing my Passbook for Account ${account.accNo}`)}`)}
-                className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
               >
                 <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                   <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
@@ -2428,21 +2449,21 @@ export default function AccountDetails() {
                 <div className="flex gap-2 pt-2 flex-wrap sm:flex-nowrap">
                   <button 
                     onClick={() => setIsNocModalOpen(true)}
-                    className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                    className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
                   >
                     <span className="material-symbols-rounded text-sm">visibility</span>
-                    View NOC
+                    View
                   </button>
                   <button 
                     onClick={() => setIsNocModalOpen(true)}
-                    className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                    className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
                   >
                     <span className="material-symbols-rounded text-sm">print</span>
                     Print
                   </button>
                   <button 
                     onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, I am sharing my Loan No Objection Certificate (NOC) for Account No: ${account.accNo} issued by Umbrella Finance. Status: Fully Settled & Closed.`)}`)}
-                    className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                    className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
                   >
                     <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                       <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
@@ -2480,21 +2501,21 @@ export default function AccountDetails() {
               <div className="flex gap-2 pt-2 flex-wrap sm:flex-nowrap">
                 <button 
                   onClick={() => setIsBondModalOpen(true)}
-                  className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                  className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <span className="material-symbols-rounded text-sm">visibility</span>
-                  View Bond
+                  View
                 </button>
                 <button 
                   onClick={() => setIsBondModalOpen(true)}
-                  className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                  className="flex-1 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[10px] font-bold text-[#0F172A] rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <span className="material-symbols-rounded text-sm">print</span>
                   Print
                 </button>
                 <button 
                   onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, sharing my Savings Maturity Bond Certificate for Account ${account.accNo}`)}`)}
-                  className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                     <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>

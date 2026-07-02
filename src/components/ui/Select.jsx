@@ -57,7 +57,7 @@ export function Select({
   };
 
   return (
-    <div className={`relative ${compact ? 'w-auto min-w-[140px] shrink-0' : 'w-full'} text-left`} ref={wrapperRef}>
+    <div className={`relative ${compact ? 'w-full md:w-auto md:min-w-[140px] md:shrink-0' : 'w-full'} text-left`} ref={wrapperRef}>
       {label && (
         <label className="block text-xs font-bold text-secondary-text mb-1.5 uppercase tracking-wider">
           {label} {required && <span className="text-danger-fin">*</span>}
@@ -71,7 +71,7 @@ export function Select({
           compact ? 'px-3.5 py-2 text-xs font-bold' : 'px-4 py-3 text-sm font-medium'
         }`}
       >
-        <span className={selectedOption ? 'text-primary-text font-bold' : 'text-secondary-text'}>
+        <span className={`truncate text-left ${selectedOption ? 'text-primary-text font-bold' : 'text-secondary-text'}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <span className="material-symbols-rounded text-sm text-secondary-text select-none ml-2">

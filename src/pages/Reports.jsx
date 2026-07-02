@@ -262,7 +262,7 @@ export default function Reports() {
       desc: 'Real-time daily collection ledger and synced logs',
       statusLabel: 'Payment Mode',
       statusOptions: [
-        { value: 'all', label: 'All Modes' },
+        { value: 'all', label: 'All' },
         { value: 'Cash', label: 'Cash Only' },
         { value: 'UPI', label: 'UPI Only' },
         { value: 'Bank Transfer', label: 'Bank Transfer Only' }
@@ -274,7 +274,7 @@ export default function Reports() {
       desc: 'Agent-wise field performance and collection aggregates',
       statusLabel: 'Performance Tier',
       statusOptions: [
-        { value: 'all', label: 'All Performance' },
+        { value: 'all', label: 'All' },
         { value: 'high', label: 'Above 90% (High)' },
         { value: 'low', label: 'Below 90% (Low)' }
       ],
@@ -285,7 +285,7 @@ export default function Reports() {
       desc: 'Listing active loans, disbursals, repayment logs, and outstanding balances',
       statusLabel: 'Loan Status',
       statusOptions: [
-        { value: 'all', label: 'All Statuses' },
+        { value: 'all', label: 'All' },
         { value: 'active', label: 'Active (On Time)' },
         { value: 'defaulter', label: 'Overdue (Defaulters)' }
       ],
@@ -296,7 +296,7 @@ export default function Reports() {
       desc: 'Listing savings accounts balances and interest metrics',
       statusLabel: 'Plan Type',
       statusOptions: [
-        { value: 'all', label: 'All Plans' }
+        { value: 'all', label: 'All' }
       ],
       columns: ['Last Deposit Date', 'Customer Name', 'Account No', 'Plan Details', 'Total Deposit', 'Interest Paid', 'Net Balance']
     },
@@ -305,7 +305,7 @@ export default function Reports() {
       desc: 'Cash book transactions logging opening/closing balances',
       statusLabel: 'Transaction Type',
       statusOptions: [
-        { value: 'all', label: 'All Ledger Types' },
+        { value: 'all', label: 'All' },
         { value: 'Credit', label: 'Credit Only' },
         { value: 'Debit', label: 'Debit Only' }
       ],
@@ -316,7 +316,7 @@ export default function Reports() {
       desc: 'Maturity schedules for savings and payouts tracking',
       statusLabel: 'Payout Status',
       statusOptions: [
-        { value: 'all', label: 'All Statuses' },
+        { value: 'all', label: 'All' },
         { value: 'Pending Pay Out', label: 'Pending Payouts' },
         { value: 'Completed', label: 'Completed Payouts' }
       ],
@@ -844,7 +844,7 @@ export default function Reports() {
         <>
           <section className="bg-surface p-5 rounded-2xl border border-border-fin shadow-sm sticky top-0 z-10 space-y-4">
             <h3 className="text-xs font-bold text-primary-text uppercase tracking-wider">Advanced Filters</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Select
                 label="Select Branch"
                 options={[
@@ -877,7 +877,7 @@ export default function Reports() {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {reportTypes.map((rep) => (
               <button
                 key={rep.id}
@@ -930,7 +930,8 @@ export default function Reports() {
               </div>
             </div>
 
-            <div className="overflow-x-auto -mx-6">
+            {/* Desktop Table (Hidden on Mobile) */}
+            <div className="hidden lg:block overflow-x-auto -mx-6">
               <div className="inline-block min-w-full align-middle">
                 <table className="min-w-full divide-y divide-border-fin">
                   <thead className="bg-background-fin">
@@ -980,6 +981,53 @@ export default function Reports() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile-friendly Card List for Today's Collections (Hidden on Desktop) */}
+            <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+              {(() => {
+                const sorted = [...todayCollections].sort((a, b) => b[1].localeCompare(a[1]));
+                const paginated = sorted.slice((todayPage - 1) * 20, todayPage * 20);
+
+                if (paginated.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-[#64748B] font-bold text-xs">
+                      No transactions found for the selected filters today.
+                    </div>
+                  );
+                }
+
+                return paginated.map((row, idx) => (
+                  <div 
+                    key={idx} 
+                    className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all"
+                  >
+                    <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2">
+                      <Link to={`/account/${row[1]}`} className="font-extrabold text-[#0A3598] text-xs hover:underline">
+                        {row[1]}
+                      </Link>
+                      <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-primary/10 text-primary">
+                        {row[5]}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="col-span-2 space-y-0.5">
+                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Customer</span>
+                        <span className="text-[#0F172A] font-extrabold block">{row[2]}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Collected Amount</span>
+                        <span className="text-success-fin font-black text-xs block">{row[3]}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Agent / Date</span>
+                        <span className="text-[#0F172A] font-bold block">{row[4]}</span>
+                        <span className="text-[10px] text-[#64748B] font-semibold block">{row[0]}</span>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
             <Pagination 
               currentPage={todayPage}
@@ -1033,23 +1081,23 @@ export default function Reports() {
             </div>
           </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <section className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
             {getReportMetrics(activeReport, reportRows).map((met, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleMetricCardClick(met.label, met.filterVal)}
-                className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                className={`text-left bg-surface border rounded-2xl p-4 sm:p-5 shadow-sm space-y-2 transition-all cursor-pointer active:scale-[0.98] ${
                   selectedMetricLabel === met.label
                     ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
                     : 'border-border-fin hover:border-primary/30'
                 }`}
               >
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">
+                  <span className="text-[10px] sm:text-xs font-bold text-secondary-text uppercase tracking-wide">
                     {met.label}
                   </span>
-                  <span className={`w-2.5 h-2.5 rounded-full ${
+                  <span className={`w-2 sm:w-2.5 sm:h-2.5 rounded-full ${
                     met.type === 'success' ? 'bg-success-fin' :
                     met.type === 'danger' ? 'bg-danger-fin' :
                     met.type === 'warning' ? 'bg-warning-fin' :
@@ -1057,10 +1105,10 @@ export default function Reports() {
                   }`}></span>
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-black text-primary-text tracking-tight">
+                  <h3 className="text-base sm:text-2xl font-black text-primary-text tracking-tight">
                     {met.value}
                   </h3>
-                  <span className="text-xs font-bold text-secondary-text block">
+                  <span className="text-[10px] sm:text-xs font-bold text-secondary-text block">
                     {met.sub}
                   </span>
                 </div>
@@ -1079,61 +1127,61 @@ export default function Reports() {
             return (
               <div className="space-y-3">
                 <h4 className="text-xs font-extrabold text-primary-text uppercase tracking-wider pl-1">Interest Analysis</h4>
-                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <section className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                   <button
                     type="button"
                     onClick={() => handleMetricCardClick('Interest Collected', 'active')}
-                    className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                    className={`text-left bg-surface border rounded-2xl p-4 sm:p-5 shadow-sm space-y-2 transition-all cursor-pointer active:scale-[0.98] ${
                       selectedMetricLabel === 'Interest Collected'
                         ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
                         : 'border-border-fin hover:border-primary/30'
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Collected</span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-success-fin"></span>
+                      <span className="text-[10px] sm:text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Collected</span>
+                      <span className="w-2 sm:w-2.5 sm:h-2.5 rounded-full bg-success-fin"></span>
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-success-fin tracking-tight">{fmt(collected)}</h3>
-                      <span className="text-xs font-bold text-secondary-text block">Total interest earned & recovered</span>
+                      <h3 className="text-base sm:text-2xl font-black text-success-fin tracking-tight">{fmt(collected)}</h3>
+                      <span className="text-[10px] sm:text-xs font-bold text-secondary-text block">Total interest earned & recovered</span>
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleMetricCardClick('Interest Pending', 'defaulter')}
-                    className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                    className={`text-left bg-surface border rounded-2xl p-4 sm:p-5 shadow-sm space-y-2 transition-all cursor-pointer active:scale-[0.98] ${
                       selectedMetricLabel === 'Interest Pending'
                         ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
                         : 'border-border-fin hover:border-primary/30'
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Pending</span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-warning-fin"></span>
+                      <span className="text-[10px] sm:text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Pending</span>
+                      <span className="w-2 sm:w-2.5 sm:h-2.5 rounded-full bg-warning-fin"></span>
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-warning-fin tracking-tight">{fmt(overdue)}</h3>
-                      <span className="text-xs font-bold text-secondary-text block">Overdue from active accounts</span>
+                      <h3 className="text-base sm:text-2xl font-black text-warning-fin tracking-tight">{fmt(overdue)}</h3>
+                      <span className="text-[10px] sm:text-xs font-bold text-secondary-text block">Overdue from active accounts</span>
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleMetricCardClick('Interest Loss', 'defaulter')}
-                    className={`text-left bg-surface border rounded-2xl p-5 shadow-sm space-y-3 transition-all cursor-pointer active:scale-[0.98] ${
+                    className={`text-left bg-surface border rounded-2xl p-4 sm:p-5 shadow-sm space-y-2 transition-all cursor-pointer active:scale-[0.98] ${
                       selectedMetricLabel === 'Interest Loss'
                         ? 'ring-2 ring-primary border-primary bg-primary/[0.01]'
                         : 'border-border-fin hover:border-primary/30'
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Loss (NPA Defaulters)</span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-danger-fin"></span>
+                      <span className="text-[10px] sm:text-xs font-bold text-secondary-text uppercase tracking-wide">Interest Loss</span>
+                      <span className="w-2 sm:w-2.5 sm:h-2.5 rounded-full bg-danger-fin"></span>
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-black text-danger-fin tracking-tight">{fmt(npaLoss)}</h3>
-                      <span className="text-xs font-bold text-secondary-text block">Blocked in high-risk default accounts</span>
+                      <h3 className="text-base sm:text-2xl font-black text-danger-fin tracking-tight">{fmt(npaLoss)}</h3>
+                      <span className="text-[10px] sm:text-xs font-bold text-secondary-text block">Blocked in default accounts</span>
                     </div>
                   </button>
                 </section>
@@ -1161,11 +1209,11 @@ export default function Reports() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 p-4 bg-background-fin/50 rounded-2xl border border-border-fin">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-4 bg-background-fin/50 rounded-2xl border border-border-fin">
               <Select
                 label="Filter by Month"
                 options={[
-                  { value: 'all', label: 'All Months' },
+                  { value: 'all', label: 'All' },
                   { value: '01', label: 'January' },
                   { value: '02', label: 'February' },
                   { value: '03', label: 'March' },
@@ -1201,7 +1249,7 @@ export default function Reports() {
                 value={detailEndDate}
                 onChange={(val) => setDetailEndDate(val)}
               />
-              <div className="flex items-end">
+              <div className="flex items-end col-span-2 md:col-span-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -1221,7 +1269,8 @@ export default function Reports() {
               </div>
             </div>
 
-            <div className="overflow-x-auto -mx-6">
+            {/* Desktop Table (Hidden on Mobile) */}
+            <div className="hidden lg:block overflow-x-auto -mx-6">
               <div className="inline-block min-w-full align-middle">
                 <table className="min-w-full divide-y divide-border-fin">
                   <thead className="bg-background-fin">
@@ -1292,6 +1341,86 @@ export default function Reports() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile-friendly Card List for Detailed Report Logs (Hidden on Desktop) */}
+            <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+              {(() => {
+                const filtered = getFilteredRows(reportRows);
+                const paginated = filtered.slice((detailPage - 1) * 20, detailPage * 20);
+
+                if (paginated.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-[#64748B] font-bold text-xs">
+                      No matching records found. Try adjusting filters or search query.
+                    </div>
+                  );
+                }
+
+                return paginated.map((row, rowIdx) => {
+                  const accNoIdx = activeReportDetails.columns.findIndex(col => col.toLowerCase().includes('account no'));
+                  const accNo = accNoIdx !== -1 ? row[accNoIdx] : null;
+
+                  return (
+                    <div 
+                      key={rowIdx} 
+                      className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all"
+                    >
+                      <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2">
+                        <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+                          Record #{ (detailPage - 1) * 20 + rowIdx + 1 }
+                        </span>
+                        {accNo && (
+                          <Link to={`/account/${accNo}`} className="text-xs font-extrabold text-[#0A3598] hover:underline">
+                            {accNo}
+                          </Link>
+                        )}
+                      </div>
+                      <div className="space-y-2 text-xs">
+                        {row.map((val, colIdx) => {
+                          const colHeader = activeReportDetails.columns[colIdx];
+                          if (colIdx === accNoIdx) return null;
+
+                          const isDebitAmt = colHeader === 'Debit Amount' && val !== '-';
+                          const isCreditAmt = (
+                            colHeader === 'Credit Amount' ||
+                            colHeader === 'Amount Collected' ||
+                            colHeader === 'Actual Collected' ||
+                            colHeader === 'Interest Collected' ||
+                            colHeader === 'Total Deposit'
+                          ) && val !== '-';
+
+                          let displayValue = val;
+                          if (isDebitAmt) {
+                            displayValue = <span className="text-danger-fin font-black">{val}</span>;
+                          } else if (isCreditAmt) {
+                            displayValue = <span className="text-success-fin font-black">{val}</span>;
+                          } else if (val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || val === 'Rejected' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue') || val.includes('Rejected')))) {
+                            displayValue = <span className="text-danger-fin font-black">{val}</span>;
+                          } else if (val === 'Credit' || val === 'Paid' || val === 'Completed' || val === 'Loan Completed' || (typeof val === 'string' && val.includes('Active'))) {
+                            displayValue = <span className="text-success-fin font-black">{val}</span>;
+                          } else if (val === 'Pending Pay Out' || val === 'Processing' || val === 'Medium Risk' || val === 'Warning') {
+                            displayValue = <span className="text-warning-fin font-black">{val}</span>;
+                          } else if (typeof val === 'string' && (val.startsWith('LN-') || val.startsWith('SV-') || val.startsWith('UF-LN-') || val.startsWith('UF-SV-'))) {
+                            displayValue = (
+                              <Link to={`/account/${val}`} className="text-primary font-black hover:underline">
+                                {val}
+                              </Link>
+                            );
+                          }
+
+                          return (
+                            <div key={colIdx} className="flex justify-between items-start gap-4">
+                              <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider">{colHeader}:</span>
+                              <span className="font-extrabold text-[#0F172A] text-right">{displayValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
             <Pagination 
               currentPage={detailPage}

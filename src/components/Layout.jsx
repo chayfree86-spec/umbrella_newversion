@@ -504,7 +504,7 @@ export function Layout({ children }) {
             <h1 className="text-[#0F172A] text-base font-extrabold tracking-tight">
               {getPageTitle()}
             </h1>
-            {location.pathname !== '/register' && (
+            {location.pathname !== '/register' && location.pathname !== '/collection' && location.pathname !== '/daily-collection' && (
               <Link
                 to="/register"
                 className="w-10 h-10 rounded-xl bg-[#0A3598] hover:bg-[#0A3598]/90 text-white flex items-center justify-center transition-all active:scale-[0.95] shadow-sm cursor-pointer"
