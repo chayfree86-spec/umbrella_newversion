@@ -117,7 +117,7 @@ export default function DailyCollection() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const searchVal = params.get('search');
-    if (searchVal) setSearchFilter(searchVal);
+    setSearchFilter(searchVal || '');
   }, [location.search]);
 
   const handleApprove = (acc) => {
@@ -203,8 +203,20 @@ export default function DailyCollection() {
     if (filterType !== 'All' && acc.type !== filterType) return false;
     if (filterStatus !== 'All' && acc.status !== filterStatus) return false;
     if (searchFilter) {
-      const q = searchFilter.toLowerCase();
-      const hit = (acc.accNo || '').toLowerCase().includes(q)
+      const q = searchFilter.toLowerCase().trim();
+      
+      // Smart matching for short account numbers (e.g., "8", "10", "12")
+      const isShortNumber = /^\d+$/.test(q);
+      let shortNumberMatch = false;
+      if (isShortNumber) {
+        const padded = q.padStart(6, '0');
+        if (acc.accNo.endsWith(padded)) {
+          shortNumberMatch = true;
+        }
+      }
+
+      const hit = shortNumberMatch
+        || (acc.accNo || '').toLowerCase().includes(q)
         || (acc.customerName || '').toLowerCase().includes(q)
         || (acc.customerMobile || '').includes(q);
       if (!hit) return false;
@@ -268,7 +280,8 @@ export default function DailyCollection() {
           </div>
         )}
 
-        <div className="overflow-x-auto -mx-6">
+        {/* Desktop Table (Hidden on Mobile) */}
+        <div className="hidden lg:block overflow-x-auto -mx-6">
           <div className="inline-block min-w-full align-middle">
             <table className="min-w-full divide-y divide-[#E2E8F0]">
               <thead className="bg-[#F8FAFC]">
@@ -346,6 +359,101 @@ export default function DailyCollection() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
+        <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+          {loading ? (
+            <div className="text-center py-8 text-xs text-[#64748B]">Loading accounts…</div>
+          ) : (() => {
+            const sorted = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+            const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
+
+            if (paginated.length === 0) {
+              return (
+                <div className="text-center py-8 text-secondary-text font-bold text-xs">
+                  No accounts match current filters.
+                </div>
+              );
+            }
+
+            return paginated.map(acc => (
+              <div 
+                key={`${acc.type}-${acc.id}`} 
+                className="bg-white border border-[#E2E8F0] rounded-xl p-4 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer"
+                onClick={() => navigate(`/account/${acc.accNo}`)}
+              >
+                {/* Header: Acc No & Type */}
+                <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2">
+                  <span className="font-extrabold text-[#0A3598] text-xs select-all">
+                    {acc.accNo}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                      acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
+                    }`}>
+                      {acc.type}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>
+                      {acc.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Body Details */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="space-y-0.5 col-span-2">
+                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Customer</span>
+                    <span className="text-[#0F172A] font-extrabold block">{acc.customerName}</span>
+                    <span className="text-[10px] text-[#64748B] font-semibold block">{acc.customerMobile}</span>
+                  </div>
+                  
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Today's Due</span>
+                    <span className="text-[#EA580C] font-black text-xs">₹{inr(acc.todayDue)}</span>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Outstanding</span>
+                    <span className="text-[#0F172A] font-extrabold text-xs">₹{inr(acc.outstanding)}</span>
+                  </div>
+                </div>
+
+                {/* Footer Action Buttons */}
+                <div className="border-t border-[#E2E8F0]/50 pt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                  {acc.status === 'Processing' ? (
+                    <div className="flex gap-2 w-full">
+                      <button
+                        onClick={() => handleApprove(acc)}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#16A34A] text-white active:scale-95 transition-all cursor-pointer shadow-sm text-center"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleReject(acc)}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200 active:scale-95 transition-all cursor-pointer text-center"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
+                    <button
+                      onClick={() => handleOpenCollect(acc)}
+                      className="w-full py-2 bg-[#0A3598] text-white rounded-xl text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">payments</span>
+                      Collect
+                    </button>
+                  ) : (
+                    <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#0A3598] font-black uppercase tracking-wider hover:underline flex items-center gap-0.5">
+                      View Details
+                      <span className="material-symbols-rounded text-xs select-none">chevron_right</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
         <Pagination 
           currentPage={currentPage}

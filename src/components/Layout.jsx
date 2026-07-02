@@ -8,8 +8,24 @@ export function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
+  
+  const isProfilePage = location.pathname.startsWith('/account/') || location.pathname.startsWith('/customer/');
+
+  const [customTitle, setCustomTitle] = useState('');
+
+  useEffect(() => {
+    setCustomTitle(window.activePageTitle || '');
+    const handleTitleChange = () => {
+      setCustomTitle(window.activePageTitle || '');
+    };
+    window.addEventListener('titlechange', handleTitleChange);
+    return () => {
+      window.removeEventListener('titlechange', handleTitleChange);
+    };
+  }, [location.pathname]);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(prev => {
@@ -158,6 +174,45 @@ export function Layout({ children }) {
       if (query) {
         navigate(`/collection?search=${encodeURIComponent(query)}`);
       }
+    }
+  };
+
+  const handleVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'hi-IN'; // Transcribes both Hindi and English mixed Speech beautifully!
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        const val = transcript.trim();
+        setSearchValue(val);
+        handleSearchChange(val);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (e) => {
+        console.error('Speech recognition error', e);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    } else {
+      alert("Voice Search is not supported in this browser. Please use Chrome or Safari.");
     }
   };
 
@@ -324,7 +379,7 @@ export function Layout({ children }) {
             </div>
 
             {/* Breadcrumb / Title */}
-            <div>
+            <div className="hidden lg:block">
               <span className="hidden sm:block text-[11px] font-bold text-secondary-text uppercase tracking-wider mb-0.5">
                 Umbrella Finance / {getPageTitle()}
               </span>
@@ -336,9 +391,9 @@ export function Layout({ children }) {
 
           {/* Action Header controls */}
           <div className="flex items-center gap-3">
-            {/* Global Search - Hidden on Dashboard */}
+            {/* Global Search - Hidden on Dashboard, Hidden on Mobile */}
             {location.pathname !== '/' && (
-              <div className="flex items-center relative w-36 xs:w-48 sm:w-72 group bg-[#F1F5F9] p-[3px] rounded-full border border-[#E2E8F0] focus-within:border-primary/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-inner-sm">
+              <div className="hidden lg:flex items-center relative sm:w-72 group bg-[#F1F5F9] p-[3px] rounded-full border border-[#E2E8F0] focus-within:border-primary/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-inner-sm">
                 <span className="material-symbols-rounded pl-2.5 text-base text-secondary-text/80 select-none group-focus-within:text-primary transition-colors duration-300">
                   search
                 </span>
@@ -353,13 +408,35 @@ export function Layout({ children }) {
                       handleSearchSubmit();
                     }
                   }}
-                  className="w-full bg-transparent pl-2 pr-10 py-1.5 text-xs font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none"
+                  className="w-full bg-transparent pl-2 pr-16 py-1.5 text-xs font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none"
                 />
+                {/* Voice Search Button */}
+                <button
+                  type="button"
+                  onClick={handleVoiceSearch}
+                  className={`absolute right-9 p-1 rounded-full hover:bg-slate-200 transition-colors flex items-center justify-center cursor-pointer ${
+                    isListening ? 'text-red-500 animate-pulse bg-red-50' : 'text-secondary-text'
+                  }`}
+                  title="Voice Search (Hindi/English)"
+                >
+                  <span className="material-symbols-rounded text-base select-none">
+                    mic
+                  </span>
+                </button>
                 <div className="absolute right-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-border-fin rounded-md text-[9px] font-bold text-secondary-text shadow-sm pointer-events-none select-none group-focus-within:opacity-0 transition-opacity duration-200">
                   <span className="text-[8px] font-sans">⌘</span>K
                 </div>
               </div>
             )}
+
+            {/* Create Account Link/Button */}
+            <Link
+              to="/register"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0A3598] hover:bg-[#0A3598]/90 text-white font-bold text-xs transition-all active:scale-[0.95] shadow-sm cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-base select-none">person_add</span>
+              <span className="hidden sm:inline">Create Account</span>
+            </Link>
 
             {/* Notifications Button */}
             <div className="relative">
@@ -421,10 +498,67 @@ export function Layout({ children }) {
           </div>
         </header>
 
+        {/* Mobile Sub-Header: Title & Create Account Button */}
+        {!isProfilePage && (
+          <div className="lg:hidden bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center justify-between flex-shrink-0 select-none">
+            <h1 className="text-[#0F172A] text-base font-extrabold tracking-tight">
+              {getPageTitle()}
+            </h1>
+            {location.pathname !== '/register' && (
+              <Link
+                to="/register"
+                className="w-10 h-10 rounded-xl bg-[#0A3598] hover:bg-[#0A3598]/90 text-white flex items-center justify-center transition-all active:scale-[0.95] shadow-sm cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-lg select-none">person_add</span>
+              </Link>
+            )}
+          </div>
+        )}
+
         {/* Page Content viewport */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+        <main className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 lg:pb-8 ${location.pathname !== '/' ? 'pb-36' : 'pb-24'}`}>
           {children}
         </main>
+
+        {/* Mobile Floating Bottom Search Bar (No Search on Dashboard or Profile pages, Sticky at bottom above footer) */}
+        {location.pathname !== '/' && !isProfilePage && (
+          <div className="lg:hidden fixed bottom-[80px] left-4 right-4 z-20">
+            <div className="flex items-center bg-white/95 backdrop-blur-md border border-[#E2E8F0] p-1.5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] gap-2">
+              <span className="material-symbols-rounded pl-3 text-lg text-[#64748B]/80 select-none">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Search Account..."
+                value={searchValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="flex-1 bg-transparent py-1 text-xs font-bold text-primary-text placeholder-secondary-text/60 focus:outline-none"
+              />
+              {/* Mic button */}
+              <button
+                type="button"
+                onClick={handleVoiceSearch}
+                className={`p-2 rounded-full transition-colors flex items-center justify-center cursor-pointer ${
+                  isListening ? 'text-red-500 bg-red-50 animate-pulse scale-105' : 'text-[#64748B] bg-slate-100 hover:bg-slate-200'
+                }`}
+                title="Voice Search"
+              >
+                <span className="material-symbols-rounded text-lg select-none">
+                  mic
+                </span>
+              </button>
+              {searchValue && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchChange('')}
+                  className="p-1.5 rounded-full text-[#64748B] hover:text-[#0F172A] mr-1"
+                >
+                  <span className="material-symbols-rounded text-base select-none">close</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Drawer (Hamburger Side Navigation) */}
@@ -595,71 +729,98 @@ export function Layout({ children }) {
         </div>
       )}
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface border-t border-border-fin flex items-center justify-around z-30 px-2 pb-safe-bottom shadow-lg">
-        {/* Tab 1: Dashboard */}
-        <Link
-          to="/"
-          className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all duration-150 cursor-pointer ${
-            isActive('/') && location.pathname === '/'
-              ? 'text-[#0A3598] font-bold scale-105'
-              : 'text-[#64748B]'
-          }`}
-        >
-          <span className="material-symbols-rounded select-none text-xl leading-none">dashboard</span>
-          <span className="text-[9px] leading-none font-bold">Dashboard</span>
-        </Link>
-
-        {/* Tab 2: Customers */}
-        <Link
-          to="/collection"
-          className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all duration-150 cursor-pointer ${
-            isActive('/collection')
-              ? 'text-[#0A3598] font-bold scale-105'
-              : 'text-[#64748B]'
-          }`}
-        >
-          <span className="material-symbols-rounded select-none text-xl leading-none">assignment_ind</span>
-          <span className="text-[9px] leading-none font-bold">Customers</span>
-        </Link>
-
-        {/* Tab 3: Collection (Floating Center Button with Blue Gradient) */}
-        <div className="relative -top-4">
+      {/* Mobile Bottom Navigation Bar (Redesigned with Solid Backing & Premium Active Indicators) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] shadow-[0_-4px_16px_rgba(0,0,0,0.05)] z-30 pb-safe-bottom">
+        <div className="flex items-center justify-around h-16 px-1">
+          {/* Tab 1: Dashboard */}
           <Link
-            to="/daily-collection"
-            className="w-14 h-14 rounded-full flex flex-col items-center justify-center text-white cursor-pointer transition-transform active:scale-95 shadow-md hover:shadow-lg"
-            style={{
-              background: 'linear-gradient(120deg, #0A3598 0%, #3B82F6 40%, #1E3A8A 70%, #0A3598 100%)',
-              backgroundSize: '200% auto',
-              boxShadow: '0 4px 14px rgba(10, 53, 152, 0.4)'
-            }}
+            to="/"
+            className={`flex flex-col items-center justify-center w-16 py-1 select-none transition-all cursor-pointer ${
+              isActive('/') && location.pathname === '/'
+                ? 'text-[#0A3598]'
+                : 'text-[#64748B] hover:text-[#0F172A]'
+            }`}
           >
-            <span className="material-symbols-rounded text-2xl select-none leading-none mb-0.5">payments</span>
-            <span className="text-[7.5px] font-extrabold uppercase tracking-wider leading-none">Collect</span>
+            <span className={`material-symbols-rounded text-[22px] leading-none mb-0.5 ${isActive('/') && location.pathname === '/' ? 'fill-1 font-bold' : ''}`}>
+              dashboard
+            </span>
+            <span className="text-[9px] font-bold tracking-tight">Dashboard</span>
+            {isActive('/') && location.pathname === '/' ? (
+              <span className="w-1 h-1 rounded-full bg-[#0A3598] mt-0.5"></span>
+            ) : (
+              <span className="w-1 h-1 mt-0.5 opacity-0"></span>
+            )}
           </Link>
+
+          {/* Tab 2: Customers */}
+          <Link
+            to="/collection"
+            className={`flex flex-col items-center justify-center w-16 py-1 select-none transition-all cursor-pointer ${
+              isActive('/collection')
+                ? 'text-[#0A3598]'
+                : 'text-[#64748B] hover:text-[#0F172A]'
+            }`}
+          >
+            <span className={`material-symbols-rounded text-[22px] leading-none mb-0.5 ${isActive('/collection') ? 'fill-1 font-bold' : ''}`}>
+              assignment_ind
+            </span>
+            <span className="text-[9px] font-bold tracking-tight">Customers</span>
+            {isActive('/collection') ? (
+              <span className="w-1 h-1 rounded-full bg-[#0A3598] mt-0.5"></span>
+            ) : (
+              <span className="w-1 h-1 mt-0.5 opacity-0"></span>
+            )}
+          </Link>
+
+          {/* Tab 3: Collection (Floating Center Button with Blue Gradient & White border) */}
+          <div className="relative -top-5 flex flex-col items-center justify-center">
+            <Link
+              to="/daily-collection"
+              className="w-14 h-14 rounded-full flex items-center justify-center text-white cursor-pointer transition-transform active:scale-90 border-[3.5px] border-white shadow-[0_6px_20px_rgba(10,53,152,0.3)] hover:shadow-[0_8px_24px_rgba(10,53,152,0.4)]"
+              style={{
+                background: 'linear-gradient(120deg, #0A3598 0%, #3B82F6 40%, #1E3A8A 70%, #0A3598 100%)',
+                backgroundSize: '200% auto',
+              }}
+            >
+              <span className="material-symbols-rounded text-2xl select-none leading-none text-white">payments</span>
+            </Link>
+            <span className={`text-[8.5px] font-black uppercase tracking-wider mt-0.5 ${isActive('/daily-collection') ? 'text-[#0A3598]' : 'text-[#64748B]'}`}>
+              Collect
+            </span>
+          </div>
+
+          {/* Tab 4: Reports */}
+          <Link
+            to="/reports"
+            className={`flex flex-col items-center justify-center w-16 py-1 select-none transition-all cursor-pointer ${
+              isActive('/reports')
+                ? 'text-[#0A3598]'
+                : 'text-[#64748B] hover:text-[#0F172A]'
+            }`}
+          >
+            <span className={`material-symbols-rounded text-[22px] leading-none mb-0.5 ${isActive('/reports') ? 'fill-1 font-bold' : ''}`}>
+              description
+            </span>
+            <span className="text-[9px] font-bold tracking-tight">Reports</span>
+            {isActive('/reports') ? (
+              <span className="w-1 h-1 rounded-full bg-[#0A3598] mt-0.5"></span>
+            ) : (
+              <span className="w-1 h-1 mt-0.5 opacity-0"></span>
+            )}
+          </Link>
+
+          {/* Tab 5: Menu Toggle */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="flex flex-col items-center justify-center w-16 py-1 select-none transition-all cursor-pointer text-[#64748B] hover:text-[#0F172A]"
+          >
+            <span className="material-symbols-rounded text-[22px] leading-none mb-0.5">
+              menu
+            </span>
+            <span className="text-[9px] font-bold tracking-tight">Menu</span>
+            <span className="w-1 h-1 mt-0.5 opacity-0"></span>
+          </button>
         </div>
-
-        {/* Tab 4: Reports */}
-        <Link
-          to="/reports"
-          className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all duration-150 cursor-pointer ${
-            isActive('/reports')
-              ? 'text-[#0A3598] font-bold scale-105'
-              : 'text-[#64748B]'
-          }`}
-        >
-          <span className="material-symbols-rounded select-none text-xl leading-none">description</span>
-          <span className="text-[9px] leading-none font-bold">Reports</span>
-        </Link>
-
-        {/* Tab 5: Menu Toggle */}
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all duration-150 cursor-pointer text-[#64748B]"
-        >
-          <span className="material-symbols-rounded select-none text-xl leading-none">menu</span>
-          <span className="text-[9px] leading-none font-bold">Menu</span>
-        </button>
       </div>
     </div>
   );

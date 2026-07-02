@@ -257,11 +257,19 @@ export default function Collection() {
 
     // Search query
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      const isShortNumber = /^\d+$/.test(q);
+      let shortNumberMatch = false;
+      const accNoRaw = (acc.accNo || '').toLowerCase();
+      if (isShortNumber) {
+        const padded = q.padStart(6, '0');
+        if (accNoRaw.endsWith(padded)) {
+          shortNumberMatch = true;
+        }
+      }
       const name = (acc.customer?.name || acc.name || '').toLowerCase();
       const phone = (acc.customer?.phone || acc.phone || '');
-      const accNo = acc.accNo.toLowerCase();
-      return name.includes(q) || phone.includes(q) || accNo.includes(q);
+      return shortNumberMatch || name.includes(q) || phone.includes(q) || accNoRaw.includes(q);
     }
 
     return true;

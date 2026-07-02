@@ -249,6 +249,13 @@ export default function AccountDetails() {
 
   const [account, setAccount] = useState(null);
   const [statementData, setStatementData] = useState([]);
+  const [expandedInstallments, setExpandedInstallments] = useState({});
+  const toggleInstallments = (refNo) => {
+    setExpandedInstallments(prev => ({
+      ...prev,
+      [refNo]: !prev[refNo]
+    }));
+  };
   
 
   // Account approval / reset states
@@ -436,6 +443,19 @@ export default function AccountDetails() {
     setSelectedMonth(new Date().getMonth());
     setSelectedYear(new Date().getFullYear());
   }, [accNo, fetchAccount, fetchStatement]);
+
+  useEffect(() => {
+    if (account) {
+      const normalizedAccNo = account.loan_account_no || account.saving_account_no || accNo;
+      const customerName = account.customer?.name || account.customer?.full_name || '';
+      window.activePageTitle = customerName ? `${customerName} (${normalizedAccNo})` : `Account: ${normalizedAccNo}`;
+      window.dispatchEvent(new Event('titlechange'));
+    }
+    return () => {
+      window.activePageTitle = '';
+      window.dispatchEvent(new Event('titlechange'));
+    };
+  }, [account, accNo]);
 
   if (!account) {
     return <div className="text-center p-12 text-sm text-[#64748B]">Loading account details...</div>;
@@ -1351,94 +1371,93 @@ export default function AccountDetails() {
             </span>
           </div>
 
-          {/* Horizontal Account Lifecycle Stepper */}
-          <div className="flex items-center gap-3 sm:gap-5 mt-3.5 max-w-2xl w-full text-[10px] sm:text-xs font-bold text-slate-700 select-none bg-slate-50/50 p-3 rounded-2xl border border-slate-100 overflow-x-auto">
-            {/* Step 1: Registered */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-[10px] ring-4 ring-blue-100 shrink-0">
+          {/* Compact Horizontal Account Lifecycle Stepper */}
+          <div className="mt-4 max-w-xl w-full bg-slate-50/50 p-3 rounded-2xl border border-slate-100 select-none">
+            {/* Circles & Lines Row */}
+            <div className="flex items-center w-full relative px-1">
+              {/* Step 1 */}
+              <div className="w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-[9px] ring-2 ring-blue-100 z-10 shrink-0">
                 1
               </div>
-              <div>
-                <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">Registered</p>
-                <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
-                  {account.created_at ? new Date(account.created_at).toLocaleDateString('en-IN') : 'N/A'}
-                </p>
-              </div>
-            </div>
 
-            {/* Rail Line 1 */}
-            <div className={`flex-1 h-0.5 min-w-[20px] shrink-0 ${account.status === 'Rejected' ? 'bg-[#DC2626]' : account.approved_at ? 'bg-[#16A34A]' : 'bg-slate-200'}`}></div>
+              {/* Connector Line 1 */}
+              <div className={`h-[2px] flex-1 z-0 -mx-0.5 ${account.status === 'Rejected' ? 'bg-[#DC2626]' : account.approved_at ? 'bg-[#16A34A]' : 'bg-slate-200'}`}></div>
 
-            {/* Step 2: Approved / Rejected */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+              {/* Step 2 */}
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] z-10 shrink-0 ${
                 account.status === 'Rejected'
-                  ? 'bg-[#DC2626] text-white ring-4 ring-rose-100'
+                  ? 'bg-[#DC2626] text-white ring-2 ring-rose-100'
                   : account.approved_at 
-                    ? 'bg-[#16A34A] text-white ring-4 ring-emerald-100' 
+                    ? 'bg-[#16A34A] text-white ring-2 ring-emerald-100' 
                     : 'bg-slate-100 text-slate-400 border border-slate-200'
               }`}>
                 2
               </div>
-              <div>
-                <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">
-                  {account.status === 'Rejected' ? 'Rejected' : 'Approved'}
-                </p>
-                <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
-                  {account.status === 'Rejected' 
-                    ? 'Rejected'
-                    : account.approved_at ? new Date(account.approved_at).toLocaleDateString('en-IN') : 'Awaiting Approval'}
-                </p>
-              </div>
-            </div>
 
-            {account.status !== 'Rejected' && (
-              <>
-                {/* Rail Line 2 */}
-                <div className={`flex-1 h-0.5 min-w-[20px] shrink-0 ${account.approved_at ? 'bg-[#3B82F6]' : 'bg-slate-200'}`}></div>
+              {account.status !== 'Rejected' && (
+                <>
+                  {/* Connector Line 2 */}
+                  <div className={`h-[2px] flex-1 z-0 -mx-0.5 ${account.approved_at ? 'bg-[#3B82F6]' : 'bg-slate-200'}`}></div>
 
-                {/* Step 3: End Date */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                  {/* Step 3 */}
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] z-10 shrink-0 ${
                     account.approved_at 
-                      ? 'bg-[#3B82F6] text-white ring-4 ring-blue-100' 
+                      ? 'bg-[#3B82F6] text-white ring-2 ring-blue-100' 
                       : 'bg-slate-100 text-slate-400 border border-slate-200'
                   }`}>
                     3
                   </div>
-                  <div>
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">End Date</p>
-                    <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
-                      {account.approved_at 
-                        ? new Date(account.type === 'Loan' ? account.end_date : account.maturity_date).toLocaleDateString('en-IN') 
-                        : 'N/A'}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Rail Line 3 */}
-                <div className={`flex-1 h-0.5 min-w-[20px] shrink-0 ${account.status === 'Closed' ? 'bg-slate-700' : 'bg-slate-200'}`}></div>
+                  {/* Connector Line 3 */}
+                  <div className={`h-[2px] flex-1 z-0 -mx-0.5 ${account.status === 'Closed' ? 'bg-slate-700' : 'bg-slate-200'}`}></div>
 
-                {/* Step 4: Closed */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                  {/* Step 4 */}
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] z-10 shrink-0 ${
                     account.status === 'Closed' 
-                      ? 'bg-slate-700 text-white ring-4 ring-slate-100' 
+                      ? 'bg-slate-700 text-white ring-2 ring-slate-100' 
                       : 'bg-slate-100 text-slate-400 border border-slate-200'
                   }`}>
                     4
                   </div>
-                  <div>
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold leading-none">Closed</p>
-                    <p className="text-[10px] font-black text-[#0F172A] mt-0.5 whitespace-nowrap">
-                      {account.status === 'Closed' 
-                        ? (account.closed_at ? new Date(account.closed_at).toLocaleDateString('en-IN') : 'Closed') 
-                        : 'Active'}
-                    </p>
+                </>
+              )}
+            </div>
+
+            {/* Labels Row */}
+            <div className="flex justify-between w-full mt-1.5 text-center text-slate-500 font-bold text-[8px] leading-tight">
+              <div className="w-12 -ml-2.5 flex flex-col items-center shrink-0">
+                <span className="uppercase text-[7.5px]">Regd</span>
+                <span className="text-[#0F172A] font-extrabold mt-0.5">
+                  {account.created_at ? new Date(account.created_at).toLocaleDateString('en-IN') : 'N/A'}
+                </span>
+              </div>
+              <div className="w-16 flex flex-col items-center shrink-0">
+                <span className="uppercase text-[7.5px]">{account.status === 'Rejected' ? 'Rejected' : 'Approved'}</span>
+                <span className="text-[#0F172A] font-extrabold mt-0.5">
+                  {account.status === 'Rejected' 
+                    ? 'Rejected' 
+                    : account.approved_at 
+                      ? new Date(account.approved_at).toLocaleDateString('en-IN') 
+                      : 'Awaiting'}
+                </span>
+              </div>
+              {account.status !== 'Rejected' && (
+                <>
+                  <div className="w-16 flex flex-col items-center shrink-0">
+                    <span className="uppercase text-[7.5px]">End Date</span>
+                    <span className="text-[#0F172A] font-extrabold mt-0.5">
+                      {account.approved_at 
+                        ? new Date(account.type === 'Loan' ? account.end_date : account.maturity_date).toLocaleDateString('en-IN') 
+                        : 'N/A'}
+                    </span>
                   </div>
-                </div>
-              </>
-            )}
+                  <div className="w-12 -mr-2.5 flex flex-col items-center shrink-0">
+                    <span className="uppercase text-[7.5px]">Status</span>
+                    <span className="text-[#0F172A] font-extrabold mt-0.5">{account.status === 'Closed' ? 'Closed' : 'Active'}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1574,44 +1593,46 @@ export default function AccountDetails() {
 
       {/* Customer Portfolio Switcher & Account Creator (Above Financial Summaries) */}
       <div className="bg-white p-4 rounded-2xl border border-[#E2E8F0] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider mr-2 select-none">
+        <div className="flex flex-col gap-2 w-full">
+          <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider select-none">
             Linked Accounts:
           </span>
-          {customerAccounts.map(acc => {
-            const isActive = acc.accNo === account.accNo;
-            return (
-              <Link
-                key={acc.accNo}
-                to={`/account/${acc.accNo}`}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-[#0A3598] border-[#0A3598] text-white shadow-xs'
-                    : 'bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <span className="material-symbols-rounded text-sm">
-                  {acc.type === 'Loan' ? 'payments' : 'savings'}
-                </span>
-                {acc.accNo} ({acc.type})
-                {acc.status === 'Closed' && (
-                  <span className="text-[8px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded font-extrabold uppercase ml-1">Closed</span>
-                )}
-              </Link>
-            );
-          })}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5">
+            {customerAccounts.map(acc => {
+              const isActive = acc.accNo === account.accNo;
+              return (
+                <Link
+                  key={acc.accNo}
+                  to={`/account/${acc.accNo}`}
+                  className={`px-3 py-2 rounded-xl text-[10px] sm:text-xs font-bold border transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto ${
+                    isActive
+                      ? 'bg-[#0A3598] border-[#0A3598] text-white shadow-xs'
+                      : 'bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="material-symbols-rounded text-sm shrink-0">
+                    {acc.type === 'Loan' ? 'payments' : 'savings'}
+                  </span>
+                  <span className="truncate">{acc.accNo} ({acc.type})</span>
+                  {acc.status === 'Closed' && (
+                    <span className="text-[8px] bg-slate-100 text-slate-600 px-1 py-0.5 rounded font-extrabold uppercase shrink-0">Closed</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0">
+        <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex md:items-center shrink-0">
           <button
             onClick={() => setIsAddLoanModalOpen(true)}
-            className="flex-1 md:flex-none px-4 py-2 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+            className="px-4 py-2.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
           >
             <span className="material-symbols-rounded text-sm">add_circle</span>
             Add Loan
           </button>
           <button
             onClick={() => setIsAddSavingModalOpen(true)}
-            className="flex-1 md:flex-none px-4 py-2 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 hover:brightness-95 active:scale-[0.98]"
+            className="px-4 py-2.5 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5 hover:brightness-95 active:scale-[0.98]"
             style={{ background: 'linear-gradient(135deg, #FFD54A 0%, #FBBF24 35%, #F59E0B 70%, #E67E00 100%)' }}
           >
             <span className="material-symbols-rounded text-sm">add_circle</span>
@@ -1751,7 +1772,7 @@ export default function AccountDetails() {
         const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
 
         return (
-          <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
             <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-[#F1F5F9] pb-3.5">
               <div className="flex items-center gap-3">
                 <div>
@@ -1763,7 +1784,7 @@ export default function AccountDetails() {
               </div>
 
               {/* Month/Year Combined Selection controls (Horizontal Left / Right Navigation) */}
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/60 p-1 rounded-xl shadow-xs select-none" onClick={(e) => e.stopPropagation()}>
+              <div className="w-full max-w-[240px] mx-auto lg:mx-0 flex items-center justify-between gap-1.5 bg-slate-50 border border-slate-200/60 p-1 rounded-xl shadow-xs select-none" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1779,7 +1800,7 @@ export default function AccountDetails() {
                   <span className="material-symbols-rounded text-base font-bold">chevron_left</span>
                 </button>
                 
-                <span className="text-[11px] font-black text-[#0F172A] px-3.5 min-w-[110px] text-center tracking-wide uppercase">
+                <span className="text-xs font-black text-[#0F172A] uppercase tracking-wide">
                   {monthsList[selectedMonth]} {selectedYear}
                 </span>
 
@@ -1800,21 +1821,21 @@ export default function AccountDetails() {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center gap-2.5 text-[10px] font-bold text-[#64748B] flex-wrap">
-                <span className="flex items-center gap-1 bg-[#16A34A]/5 px-2 py-1 rounded-md border border-[#16A34A]/10">
-                  <span className="w-2 h-2 rounded-full bg-[#16A34A]"></span> Paid
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 text-[9px] sm:text-[10px] font-bold text-[#64748B] flex-wrap w-full lg:w-auto">
+                <span className="flex items-center gap-1 bg-[#16A34A]/5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-[#16A34A]/10">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#16A34A]"></span> Paid
                 </span>
-                <span className="flex items-center gap-1 bg-[#E11D48]/5 px-2 py-1 rounded-md border border-[#E11D48]/10">
-                  <span className="w-2 h-2 rounded-full bg-[#E11D48]"></span> Unpaid
+                <span className="flex items-center gap-1 bg-[#E11D48]/5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-[#E11D48]/10">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#E11D48]"></span> Unpaid
                 </span>
-                <span className="flex items-center gap-1 bg-[#FFC107]/5 px-2 py-1 rounded-md border border-[#FFC107]/10">
-                  <span className="w-2 h-2 rounded-full bg-[#FFC107]"></span> Partial
+                <span className="flex items-center gap-1 bg-[#FFC107]/5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-[#FFC107]/10">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#FFC107]"></span> Partial
                 </span>
-                <span className="flex items-center gap-1 bg-[#7C3AED]/5 px-2 py-1 rounded-md border border-[#7C3AED]/10">
-                  <span className="w-2 h-2 rounded-full bg-[#7C3AED]"></span> Advance
+                <span className="flex items-center gap-1 bg-[#7C3AED]/5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-[#7C3AED]/10">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#7C3AED]"></span> Advance
                 </span>
-                <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] animate-pulse"></span> Schedule
+                <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-slate-100">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#3B82F6] animate-pulse"></span> Schedule
                 </span>
               </div>
             </div>
@@ -1840,7 +1861,7 @@ export default function AccountDetails() {
             <div className="grid grid-cols-7 gap-2.5">
               {/* Padding Offset Cells */}
               {Array.from({ length: startOffset }).map((_, idx) => (
-                <div key={`empty-${idx}`} className="h-20 bg-slate-50/30 border border-dashed border-slate-100 rounded-xl"></div>
+                <div key={`empty-${idx}`} className="h-14 sm:h-20 bg-slate-50/30 border border-dashed border-slate-100 rounded-xl"></div>
               ))}
 
               {displayDays.map((d, index) => {
@@ -1860,7 +1881,7 @@ export default function AccountDetails() {
                   return (
                     <div
                       key={index}
-                      className="h-20 flex flex-col justify-start p-2 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
+                      className="h-14 sm:h-20 flex flex-col justify-start p-1.5 sm:p-2 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
                     >
                       <span className="text-xs sm:text-sm md:text-base font-black text-slate-300">{d.day}</span>
                     </div>
@@ -1873,7 +1894,7 @@ export default function AccountDetails() {
                     <div
                       key={index}
                       onClick={() => handleDayClick(d)}
-                      className={`h-20 flex flex-col justify-between p-2 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
+                      className={`h-14 sm:h-20 flex flex-col justify-between p-1.5 sm:p-2 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
                         isClosedDate ? 'ring-2 ring-[#DC2626] border-[#DC2626] shadow-md z-10' : isToday ? 'ring-2 ring-amber-500 border-amber-500 shadow-md z-10' : ''
                       } ${
                         isPaid ? 'bg-[#16A34A]/5 border-[#16A34A]/25 text-[#16A34A] hover:bg-[#16A34A]/10' :
@@ -1889,19 +1910,34 @@ export default function AccountDetails() {
                         <div className="flex items-center gap-1 flex-wrap">
                           <span className="text-xs sm:text-sm md:text-base font-black text-[#0F172A]">{d.day}</span>
                           {isToday && (
-                            <span className="text-[7px] md:text-[8px] bg-amber-500 text-white font-extrabold px-1 py-0.5 rounded select-none uppercase tracking-wider scale-90">Today</span>
+                            <span className="text-[7px] md:text-[8px] bg-amber-500 text-white font-extrabold px-1 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                              <span className="hidden sm:inline">Today</span>
+                              <span className="sm:hidden">T</span>
+                            </span>
                           )}
                           {isStart && (
-                            <span className="text-[7px] md:text-[8px] bg-[#16A34A] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">Start</span>
+                            <span className="text-[7px] md:text-[8px] bg-[#16A34A] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                              <span className="hidden sm:inline">Start</span>
+                              <span className="sm:hidden">S</span>
+                            </span>
                           )}
                           {isApproved && (
-                            <span className="text-[7px] md:text-[8px] bg-[#4F46E5] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">Approved</span>
+                            <span className="text-[7px] md:text-[8px] bg-[#4F46E5] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                              <span className="hidden sm:inline">Approved</span>
+                              <span className="sm:hidden">A</span>
+                            </span>
                           )}
                           {isEnd && (
-                            <span className="text-[7px] md:text-[8px] bg-[#E11D48] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">End</span>
+                            <span className="text-[7px] md:text-[8px] bg-[#E11D48] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                              <span className="hidden sm:inline">End</span>
+                              <span className="sm:hidden">E</span>
+                            </span>
                           )}
                           {isClosedDate && (
-                            <span className="text-[7px] md:text-[8px] bg-[#DC2626] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">Closed</span>
+                            <span className="text-[7px] md:text-[8px] bg-[#DC2626] text-white font-extrabold px-1.5 py-0.5 rounded select-none uppercase tracking-wider scale-90">
+                              <span className="hidden sm:inline">Closed</span>
+                              <span className="sm:hidden">C</span>
+                            </span>
                           )}
                         </div>
                         {isPaid && (
@@ -1927,17 +1963,17 @@ export default function AccountDetails() {
                       {/* Middle/Bottom: Display Amount */}
                       <div className="text-center w-full pb-0.5">
                         {isSettled ? (
-                          <span className="text-[10px] sm:text-xs font-black block tracking-wider text-[#6366F1] uppercase">
+                          <span className="text-[9px] sm:text-xs font-black block tracking-wider text-[#6366F1] uppercase">
                             Settled
                           </span>
                         ) : isPartial ? (
-                          <span className="text-xs sm:text-sm font-black block tracking-tight">
+                          <span className="text-[9px] sm:text-xs font-black block tracking-tight">
                             <span className="text-[#D97706]">₹{(d.amt || 0).toLocaleString()}</span>
-                            <span className="text-slate-300 mx-0.5 sm:mx-1">/</span>
+                            <span className="text-slate-300 mx-0.5">/</span>
                             <span className="text-[#E11D48]">₹{Math.max(0, account.emiAmt - (d.amt || 0)).toLocaleString()}</span>
                           </span>
                         ) : (
-                          <span className={`text-xs sm:text-sm font-black block tracking-tight ${
+                          <span className={`text-[10px] sm:text-xs font-black block tracking-tight ${
                             isPaid ? 'text-[#16A34A]' :
                             isUnpaid ? 'text-[#E11D48]' :
                             isAdvance ? 'text-[#7C3AED]' :
@@ -1965,32 +2001,33 @@ export default function AccountDetails() {
             {/* WhatsApp Share Button */}
             <button
               onClick={handleWhatsAppShare}
-              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[10px] sm:text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none whitespace-nowrap"
             >
-              <svg className="w-3.5 h-3.5 fill-[#25D366]" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+              <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                 <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
               </svg>
-              WhatsApp Share
+              WhatsApp
             </button>
             {/* Excel Export Button */}
             <button
               onClick={handleExcelExport}
-              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[10px] sm:text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none whitespace-nowrap"
             >
-              <span className="material-symbols-rounded text-sm text-[#107C41] select-none font-bold">download</span>
-              Excel Export
+              <span className="material-symbols-rounded text-sm text-[#107C41] select-none font-bold shrink-0">download</span>
+              Excel
             </button>
             {/* Print Button */}
             <button
               onClick={handlePrint}
-              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none"
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[10px] sm:text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none whitespace-nowrap"
             >
-              <span className="material-symbols-rounded text-sm text-slate-500 select-none font-bold">print</span>
+              <span className="material-symbols-rounded text-sm text-slate-500 select-none font-bold shrink-0">print</span>
               Print
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto -mx-6">
+        {/* Desktop Table (Hidden on Mobile) */}
+        <div className="hidden lg:block overflow-x-auto -mx-6">
           <table className="min-w-full divide-y divide-[#E2E8F0]">
             <thead className="bg-[#F8FAFC]">
               <tr>
@@ -2165,6 +2202,160 @@ export default function AccountDetails() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Ledger Cards (No Horizontal Scroll, Hidden on Desktop) */}
+        <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+          {(account.ledger || []).length === 0 ? (
+            <div className="text-center py-8 text-xs text-[#64748B] font-bold">
+              No transactions recorded yet.
+            </div>
+          ) : (account.ledger || []).map((row, index) => {
+            let allocationText = '';
+            let parsedAllocations = [];
+            if (row.allocations) {
+              try {
+                const list = typeof row.allocations === 'string' ? JSON.parse(row.allocations) : row.allocations;
+                if (Array.isArray(list) && list.length > 0) {
+                  parsedAllocations = list;
+                  const regularAllocs = list.filter(a => a.due_date !== 'Advance');
+                  const advanceAllocs = list.filter(a => a.due_date === 'Advance');
+                  
+                  const dates = regularAllocs.map(a => a.due_date).sort();
+                  if (dates.length > 0) {
+                    const minDate = new Date(dates[0]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const maxDate = new Date(dates[dates.length - 1]).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    
+                    if (dates.length === 1) {
+                      allocationText = `Covered: ${minDate}`;
+                    } else {
+                      allocationText = `Covered: ${minDate} - ${maxDate} (${dates.length} Days)`;
+                    }
+                  } else if (advanceAllocs.length > 0) {
+                    allocationText = 'Covered: Advance Payment';
+                  }
+                }
+              } catch (e) {
+                console.error("Failed to parse allocations", e);
+              }
+            }
+
+            const isAdvancePayment = Number(row.isAdvance) === 1 || 
+              parsedAllocations.some(alloc => alloc.due_date === 'Advance' || (alloc.due_date && alloc.due_date > row.date));
+
+            return (
+              <div key={row.id || row.refNo || Math.random()} className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3.5 shadow-sm">
+                {/* Header: Ref No & Date */}
+                <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
+                  <div className="flex flex-col">
+                    <span className="font-extrabold text-[#0F172A] text-xs">{row.refNo}</span>
+                    <span className="text-[10px] text-[#64748B] font-bold">{row.date}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {row.type === 'Loan Settlement' ? (
+                      <span className="bg-[#6366F1]/10 text-[#6366F1] text-[8.5px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                        Settlement
+                      </span>
+                    ) : (
+                      <>
+                        <span className={`text-[8.5px] font-black px-2 py-0.5 rounded uppercase ${
+                          isAdvancePayment ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {isAdvancePayment ? 'Advance' : 'Regular'}
+                        </span>
+                        <span className="bg-[#0A3598]/10 text-[#0A3598] text-[8.5px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                          {row.payment_mode || 'Cash'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Details grid */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Amount Paid</span>
+                    <span className="text-[#16A34A] font-black text-xs">₹{Number(row.amt).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Fine / Charges</span>
+                    <span className={Number(row.fine) > 0 ? "text-[#DC2626] font-bold text-xs" : "text-[#64748B] font-bold text-xs"}>
+                      ₹{Number(row.fine || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Collected By</span>
+                    <span className="text-[#0F172A] font-extrabold">{row.collector || 'System'}</span>
+                  </div>
+                  
+                  {parsedAllocations.length > 0 && (
+                    <div className="col-span-2 space-y-1.5">
+                      <button
+                        onClick={() => toggleInstallments(row.refNo)}
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#F8FAFC] hover:bg-slate-100/80 border border-[#E2E8F0] rounded-lg text-[10px] font-bold text-[#64748B] transition-all cursor-pointer select-none"
+                      >
+                        <span className="flex items-center gap-1">
+                          <span className="material-symbols-rounded text-xs text-[#0A3598]">event_repeat</span>
+                          View Installments ({parsedAllocations.length})
+                        </span>
+                        <span className={`material-symbols-rounded text-xs transition-transform duration-200 ${
+                          expandedInstallments[row.refNo] ? 'rotate-180' : ''
+                        }`}>
+                          expand_more
+                        </span>
+                      </button>
+
+                      {expandedInstallments[row.refNo] && (
+                        <div className="bg-[#F8FAFC] p-2.5 rounded-lg border border-[#E2E8F0] space-y-1 font-bold text-[10px] animate-fade-in">
+                          {parsedAllocations.map((a, i) => (
+                            <div key={i} className="flex justify-between items-center text-slate-700">
+                              <span>
+                                {a.due_date === 'Advance' 
+                                  ? 'Advance Payment' 
+                                  : new Date(a.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className="text-[#0F172A] font-extrabold">
+                                ₹{Number(a.amount).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Void/Reset Actions */}
+                {(userRole === 'Super Admin' || userRole === 'Admin') && (
+                  <div className="border-t border-[#E2E8F0]/50 pt-2.5 flex justify-end gap-2">
+                    {index === 0 ? (
+                      <>
+                        <button
+                          onClick={() => handleOpenUpdateModal(row)}
+                          className="px-3 py-1.5 bg-[#3B82F6]/10 hover:bg-[#3B82F6]/20 text-[#2563EB] text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                        >
+                          <span className="material-symbols-rounded text-xs select-none">edit</span>
+                          Update
+                        </button>
+                        <button
+                          onClick={() => handleResetCollection(row.refNo)}
+                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                        >
+                          <span className="material-symbols-rounded text-xs select-none">delete</span>
+                          Reset
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[9px] text-[#64748B] font-semibold flex items-center gap-1 select-none opacity-60">
+                        <span className="material-symbols-rounded text-xs">lock</span>
+                        Locked (Older Txn)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

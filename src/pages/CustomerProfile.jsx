@@ -258,6 +258,18 @@ export default function CustomerProfile() {
     fetchCustomerProfile();
   }, [id]);
 
+  useEffect(() => {
+    if (customer) {
+      const name = customer.full_name || customer.name || 'Customer Profile';
+      window.activePageTitle = `Customer: ${name}`;
+      window.dispatchEvent(new Event('titlechange'));
+    }
+    return () => {
+      window.activePageTitle = '';
+      window.dispatchEvent(new Event('titlechange'));
+    };
+  }, [customer]);
+
   // Live calculations for Custom Loan
   useEffect(() => {
     if (loanForm.loan_plan_id === 'custom') {
