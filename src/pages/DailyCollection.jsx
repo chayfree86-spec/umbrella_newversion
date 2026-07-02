@@ -69,6 +69,9 @@ export default function DailyCollection() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
+
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('All');
@@ -226,8 +229,9 @@ export default function DailyCollection() {
 
   return (
     <div className="w-full space-y-6">
-      <div className="w-full bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#F1F5F9] pb-4">
+      <div className="w-full lg:bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-sm lg:p-6 lg:space-y-5 space-y-5">
+        {/* Title & Filters Header: Visible on Desktop, Hidden on Mobile */}
+        <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#F1F5F9] pb-4">
           <div>
             <h3 className="text-base font-bold text-[#0F172A]">Daily Collection Accounts</h3>
             <p className="text-xs text-[#64748B]">Manage open loan and savings collections — approve, schedule, collect.</p>
@@ -270,6 +274,49 @@ export default function DailyCollection() {
           </div>
         </div>
 
+        {/* Title & Filters Header: Standalone Card on Mobile */}
+        <div className="block lg:hidden bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-[#0F172A]">Daily Collection Accounts</h3>
+            <p className="text-xs text-[#64748B]">Manage open loan and savings collections — approve, schedule, collect.</p>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl">
+              {['All', 'Loan', 'Saving'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setFilterType(t)}
+                  className={`flex-1 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
+                    filterType === t
+                      ? 'bg-[#0A3598] text-white shadow-sm'
+                      : 'text-[#64748B] hover:text-[#0F172A]'
+                  }`}
+                >
+                  {t === 'All' ? 'All' : t === 'Loan' ? 'Loans' : 'Savings'}
+                </button>
+              ))}
+            </div>
+
+            <Select
+              options={[
+                { value: "All", label: "All Statuses" },
+                { value: "Processing", label: "Processing" },
+                { value: "Approved", label: "Approved" },
+                { value: "Active", label: "Active" },
+                { value: "Defaulter", label: "Defaulter" },
+                { value: "NPA", label: "NPA" },
+                { value: "Rejected", label: "Rejected" },
+                { value: "Closed", label: "Closed" },
+                { value: "Matured", label: "Matured" }
+              ]}
+              value={filterStatus}
+              onChange={(val) => setFilterStatus(val)}
+              searchable={false}
+              compact={true}
+            />
+          </div>
+        </div>
+
         {searchFilter && (
           <div className="flex items-center justify-between bg-[#0A3598]/5 border border-[#0A3598]/25 rounded-xl px-4 py-2.5 text-xs font-semibold text-[#0A3598]">
             <div className="flex items-center gap-1.5">
@@ -281,7 +328,7 @@ export default function DailyCollection() {
         )}
 
         {/* Desktop Table (Hidden on Mobile) */}
-        <div className="hidden lg:block overflow-x-auto -mx-6">
+        <div className="hidden lg:block overflow-x-auto lg:-mx-6">
           <div className="inline-block min-w-full align-middle">
             <table className="min-w-full divide-y divide-[#E2E8F0]">
               <thead className="bg-[#F8FAFC]">
@@ -303,38 +350,58 @@ export default function DailyCollection() {
                   const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
 
                   if (paginated.length === 0) {
-                    return <tr><td colSpan="7" className="text-center py-12 text-xs text-[#64748B]">No accounts match current filters.</td></tr>;
+                    return (
+                      <tr>
+                        <td colSpan="7" className="text-center py-10 text-xs text-[#64748B]">
+                          No accounts match current filters.
+                        </td>
+                      </tr>
+                    );
                   }
 
-                  return paginated.map(acc => (
-                    <tr key={`${acc.type}-${acc.id}`} className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer" onClick={() => navigate(`/account/${acc.accNo}`)}>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">{acc.accNo}</td>
-                      <td className="whitespace-nowrap px-6 py-4">
-                        <div className="text-xs font-bold text-[#0F172A]">{acc.customerName}</div>
-                        <div className="text-[10px] text-[#64748B]">{acc.customerMobile}</div>
+                  return paginated.map((acc) => (
+                    <tr 
+                      key={`${acc.type}-${acc.id}`} 
+                      className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/account/${acc.accNo}`)}
+                    >
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-extrabold text-[#0A3598] select-all">
+                        {acc.accNo}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs">
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs">
+                        <div className="font-extrabold text-[#0F172A]">{acc.customerName}</div>
+                        <div className="text-[10px] text-[#64748B] font-semibold">{acc.customerMobile}</div>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold">
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                           acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
-                        }`}>{acc.type}</span>
+                        }`}>
+                          {acc.type}
+                        </span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>{acc.status}</span>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>
+                          {acc.status}
+                        </span>
                       </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-right text-[#EA580C]">₹{inr(acc.todayDue)}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold text-right text-[#0F172A]">₹{inr(acc.outstanding)}</td>
-                      <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-black text-right text-[#EA580C]">
+                        ₹{inr(acc.todayDue)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-xs font-extrabold text-right text-[#0F172A]">
+                        ₹{inr(acc.outstanding)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-center text-xs font-bold" onClick={(e) => e.stopPropagation()}>
                         {acc.status === 'Processing' ? (
-                          <div className="flex gap-1.5 justify-center">
+                          <div className="flex justify-center gap-1.5">
                             <button
                               onClick={() => handleApprove(acc)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#16A34A] text-white hover:bg-[#16A34A]/90 transition-all cursor-pointer shadow-sm"
+                              className="px-3 py-1 bg-[#16A34A] text-white rounded-lg text-[10px] font-black hover:bg-[#16A34A]/90 active:scale-95 transition-all cursor-pointer shadow-xs"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleReject(acc)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all cursor-pointer"
+                              className="px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-black hover:bg-red-100 active:scale-95 transition-all cursor-pointer"
                             >
                               Reject
                             </button>
@@ -342,15 +409,13 @@ export default function DailyCollection() {
                         ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
                           <button
                             onClick={() => handleOpenCollect(acc)}
-                            className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-[#0A3598] text-white rounded-lg text-[10px] font-black hover:bg-[#0A3598]/90 active:scale-95 transition-all cursor-pointer shadow-xs mx-auto"
                           >
-                            <span className="material-symbols-rounded text-sm select-none">payments</span>
+                            <span className="material-symbols-rounded text-xs select-none">payments</span>
                             Collect
                           </button>
                         ) : (
-                          <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#64748B] font-bold uppercase tracking-wider hover:text-[#0A3598]">
-                            View
-                          </Link>
+                          <span className="text-[10px] text-secondary-text/80 font-bold uppercase tracking-wider">No Action</span>
                         )}
                       </td>
                     </tr>
@@ -362,16 +427,16 @@ export default function DailyCollection() {
         </div>
 
         {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
-        <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+        <div className="block lg:hidden space-y-4">
           {loading ? (
-            <div className="text-center py-8 text-xs text-[#64748B]">Loading accounts…</div>
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-xs text-[#64748B] shadow-sm">Loading accounts…</div>
           ) : (() => {
             const sorted = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
             const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
 
             if (paginated.length === 0) {
               return (
-                <div className="text-center py-8 text-secondary-text font-bold text-xs">
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-secondary-text font-bold text-xs shadow-sm">
                   No accounts match current filters.
                 </div>
               );
@@ -380,58 +445,56 @@ export default function DailyCollection() {
             return paginated.map(acc => (
               <div 
                 key={`${acc.type}-${acc.id}`} 
-                className="bg-white border border-[#E2E8F0] rounded-xl p-4 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer"
+                className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer space-y-3"
                 onClick={() => navigate(`/account/${acc.accNo}`)}
               >
                 {/* Header: Acc No & Type */}
-                <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2">
+                <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
                   <span className="font-extrabold text-[#0A3598] text-xs select-all">
                     {acc.accNo}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                    <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${
                       acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
                     }`}>
                       {acc.type}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${STATUS_STYLES[acc.status] || 'bg-slate-100 text-slate-600'}`}>
                       {acc.status}
                     </span>
                   </div>
                 </div>
 
-                {/* Body Details */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="space-y-0.5 col-span-2">
-                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Customer</span>
-                    <span className="text-[#0F172A] font-extrabold block">{acc.customerName}</span>
-                    <span className="text-[10px] text-[#64748B] font-semibold block">{acc.customerMobile}</span>
+                {/* Details Grid */}
+                <div className="grid grid-cols-2 gap-2.5 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                  <div className="col-span-2">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Customer</span>
+                    <span className="text-primary-text block">{acc.customerName}</span>
+                    <span className="text-secondary-text/80 block font-semibold text-[9px]">{acc.customerMobile}</span>
                   </div>
-                  
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Today's Due</span>
-                    <span className="text-[#EA580C] font-black text-xs">₹{inr(acc.todayDue)}</span>
+                  <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Today's Due</span>
+                    <span className="text-[#EA580C] block">₹{inr(acc.todayDue)}</span>
                   </div>
-
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Outstanding</span>
-                    <span className="text-[#0F172A] font-extrabold text-xs">₹{inr(acc.outstanding)}</span>
+                  <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Outstanding</span>
+                    <span className="text-primary-text block">₹{inr(acc.outstanding)}</span>
                   </div>
                 </div>
 
                 {/* Footer Action Buttons */}
-                <div className="border-t border-[#E2E8F0]/50 pt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                   {acc.status === 'Processing' ? (
                     <div className="flex gap-2 w-full">
                       <button
                         onClick={() => handleApprove(acc)}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#16A34A] text-white active:scale-95 transition-all cursor-pointer shadow-sm text-center"
+                        className="flex-1 py-2 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm text-center flex items-center justify-center gap-1 active:scale-95"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleReject(acc)}
-                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200 active:scale-95 transition-all cursor-pointer text-center"
+                        className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center gap-1 active:scale-95"
                       >
                         Reject
                       </button>
@@ -439,16 +502,13 @@ export default function DailyCollection() {
                   ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
                     <button
                       onClick={() => handleOpenCollect(acc)}
-                      className="w-full py-2 bg-[#0A3598] text-white rounded-xl text-xs font-bold active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                      className="w-full py-2 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                     >
                       <span className="material-symbols-rounded text-sm select-none">payments</span>
                       Collect
                     </button>
                   ) : (
-                    <Link to={`/account/${acc.accNo}`} className="text-[10px] text-[#0A3598] font-black uppercase tracking-wider hover:underline flex items-center gap-0.5">
-                      View Details
-                      <span className="material-symbols-rounded text-xs select-none">chevron_right</span>
-                    </Link>
+                    <span className="text-[9px] text-secondary-text/80 font-black uppercase tracking-wider">No Action Available</span>
                   )}
                 </div>
               </div>
@@ -555,8 +615,8 @@ export default function DailyCollection() {
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setReceipt(null)}></div>
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative z-10 border border-[#E2E8F0] flex flex-col gap-4">
             <div className="text-center pb-4 border-b border-dashed border-[#E2E8F0]">
-              <span className="text-sm font-bold block">Umbrella Finance</span>
-              <span className="text-[10px] text-[#64748B] block mt-0.5">Collection Receipt</span>
+              <span className="text-sm font-bold block">{companyName}</span>
+              <span className="text-[10px] text-[#64748B] block mt-0.5">{companyTagline} | Receipt</span>
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between"><span className="text-[#64748B]">Receipt No</span><span className="font-bold">{receipt.receiptNo}</span></div>

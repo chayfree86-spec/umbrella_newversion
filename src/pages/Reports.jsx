@@ -8,6 +8,9 @@ import { Pagination } from '../components/ui/Pagination';
 const inr = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function Reports() {
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
+
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [startDate, setStartDate] = useState('');
@@ -260,7 +263,7 @@ export default function Reports() {
     col: {
       title: 'Collection Report',
       desc: 'Real-time daily collection ledger and synced logs',
-      statusLabel: 'Payment Mode',
+      statusLabel: 'Mode',
       statusOptions: [
         { value: 'all', label: 'All' },
         { value: 'Cash', label: 'Cash Only' },
@@ -272,7 +275,7 @@ export default function Reports() {
     agent: {
       title: 'Agent Performance Logs',
       desc: 'Agent-wise field performance and collection aggregates',
-      statusLabel: 'Performance Tier',
+      statusLabel: 'Performance',
       statusOptions: [
         { value: 'all', label: 'All' },
         { value: 'high', label: 'Above 90% (High)' },
@@ -283,7 +286,7 @@ export default function Reports() {
     loan: {
       title: 'Loan Account Balances & Ledger',
       desc: 'Listing active loans, disbursals, repayment logs, and outstanding balances',
-      statusLabel: 'Loan Status',
+      statusLabel: 'Status',
       statusOptions: [
         { value: 'all', label: 'All' },
         { value: 'active', label: 'Active (On Time)' },
@@ -294,7 +297,7 @@ export default function Reports() {
     saving: {
       title: 'Savings Account Balance Ledger',
       desc: 'Listing savings accounts balances and interest metrics',
-      statusLabel: 'Plan Type',
+      statusLabel: 'Plan',
       statusOptions: [
         { value: 'all', label: 'All' }
       ],
@@ -303,7 +306,7 @@ export default function Reports() {
     cashbook: {
       title: 'Cash Book Summary Ledger',
       desc: 'Cash book transactions logging opening/closing balances',
-      statusLabel: 'Transaction Type',
+      statusLabel: 'Type',
       statusOptions: [
         { value: 'all', label: 'All' },
         { value: 'Credit', label: 'Credit Only' },
@@ -314,7 +317,7 @@ export default function Reports() {
     maturity: {
       title: 'Maturity & Payout Logs',
       desc: 'Maturity schedules for savings and payouts tracking',
-      statusLabel: 'Payout Status',
+      statusLabel: 'Status',
       statusOptions: [
         { value: 'all', label: 'All' },
         { value: 'Pending Pay Out', label: 'Pending Payouts' },
@@ -619,8 +622,8 @@ export default function Reports() {
             <div class="logo-section" style="display: flex; align-items: center; gap: 10px;">
               <img src="${window.location.origin}/logo.png" class="logo-img" alt="Logo" style="height: 40px; width: 40px; object-fit: contain;">
               <div>
-                <h1>UMBRELLA FINANCE</h1>
-                <p>Chhote Kadam, Bade Sapne</p>
+                <h1 style="text-transform: uppercase;">${companyName}</h1>
+                <p>${companyTagline}</p>
               </div>
             </div>
             <div class="meta-section">
@@ -650,7 +653,7 @@ export default function Reports() {
           </table>
 
           <div class="footer">
-            This is a computer-generated report from Umbrella Finance Live Core Ledger System. Page 1 of 1.
+            This is a computer-generated report from ${companyName} Live Core Ledger System. Page 1 of 1.
           </div>
 
           <script>
@@ -873,6 +876,7 @@ export default function Reports() {
                 label="End Date"
                 value={endDate}
                 onChange={(val) => setEndDate(val)}
+                align="right"
               />
             </div>
           </section>
@@ -899,8 +903,9 @@ export default function Reports() {
             ))}
           </section>
 
-          <section className="bg-surface p-6 rounded-2xl border border-border-fin shadow-sm overflow-hidden space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <section className="lg:bg-surface lg:p-6 lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm lg:overflow-hidden space-y-4">
+            {/* Title Header: Visible on Desktop, Hidden on Mobile */}
+            <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h3 className="text-sm font-bold text-primary-text">Today's Collection Ledger Preview</h3>
                 <p className="text-xs text-secondary-text font-bold">Summary list for current date ({new Date().toLocaleDateString('en-GB').replace(/\//g, '-')})</p>
@@ -930,8 +935,39 @@ export default function Reports() {
               </div>
             </div>
 
+            {/* Title Header: Standalone Card on Mobile */}
+            <div className="block lg:hidden bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-bold text-primary-text">Today's Collection Ledger Preview</h3>
+                <p className="text-xs text-secondary-text font-bold">Summary list for current date ({new Date().toLocaleDateString('en-GB').replace(/\//g, '-')})</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleExport('PDF')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 border border-border-fin text-secondary-text rounded-xl text-xs font-bold bg-surface cursor-pointer"
+                >
+                  <span className="material-symbols-rounded text-sm select-none text-red-500">picture_as_pdf</span>
+                  PDF
+                </button>
+                <button
+                  onClick={() => handleExport('Excel')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 border border-border-fin text-secondary-text rounded-xl text-xs font-bold bg-surface cursor-pointer"
+                >
+                  <span className="material-symbols-rounded text-sm select-none text-emerald-500">table_chart</span>
+                  Excel
+                </button>
+                <button
+                  onClick={() => handleExport('Print')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-[#FFD54A] to-[#E67E00] text-slate-950 rounded-xl text-xs font-black cursor-pointer"
+                >
+                  <span className="material-symbols-rounded text-sm select-none">print</span>
+                  Print
+                </button>
+              </div>
+            </div>
+
             {/* Desktop Table (Hidden on Mobile) */}
-            <div className="hidden lg:block overflow-x-auto -mx-6">
+            <div className="hidden lg:block overflow-x-auto lg:-mx-6">
               <div className="inline-block min-w-full align-middle">
                 <table className="min-w-full divide-y divide-border-fin">
                   <thead className="bg-background-fin">
@@ -984,14 +1020,14 @@ export default function Reports() {
             </div>
 
             {/* Mobile-friendly Card List for Today's Collections (Hidden on Desktop) */}
-            <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+            <div className="block lg:hidden space-y-4">
               {(() => {
                 const sorted = [...todayCollections].sort((a, b) => b[1].localeCompare(a[1]));
                 const paginated = sorted.slice((todayPage - 1) * 20, todayPage * 20);
 
                 if (paginated.length === 0) {
                   return (
-                    <div className="text-center py-8 text-[#64748B] font-bold text-xs">
+                    <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-[#64748B] font-bold text-xs shadow-sm">
                       No transactions found for the selected filters today.
                     </div>
                   );
@@ -1000,9 +1036,9 @@ export default function Reports() {
                 return paginated.map((row, idx) => (
                   <div 
                     key={idx} 
-                    className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all"
+                    className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all"
                   >
-                    <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2">
+                    <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
                       <Link to={`/account/${row[1]}`} className="font-extrabold text-[#0A3598] text-xs hover:underline">
                         {row[1]}
                       </Link>
@@ -1189,245 +1225,263 @@ export default function Reports() {
             );
           })()}
 
-          <section className="bg-surface p-6 rounded-2xl border border-border-fin shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h3 className="text-base font-bold text-primary-text">Detailed Report Logs</h3>
-                <p className="text-xs text-secondary-text font-bold">Total {getFilteredRows(reportRows).length} records found</p>
-              </div>
-              <div className="relative w-full sm:w-64">
-                <span className="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-sm text-secondary-text select-none">
-                  search
-                </span>
-                <input
-                  type="text"
-                  placeholder="Filter records..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-background-fin border border-border-fin rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
-                />
-              </div>
-            </div>
+              <section className="lg:bg-surface lg:p-6 lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm space-y-5">
+                {/* Header: Visible on Desktop, Hidden on Mobile */}
+                <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h3 className="text-base font-bold text-primary-text">Detailed Report Logs</h3>
+                    <p className="text-xs text-secondary-text font-bold">Total {getFilteredRows(reportRows).length} records found</p>
+                  </div>
+                  <div className="relative w-full sm:w-64">
+                    <span className="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-sm text-secondary-text select-none">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Filter records..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-background-fin border border-border-fin rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                    />
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-4 bg-background-fin/50 rounded-2xl border border-border-fin">
-              <Select
-                label="Filter by Month"
-                options={[
-                  { value: 'all', label: 'All' },
-                  { value: '01', label: 'January' },
-                  { value: '02', label: 'February' },
-                  { value: '03', label: 'March' },
-                  { value: '04', label: 'April' },
-                  { value: '05', label: 'May' },
-                  { value: '06', label: 'June' },
-                  { value: '07', label: 'July' },
-                  { value: '08', label: 'August' },
-                  { value: '09', label: 'September' },
-                  { value: '10', label: 'October' },
-                  { value: '11', label: 'November' },
-                  { value: '12', label: 'December' }
-                ]}
-                value={detailMonth}
-                onChange={(val) => setDetailMonth(val)}
-              />
-              <Select
-                label={activeReportDetails.statusLabel || "Filter by Status"}
-                options={activeReportDetails.statusOptions || [{ value: 'all', label: 'All' }]}
-                value={detailStatus}
-                onChange={(val) => {
-                  setDetailStatus(val);
-                  setSelectedMetricLabel(null);
-                }}
-              />
-              <DatePicker
-                label="Start Date"
-                value={detailStartDate}
-                onChange={(val) => setDetailStartDate(val)}
-              />
-              <DatePicker
-                label="End Date"
-                value={detailEndDate}
-                onChange={(val) => setDetailEndDate(val)}
-              />
-              <div className="flex items-end col-span-2 md:col-span-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const curMonth = String(new Date().getMonth() + 1).padStart(2, '0');
-                    setDetailMonth(curMonth);
-                    setDetailStartDate('');
-                    setDetailEndDate('');
-                    setDetailStatus('all');
-                    setSelectedMetricLabel(null);
-                    setSearchQuery('');
-                  }}
-                  className="w-full h-[38px] border border-border-fin hover:bg-background-fin text-secondary-text hover:text-primary-text rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 bg-surface"
-                >
-                  <span className="material-symbols-rounded text-sm select-none">filter_list_off</span>
-                  Clear Filters
-                </button>
-              </div>
-            </div>
+                {/* Header: Standalone Card on Mobile */}
+                <div className="block lg:hidden bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 space-y-4">
+                  <div>
+                    <h3 className="text-base font-bold text-primary-text">Detailed Report Logs</h3>
+                    <p className="text-xs text-secondary-text font-bold">Total {getFilteredRows(reportRows).length} records found</p>
+                  </div>
+                  <div className="relative w-full">
+                    <span className="material-symbols-rounded absolute left-3 top-1/2 -translate-y-1/2 text-sm text-secondary-text select-none">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Filter records..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                    />
+                  </div>
+                </div>
 
-            {/* Desktop Table (Hidden on Mobile) */}
-            <div className="hidden lg:block overflow-x-auto -mx-6">
-              <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-border-fin">
-                  <thead className="bg-background-fin">
-                    <tr>
-                      {activeReportDetails.columns.map((col, idx) => (
-                        <th
-                          key={idx}
-                          scope="col"
-                          className="px-6 py-3 text-left text-[11px] font-extrabold text-secondary-text uppercase tracking-wider"
-                        >
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-fin bg-surface text-xs font-bold text-primary-text">
-                    {(() => {
-                      const filtered = getFilteredRows(reportRows);
-                      const paginated = filtered.slice((detailPage - 1) * 20, detailPage * 20);
-
-                      if (paginated.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={activeReportDetails.columns.length} className="px-6 py-10 text-center text-xs text-secondary-text font-bold">
-                              No matching records found. Try adjusting filters or search query.
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return paginated.map((row, rowIdx) => (
-                        <tr key={rowIdx} className="hover:bg-background-fin/50 transition-colors">
-                          {row.map((val, colIdx) => {
-                            const colHeader = activeReportDetails.columns[colIdx];
-                            const isDebitAmt = colHeader === 'Debit Amount' && val !== '-';
-                            const isCreditAmt = (
-                              colHeader === 'Credit Amount' ||
-                              colHeader === 'Amount Collected' ||
-                              colHeader === 'Actual Collected' ||
-                              colHeader === 'Interest Collected' ||
-                              colHeader === 'Total Deposit'
-                            ) && val !== '-';
-                            return (
-                              <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
-                                {isDebitAmt ? (
-                                  <span className="text-danger-fin font-black">{val}</span>
-                                ) : isCreditAmt ? (
-                                  <span className="text-success-fin font-black">{val}</span>
-                                ) : val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || val === 'Rejected' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue') || val.includes('Rejected'))) ? (
-                                  <span className="text-danger-fin font-black">{val}</span>
-                                ) : val === 'Credit' || val === 'Paid' || val === 'Completed' || val === 'Loan Completed' || (typeof val === 'string' && val.includes('Active')) ? (
-                                  <span className="text-success-fin font-black">{val}</span>
-                                ) : val === 'Pending Pay Out' || val === 'Processing' || val === 'Medium Risk' || val === 'Warning' ? (
-                                  <span className="text-warning-fin font-black">{val}</span>
-                                ) : (typeof val === 'string' && (val.startsWith('LN-') || val.startsWith('SV-') || val.startsWith('UF-LN-') || val.startsWith('UF-SV-'))) ? (
-                                  <Link to={`/account/${val}`} className="text-primary font-black hover:underline">
-                                    {val}
-                                  </Link>
-                                ) : (
-                                  val
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Mobile-friendly Card List for Detailed Report Logs (Hidden on Desktop) */}
-            <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
-              {(() => {
-                const filtered = getFilteredRows(reportRows);
-                const paginated = filtered.slice((detailPage - 1) * 20, detailPage * 20);
-
-                if (paginated.length === 0) {
-                  return (
-                    <div className="text-center py-8 text-[#64748B] font-bold text-xs">
-                      No matching records found. Try adjusting filters or search query.
-                    </div>
-                  );
-                }
-
-                return paginated.map((row, rowIdx) => {
-                  const accNoIdx = activeReportDetails.columns.findIndex(col => col.toLowerCase().includes('account no'));
-                  const accNo = accNoIdx !== -1 ? row[accNoIdx] : null;
-
-                  return (
-                    <div 
-                      key={rowIdx} 
-                      className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3 shadow-sm hover:border-[#0A3598]/30 transition-all"
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-4 bg-background-fin/50 rounded-2xl border border-border-fin">
+                  <Select
+                    label="Filter by Month"
+                    options={[
+                      { value: 'all', label: 'All' },
+                      { value: '01', label: 'January' },
+                      { value: '02', label: 'February' },
+                      { value: '03', label: 'March' },
+                      { value: '04', label: 'April' },
+                      { value: '05', label: 'May' },
+                      { value: '06', label: 'June' },
+                      { value: '07', label: 'July' },
+                      { value: '08', label: 'August' },
+                      { value: '09', label: 'September' },
+                      { value: '10', label: 'October' },
+                      { value: '11', label: 'November' },
+                      { value: '12', label: 'December' }
+                    ]}
+                    value={detailMonth}
+                    onChange={(val) => setDetailMonth(val)}
+                  />
+                  <Select
+                    label={activeReportDetails.statusLabel || "Filter by Status"}
+                    options={activeReportDetails.statusOptions || [{ value: 'all', label: 'All' }]}
+                    value={detailStatus}
+                    onChange={(val) => {
+                      setDetailStatus(val);
+                      setSelectedMetricLabel(null);
+                    }}
+                  />
+                  <DatePicker
+                    label="Start Date"
+                    value={detailStartDate}
+                    onChange={(val) => setDetailStartDate(val)}
+                  />
+                  <DatePicker
+                    label="End Date"
+                    value={detailEndDate}
+                    onChange={(val) => setDetailEndDate(val)}
+                    align="right"
+                  />
+                  <div className="flex items-end col-span-1 sm:col-span-2 md:col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const curMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+                        setDetailMonth(curMonth);
+                        setDetailStartDate('');
+                        setDetailEndDate('');
+                        setDetailStatus('all');
+                        setSelectedMetricLabel(null);
+                        setSearchQuery('');
+                      }}
+                      className="w-full h-[38px] border border-border-fin hover:bg-background-fin text-secondary-text hover:text-primary-text rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 bg-surface"
                     >
-                      <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2">
-                        <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
-                          Record #{ (detailPage - 1) * 20 + rowIdx + 1 }
-                        </span>
-                        {accNo && (
-                          <Link to={`/account/${accNo}`} className="text-xs font-extrabold text-[#0A3598] hover:underline">
-                            {accNo}
-                          </Link>
-                        )}
-                      </div>
-                      <div className="space-y-2 text-xs">
-                        {row.map((val, colIdx) => {
-                          const colHeader = activeReportDetails.columns[colIdx];
-                          if (colIdx === accNoIdx) return null;
+                      <span className="material-symbols-rounded text-sm select-none">filter_list_off</span>
+                      Clear Filters
+                    </button>
+                  </div>
+                </div>
 
-                          const isDebitAmt = colHeader === 'Debit Amount' && val !== '-';
-                          const isCreditAmt = (
-                            colHeader === 'Credit Amount' ||
-                            colHeader === 'Amount Collected' ||
-                            colHeader === 'Actual Collected' ||
-                            colHeader === 'Interest Collected' ||
-                            colHeader === 'Total Deposit'
-                          ) && val !== '-';
+                {/* Desktop Table (Hidden on Mobile) */}
+                <div className="hidden lg:block overflow-x-auto lg:-mx-6">
+                  <div className="inline-block min-w-full align-middle">
+                    <table className="min-w-full divide-y divide-border-fin">
+                      <thead className="bg-background-fin">
+                        <tr>
+                          {activeReportDetails.columns.map((col, colIdx) => (
+                            <th key={colIdx} scope="col" className="px-6 py-3 text-left text-[11px] font-extrabold text-secondary-text uppercase tracking-wider">
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-fin bg-surface text-xs font-bold text-primary-text">
+                        {(() => {
+                          const filtered = getFilteredRows(reportRows);
+                          const paginated = filtered.slice((detailPage - 1) * 20, detailPage * 20);
 
-                          let displayValue = val;
-                          if (isDebitAmt) {
-                            displayValue = <span className="text-danger-fin font-black">{val}</span>;
-                          } else if (isCreditAmt) {
-                            displayValue = <span className="text-success-fin font-black">{val}</span>;
-                          } else if (val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || val === 'Rejected' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue') || val.includes('Rejected')))) {
-                            displayValue = <span className="text-danger-fin font-black">{val}</span>;
-                          } else if (val === 'Credit' || val === 'Paid' || val === 'Completed' || val === 'Loan Completed' || (typeof val === 'string' && val.includes('Active'))) {
-                            displayValue = <span className="text-success-fin font-black">{val}</span>;
-                          } else if (val === 'Pending Pay Out' || val === 'Processing' || val === 'Medium Risk' || val === 'Warning') {
-                            displayValue = <span className="text-warning-fin font-black">{val}</span>;
-                          } else if (typeof val === 'string' && (val.startsWith('LN-') || val.startsWith('SV-') || val.startsWith('UF-LN-') || val.startsWith('UF-SV-'))) {
-                            displayValue = (
-                              <Link to={`/account/${val}`} className="text-primary font-black hover:underline">
-                                {val}
-                              </Link>
+                          if (paginated.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={activeReportDetails.columns.length} className="px-6 py-8 text-center text-xs text-secondary-text font-bold">
+                                  No matching records found. Try adjusting filters or search query.
+                                </td>
+                              </tr>
                             );
                           }
 
-                          return (
-                            <div key={colIdx} className="flex justify-between items-start gap-4">
-                              <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider">{colHeader}:</span>
-                              <span className="font-extrabold text-[#0F172A] text-right">{displayValue}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-            <Pagination 
-              currentPage={detailPage}
-              totalPages={Math.ceil(getFilteredRows(reportRows).length / 20)}
-              onPageChange={setDetailPage}
-            />
-          </section>
+                          return paginated.map((row, rowIdx) => (
+                            <tr key={rowIdx} className="hover:bg-background-fin/50 transition-colors">
+                              {row.map((val, colIdx) => {
+                                const colHeader = activeReportDetails.columns[colIdx];
+                                const isDebitAmt = colHeader === 'Debit Amount' && val !== '-';
+                                const isCreditAmt = (
+                                  colHeader === 'Credit Amount' ||
+                                  colHeader === 'Amount Collected' ||
+                                  colHeader === 'Actual Collected' ||
+                                  colHeader === 'Interest Collected' ||
+                                  colHeader === 'Total Deposit'
+                                ) && val !== '-';
+                                return (
+                                  <td key={colIdx} className="whitespace-nowrap px-6 py-3.5">
+                                    {isDebitAmt ? (
+                                      <span className="text-danger-fin font-black">{val}</span>
+                                    ) : isCreditAmt ? (
+                                      <span className="text-success-fin font-black">{val}</span>
+                                    ) : val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || val === 'Rejected' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue') || val.includes('Rejected'))) ? (
+                                      <span className="text-danger-fin font-black">{val}</span>
+                                    ) : val === 'Credit' || val === 'Paid' || val === 'Completed' || val === 'Loan Completed' || (typeof val === 'string' && val.includes('Active')) ? (
+                                      <span className="text-success-fin font-black">{val}</span>
+                                    ) : val === 'Pending Pay Out' || val === 'Processing' || val === 'Medium Risk' || val === 'Warning' ? (
+                                      <span className="text-warning-fin font-black">{val}</span>
+                                    ) : (typeof val === 'string' && (val.startsWith('LN-') || val.startsWith('SV-') || val.startsWith('UF-LN-') || val.startsWith('UF-SV-'))) ? (
+                                      <Link to={`/account/${val}`} className="text-primary font-black hover:underline">
+                                        {val}
+                                      </Link>
+                                    ) : (
+                                      val
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mobile-friendly Card List for Detailed Report Logs (Hidden on Desktop) */}
+                <div className="block lg:hidden space-y-4">
+                  {(() => {
+                    const filtered = getFilteredRows(reportRows);
+                    const paginated = filtered.slice((detailPage - 1) * 20, detailPage * 20);
+
+                    if (paginated.length === 0) {
+                      return (
+                        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-[#64748B] font-bold text-xs shadow-sm">
+                          No matching records found. Try adjusting filters or search query.
+                        </div>
+                      );
+                    }
+
+                    return paginated.map((row, rowIdx) => {
+                      const accNoIdx = activeReportDetails.columns.findIndex(col => col.toLowerCase().includes('account no'));
+                      const accNo = accNoIdx !== -1 ? row[accNoIdx] : null;
+
+                      return (
+                        <div 
+                          key={rowIdx} 
+                          className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm hover:border-[#0A3598]/30 transition-all space-y-3"
+                        >
+                          <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
+                            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+                              Record #{ (detailPage - 1) * 20 + rowIdx + 1 }
+                            </span>
+                            {accNo && (
+                              <Link to={`/account/${accNo}`} className="text-xs font-extrabold text-[#0A3598] hover:underline">
+                                {accNo}
+                              </Link>
+                            )}
+                          </div>
+                          <div className="space-y-2 text-xs">
+                            {row.map((val, colIdx) => {
+                              const colHeader = activeReportDetails.columns[colIdx];
+                              if (colIdx === accNoIdx) return null;
+
+                              const isDebitAmt = colHeader === 'Debit Amount' && val !== '-';
+                              const isCreditAmt = (
+                                colHeader === 'Credit Amount' ||
+                                colHeader === 'Amount Collected' ||
+                                colHeader === 'Actual Collected' ||
+                                colHeader === 'Interest Collected' ||
+                                colHeader === 'Total Deposit'
+                              ) && val !== '-';
+
+                              let displayValue = val;
+                              if (isDebitAmt) {
+                                displayValue = <span className="text-danger-fin font-black">{val}</span>;
+                              } else if (isCreditAmt) {
+                                displayValue = <span className="text-success-fin font-black">{val}</span>;
+                              } else if (val === 'High Risk (NPA)' || val === 'Debit' || val === 'Defaulter' || val === 'Rejected' || (typeof val === 'string' && (val.includes('Defaulter') || val.includes('Overdue') || val.includes('Rejected')))) {
+                                displayValue = <span className="text-danger-fin font-black">{val}</span>;
+                              } else if (val === 'Credit' || val === 'Paid' || val === 'Completed' || val === 'Loan Completed' || (typeof val === 'string' && val.includes('Active'))) {
+                                displayValue = <span className="text-success-fin font-black">{val}</span>;
+                              } else if (val === 'Pending Pay Out' || val === 'Processing' || val === 'Medium Risk' || val === 'Warning') {
+                                displayValue = <span className="text-warning-fin font-black">{val}</span>;
+                              } else if (typeof val === 'string' && (val.startsWith('LN-') || val.startsWith('SV-') || val.startsWith('UF-LN-') || val.startsWith('UF-SV-'))) {
+                                displayValue = (
+                                  <Link to={`/account/${val}`} className="text-primary font-black hover:underline">
+                                    {val}
+                                  </Link>
+                                );
+                              }
+
+                              return (
+                                <div key={colIdx} className="flex justify-between items-start gap-4">
+                                  <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider">{colHeader}:</span>
+                                  <span className="font-extrabold text-[#0F172A] text-right">{displayValue}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+                <Pagination 
+                  currentPage={detailPage}
+                  totalPages={Math.ceil(getFilteredRows(reportRows).length / 20)}
+                  onPageChange={setDetailPage}
+                />
+              </section>
         </div>
       )}
     </div>

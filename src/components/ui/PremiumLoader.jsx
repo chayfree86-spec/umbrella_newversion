@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 export function PremiumLoader() {
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -170,7 +171,7 @@ export function PremiumLoader() {
             <span className="font-black text-amber-500">{roundedProgress}%</span>
           </div>
           <p className="loading-subtext text-[10px] uppercase font-bold tracking-widest opacity-80">
-            Umbrella Finance
+            {companyName}
           </p>
         </div>
       </div>

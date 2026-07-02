@@ -7,7 +7,8 @@ import { Pagination } from '../components/ui/Pagination';
 
 export default function Collection() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
 
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
   const isAgent = userRole === 'Agent / Collection Executive';
@@ -696,11 +697,11 @@ export default function Collection() {
 
       {/* Tab 1: Single Collection checklist */}
       {activeTab === 'single' && (
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 space-y-5 animate-fade-in">
-          {/* Desktop Table (Hidden on Mobile) */}
-          <div className="hidden lg:block overflow-x-auto -mx-6">
+        <div className="lg:bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-sm lg:p-6 lg:space-y-5 lg:animate-fade-in">
+          <div className="overflow-x-auto lg:-mx-6">
             <div className="inline-block min-w-full align-middle">
-              <table className="min-w-full divide-y divide-[#E2E8F0]">
+              {/* Desktop Table (Hidden on Mobile) */}
+              <table className="hidden lg:table min-w-full divide-y divide-[#E2E8F0]">
                 <thead className="bg-[#F8FAFC]">
                   <tr>
                     <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Account No</th>
@@ -722,6 +723,7 @@ export default function Collection() {
                       return paginatedAccounts.map((acc) => {
                         const name = acc.customer?.name || acc.name || 'Customer';
                         const phone = acc.customer?.phone || acc.phone || 'N/A';
+                        const emi = Number(acc.emi_amount || acc.emiAmt || 0);
                         
                         // Check today status
                         const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
@@ -734,35 +736,31 @@ export default function Collection() {
                             onClick={() => navigate(`/account/${acc.accNo}`)}
                             className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
                           >
-                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs font-extrabold text-[#0A3598] select-all">
                               {acc.accNo}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4">
-                              <div className="text-xs font-bold text-[#0F172A]">{name}</div>
-                              <div className="text-[10px] text-[#64748B]">{phone}</div>
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs">
+                              <span className="font-extrabold text-[#0F172A] block">{name}</span>
+                              <span className="text-[10px] text-[#64748B] font-semibold block">{phone}</span>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-xs">
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold">
                               <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                                 acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
                               }`}>
                                 {acc.type}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0F172A]">
-                              ₹{(acc.emiAmt || 0).toLocaleString()}
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs font-black text-[#0F172A]">
+                              ₹{emi.toLocaleString()}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold">
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs">
                               <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                                todayPaid 
-                                  ? 'bg-[#16A34A]/10 text-[#16A34A]' 
-                                  : todayRejected
-                                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                                    : 'bg-[#EA580C]/10 text-[#EA580C]'
+                                todayPaid ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#EA580C]/10 text-[#EA580C]'
                               }`}>
-                                {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
+                                {todayPaid ? 'Collected' : 'Pending'}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <td className="whitespace-nowrap px-6 py-3.5 text-center text-xs font-bold" onClick={(e) => e.stopPropagation()}>
                               {todayPaid ? (
                                 <button
                                   onClick={() => {
@@ -770,23 +768,18 @@ export default function Collection() {
                                     setReceiptTxn(todayPayment);
                                     setShowReceipt(true);
                                   }}
-                                  className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                  className="inline-flex items-center gap-1 px-3 py-1 bg-[#16A34A] text-white rounded-lg text-[10px] font-black hover:bg-[#16A34A]/90 active:scale-95 transition-all cursor-pointer shadow-xs"
                                 >
-                                  <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                                  <span className="material-symbols-rounded text-xs select-none">receipt</span>
                                   Receipt
                                 </button>
                               ) : isFutureDate ? (
-                                <button
-                                  disabled
-                                  className="px-5 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none mx-auto"
-                                >
-                                  Scheduled
-                                </button>
+                                <span className="text-[10px] text-[#94A3B8] font-bold">Scheduled</span>
                               ) : (
-                                <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center justify-center gap-2">
                                   <button
                                     onClick={() => handleOpenCollect(acc)}
-                                    className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-[#0A3598] text-white rounded-lg text-[10px] font-black hover:bg-[#0A3598]/90 active:scale-95 transition-all cursor-pointer shadow-xs"
                                   >
                                     <span className="material-symbols-rounded text-sm select-none">payments</span>
                                     Collect
@@ -818,7 +811,7 @@ export default function Collection() {
           </div>
 
           {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
-          <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+          <div className="block lg:hidden space-y-4">
             {(() => {
               const sortedAccounts = [...filteredAccounts].sort((a, b) => {
                 return b.accNo.localeCompare(a.accNo);
@@ -827,7 +820,7 @@ export default function Collection() {
 
               if (paginatedAccounts.length === 0) {
                 return (
-                  <div className="text-center py-8 text-[#64748B] font-bold text-xs">
+                  <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-[#64748B] font-bold text-xs shadow-sm">
                     No active collection accounts found for today matching the filters.
                   </div>
                 );
@@ -845,7 +838,7 @@ export default function Collection() {
                 return (
                   <div 
                     key={acc.accNo} 
-                    className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3.5 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer"
+                    className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer space-y-3"
                     onClick={() => navigate(`/account/${acc.accNo}`)}
                   >
                     {/* Header: Acc No & Status */}
@@ -860,32 +853,32 @@ export default function Collection() {
                           {acc.type}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${
-                          todayPaid 
-                            ? 'bg-[#16A34A]/10 text-[#16A34A]' 
-                            : todayRejected
-                              ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                              : 'bg-[#EA580C]/10 text-[#EA580C]'
+                          todayPaid ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#EA580C]/10 text-[#EA580C]'
                         }`}>
-                          {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
+                          {todayPaid ? 'Collected' : 'Pending'}
                         </span>
                       </div>
                     </div>
 
-                    {/* Details */}
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="col-span-2 space-y-0.5">
-                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Customer</span>
-                        <span className="text-[#0F172A] font-extrabold block">{name}</span>
-                        <span className="text-[10px] text-[#64748B] font-semibold block">{phone}</span>
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-2.5 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="col-span-2">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Customer</span>
+                        <span className="text-primary-text block">{name}</span>
+                        <span className="text-secondary-text/80 block font-semibold text-[9px]">{phone}</span>
                       </div>
-                      <div className="space-y-0.5">
-                        <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Daily EMI / Deposit</span>
-                        <span className="text-[#0F172A] font-black text-xs">₹{(acc.emiAmt || 0).toLocaleString()}</span>
+                      <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Daily EMI</span>
+                        <span className="text-primary-text block">₹{(acc.emi_amount || acc.emiAmt || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Next Due</span>
+                        <span className="text-primary-text block">{acc.nextDueDate || 'Today'}</span>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="border-t border-[#E2E8F0]/50 pt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                    {/* Actions Row */}
+                    <div className="flex justify-end items-center" onClick={(e) => e.stopPropagation()}>
                       {todayPaid ? (
                         <button
                           onClick={() => {
@@ -1292,8 +1285,8 @@ export default function Collection() {
           
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative z-10 border border-[#E2E8F0] text-[#0F172A] font-sans flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="text-center pb-4 border-b border-dashed border-[#E2E8F0]">
-              <span className="text-sm font-bold block">Umbrella Finance</span>
-              <span className="text-[10px] text-[#64748B] block mt-0.5">Chhote Kadam, Bade Sapne</span>
+              <span className="text-sm font-bold block">{companyName}</span>
+              <span className="text-[10px] text-[#64748B] block mt-0.5">{companyTagline}</span>
               <span className="text-xs font-bold text-[#0A3598] mt-2 block bg-[#0A3598]/5 py-1 rounded-lg">Collection Receipt</span>
             </div>
 

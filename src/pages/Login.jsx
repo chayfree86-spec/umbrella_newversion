@@ -2,14 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { authApi } from '../services/api';
 
 export default function Login({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('');
+  const [username, setUsername] = useState(() => localStorage.getItem('remembered_username') || '');
+  const [password, setPassword] = useState(() => localStorage.getItem('remembered_password') || '');
+  const [pin, setPin] = useState(() => localStorage.getItem('remembered_pin') || '');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('remember_me') !== 'false');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
+
+  const [companyName, setCompanyName] = useState(() => localStorage.getItem('company_name') || 'Umbrella Finance');
+  const [companyTagline, setCompanyTagline] = useState(() => localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne');
+
+  useEffect(() => {
+    authApi.branding()
+      .then(res => {
+        const d = res.data || {};
+        if (d.company_name) {
+          setCompanyName(d.company_name);
+          localStorage.setItem('company_name', d.company_name);
+        }
+        if (d.company_tagline) {
+          setCompanyTagline(d.company_tagline);
+          localStorage.setItem('company_tagline', d.company_tagline);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -35,6 +54,24 @@ export default function Login({ onLogin }) {
       window.removeEventListener('resize', checkMobile);
     };
   }, []);
+
+  useEffect(() => {
+    if (!rememberMe) {
+      localStorage.removeItem('remembered_username');
+      localStorage.removeItem('remembered_password');
+      localStorage.removeItem('remembered_pin');
+      localStorage.setItem('remember_me', 'false');
+    } else {
+      localStorage.setItem('remember_me', 'true');
+    }
+  }, [rememberMe]);
+
+  const handleUsernameChange = (val) => {
+    setUsername(val);
+    if (!val) {
+      localStorage.removeItem('remembered_username');
+    }
+  };
 
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetStep, setResetStep] = useState(1);
@@ -135,6 +172,17 @@ export default function Login({ onLogin }) {
       .then((res) => {
         setLoading(false);
         const { token, user } = res.data;
+        if (rememberMe) {
+          localStorage.setItem('remembered_username', username.trim());
+          localStorage.setItem('remembered_password', password);
+          localStorage.setItem('remembered_pin', pin);
+          localStorage.setItem('remember_me', 'true');
+        } else {
+          localStorage.removeItem('remembered_username');
+          localStorage.removeItem('remembered_password');
+          localStorage.removeItem('remembered_pin');
+          localStorage.setItem('remember_me', 'false');
+        }
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('auth_token', token);
         localStorage.setItem('userRole', user.role);
@@ -486,21 +534,21 @@ export default function Login({ onLogin }) {
         <div className="text-center mb-5">
           <div className="flex justify-center mb-3">
             <div className="relative p-[3px] rounded-full logo-gradient-wrapper shadow-md">
-              <div className="bg-white rounded-full p-2.5 w-16 h-16 flex items-center justify-center relative overflow-hidden">
+              <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-radial-glow pointer-events-none"></div>
                 <img 
                   src="/logo.png" 
                   alt="Umbrella Finance Logo" 
-                  className="h-10 w-10 object-contain relative z-10"
+                  className="h-full w-full object-cover relative z-10 rounded-full"
                 />
               </div>
             </div>
           </div>
           <h2 className="text-xl font-black text-[#0A3598] tracking-tight">
-            Umbrella Finance
+            {companyName}
           </h2>
           <p className="text-[10px] text-[#64748B] font-extrabold mt-0.5 uppercase tracking-wide">
-            Secure Wealth & Micro Lending
+            {companyTagline}
           </p>
         </div>
 
@@ -516,7 +564,7 @@ export default function Login({ onLogin }) {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-5" autoComplete="off">
           
           {/* Username Input Field with Peer Floating Label */}
           <div className="relative">
@@ -525,10 +573,10 @@ export default function Login({ onLogin }) {
               id="username"
               placeholder=" "
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => handleUsernameChange(e.target.value)}
               className="block w-full px-4 py-3.5 text-sm text-[#0F172A] bg-white border border-[#E2E8F0] rounded-2xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer pr-10 font-semibold transition-all"
               disabled={loading}
-              autoComplete="username"
+              autoComplete="off"
             />
             <label 
               htmlFor="username" 
@@ -594,7 +642,7 @@ export default function Login({ onLogin }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="block w-full px-4 py-3.5 text-sm text-[#0F172A] bg-white border border-[#E2E8F0] rounded-2xl appearance-none focus:outline-none focus:ring-4 focus:ring-[#0A3598]/5 focus:border-[#0A3598] peer pr-12 font-semibold transition-all"
                 disabled={loading}
-                autoComplete="current-password"
+                autoComplete="new-password"
               />
               <label 
                 htmlFor="password" 
@@ -665,7 +713,7 @@ export default function Login({ onLogin }) {
           <span className="material-symbols-rounded text-xs text-[#16A34A] select-none">
             verified_user
           </span>
-          <span>Umbrella Finance Central Auth Node</span>
+          <span>{companyName} Central Auth Node</span>
         </div>
       </div>
 

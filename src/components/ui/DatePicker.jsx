@@ -15,6 +15,7 @@ export function DatePicker({
   isDob = false,
   customTrigger = null,
   maxDate = '',
+  align = 'left',
   ...props
 }) {
   const isDobPicker = isDob || (label && (label.toLowerCase().includes('birth') || label.toLowerCase().includes('dob')));
@@ -415,7 +416,7 @@ export function DatePicker({
           openDirection === 'up' 
             ? 'bottom-full mb-1.5 origin-bottom' 
             : 'top-full mt-1.5 origin-top'
-        } ${customTrigger ? 'right-0' : 'right-0 sm:left-0'}`}>
+        } ${customTrigger ? 'right-0' : align === 'right' ? 'right-0' : 'left-0'}`}>
           {/* Calendar Header */}
           <div className="flex justify-between items-center mb-3">
             <button

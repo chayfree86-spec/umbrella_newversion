@@ -159,6 +159,9 @@ export default function AccountDetails() {
   const { accNo } = useParams();
   const navigate = useNavigate();
 
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
+
   const isLoan = accNo.startsWith('UF-LN-') || accNo.startsWith('LN-');
 
   const fetchAccount = useCallback(async () => {
@@ -923,7 +926,7 @@ export default function AccountDetails() {
     const interest = account.interestRate;
     const tenure = account.tenureDays;
 
-    let text = `*Umbrella Finance - Financial Statement Summary*\n\n`;
+    let text = `*${companyName} - Financial Statement Summary*\n\n`;
     text += `*Customer Details:*\n`;
     text += `Name: ${customerName}\n`;
     text += `Phone: ${customerPhone}\n\n`;
@@ -954,7 +957,7 @@ export default function AccountDetails() {
       });
     }
 
-    text += `\nThank you for banking with Umbrella Finance!\n`;
+    text += `\nThank you for banking with ${companyName}!\n`;
     text += `_For any queries, please contact your branch manager._`;
 
     const encoded = encodeURIComponent(text);
@@ -1186,8 +1189,8 @@ export default function AccountDetails() {
         <body>
           <div class="header">
             <div>
-              <h1>UMBRELLA FINANCE</h1>
-              <p>Chhote Kadam, Bade Sapne</p>
+              <h1 style="text-transform: uppercase;">${companyName}</h1>
+              <p>${companyTagline}</p>
             </div>
             <div style="text-align: right;">
               <h2 style="margin: 0; font-size: 16px; font-weight: 800; color: #0f172a;">ACCOUNT STATEMENT</h2>
@@ -1288,7 +1291,7 @@ export default function AccountDetails() {
 
           <div class="footer">
             This is a computer-generated account statement and does not require a physical signature.<br>
-            Umbrella Finance - Head Office: Umbrella Plaza, New Delhi.
+            ${companyName} - Head Office.
           </div>
 
           <script>
@@ -2015,8 +2018,9 @@ export default function AccountDetails() {
       })()}
 
       {/* Detailed Transaction Ledger (Full Width) */}
-      <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="lg:bg-white lg:p-6 lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-sm space-y-4">
+        {/* Header: Visible on Desktop, Hidden on Mobile */}
+        <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <h3 className="text-sm font-extrabold text-[#0F172A]">Detailed Transaction Ledger</h3>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {/* WhatsApp Share Button */}
@@ -2047,21 +2051,56 @@ export default function AccountDetails() {
             </button>
           </div>
         </div>
+
+        {/* Header: Standalone Card on Mobile */}
+        <div className="block lg:hidden bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 space-y-4">
+          <h3 className="text-sm font-extrabold text-[#0F172A]">Detailed Transaction Ledger</h3>
+          <div className="flex items-center gap-2 w-full">
+            {/* WhatsApp Share Button */}
+            <button
+              onClick={handleWhatsAppShare}
+              className="flex-1 px-3 py-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[10px] font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none whitespace-nowrap"
+            >
+              <svg className="w-3.5 h-3.5 fill-[#25D366] shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232"/>
+              </svg>
+              Share
+            </button>
+            {/* Excel Export Button */}
+            <button
+              onClick={handleExcelExport}
+              className="flex-1 px-3 py-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[10px] font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none whitespace-nowrap"
+            >
+              <span className="material-symbols-rounded text-sm text-[#107C41] select-none font-bold shrink-0">download</span>
+              Excel
+            </button>
+            {/* Print Button */}
+            <button
+              onClick={handlePrint}
+              className="flex-1 px-3 py-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-[10px] font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-xs select-none whitespace-nowrap"
+            >
+              <span className="material-symbols-rounded text-sm text-slate-500 select-none font-bold shrink-0">print</span>
+              Print
+            </button>
+          </div>
+        </div>
+
         {/* Desktop Table (Hidden on Mobile) */}
-        <div className="hidden lg:block overflow-x-auto -mx-6">
+        <div className="hidden lg:block overflow-x-auto lg:-mx-6">
           <table className="min-w-full divide-y divide-[#E2E8F0]">
             <thead className="bg-[#F8FAFC]">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Reference No</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Payment Type</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Amount Paid</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Late Fine / Charges</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected By</th>
-                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Action</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Ref No</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Payment Mode</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Particulars</th>
+                <th scope="col" className="px-6 py-3 text-right text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Amount Paid</th>
+                <th scope="col" className="px-6 py-3 text-right text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Penalty Charges</th>
+                <th scope="col" className="px-6 py-3 text-left text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Processed By</th>
+                <th scope="col" className="px-6 py-3 text-right text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold text-[#0F172A]">
+            <tbody className="divide-y divide-[#E2E8F0] bg-white text-xs font-bold text-[#0F172A]">
               {(account.ledger || []).map((row, index) => {
                 let allocationText = '';
                 let parsedAllocations = [];
@@ -2096,93 +2135,53 @@ export default function AccountDetails() {
                   parsedAllocations.some(alloc => alloc.due_date === 'Advance' || (alloc.due_date && alloc.due_date > row.date));
 
                 return (
-                  <tr key={row.id || row.refNo || Math.random()} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.date}</td>
-                    <td className="whitespace-nowrap px-6 py-3.5 font-bold">{row.refNo}</td>
+                  <tr key={row.id || row.refNo || Math.random()} className="hover:bg-[#F8FAFC]/50 transition-colors">
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B] font-medium">{row.date}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#0F172A] font-extrabold">{row.refNo}</td>
                     <td className="whitespace-nowrap px-6 py-3.5">
-                      <div className="font-bold text-[#0F172A] flex items-center gap-1.5">
-                        {row.type === 'Loan Settlement' ? (
-                          <span className="bg-[#6366F1]/10 text-[#6366F1] text-[10px] font-extrabold px-2.5 py-0.5 rounded uppercase select-none tracking-wider">
-                            Settlement
+                      {row.type === 'Loan Settlement' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-[#6366F1]/10 text-[#6366F1] uppercase tracking-wider">
+                          Settlement
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            isAdvancePayment ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {isAdvancePayment ? 'Advance' : 'Regular'}
                           </span>
-                        ) : (
-                          row.type
-                        )}
-                        {isAdvancePayment && (
-                          <span className="bg-[#7C3AED]/10 text-[#7C3AED] text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase select-none">
-                            Advance
+                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-primary/10 text-primary uppercase tracking-wider">
+                            {row.payment_mode || 'Cash'}
                           </span>
-                        )}
-                      </div>
-                      {allocationText && (
-                        <div 
-                          className="inline-flex items-center"
-                          onMouseEnter={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setTooltipPos({
-                              top: rect.bottom,
-                              left: rect.left + rect.width / 2
-                            });
-                            setHoveredReceipt(row.refNo);
-                          }}
-                          onMouseLeave={() => setHoveredReceipt(null)}
-                        >
-                          <div 
-                            className="text-[10px] text-[#64748B] mt-0.5 cursor-help hover:text-[#0A3598] transition-colors flex items-center gap-0.5 select-none"
-                          >
-                            <span className="material-symbols-rounded text-xs select-none">info</span>
-                            {allocationText}
-                          </div>
-                          
-                          {/* Custom UI Themed Tooltip (Light Theme - Viewport Fixed to Prevent Clipping) */}
-                          {hoveredReceipt === row.refNo && (
-                            <div 
-                              className="fixed z-[9999] pt-2 w-52 pointer-events-auto"
-                              style={{
-                                top: `${tooltipPos.top}px`,
-                                left: `${tooltipPos.left}px`,
-                                transform: 'translateX(-50%)'
-                              }}
-                            >
-                              <div className="bg-white text-slate-800 text-[11px] rounded-xl shadow-xl border border-slate-200 p-3 select-none text-left relative">
-                                <div className="font-extrabold text-slate-400 mb-2 border-b border-slate-100 pb-1.5 text-[9px] uppercase tracking-wider">
-                                  Due Date Breakdowns
-                                </div>
-                                <div className="space-y-1.5 font-semibold max-h-48 overflow-y-auto pr-1">
-                                  {parsedAllocations.map((a, i) => (
-                                    <div key={i} className="flex justify-between items-center gap-3">
-                                      <span className="text-slate-600">
-                                        {a.due_date === 'Advance' 
-                                          ? 'Advance Payment' 
-                                          : new Date(a.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                      </span>
-                                      <span className="font-extrabold text-[#0F172A]">
-                                        ₹{Number(a.amount).toLocaleString('en-IN')}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                                {/* Tiny Arrow pointing up */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-white"></div>
-                                {/* Tiny Arrow Shadow Border */}
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-[3px] border-4 border-transparent border-b-slate-200 -z-10"></div>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-[#16A34A] font-bold">₹{row.amt.toLocaleString()}</td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-[#E11D48]">₹{row.fine.toLocaleString()}</td>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B]">{row.collector}</td>
                     <td className="whitespace-nowrap px-6 py-3.5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-secondary-text/80 font-bold">{row.particulars}</span>
+                        {allocationText && (
+                          <span className="text-[10px] text-primary-text/75 font-semibold flex items-center gap-0.5">
+                            <span className="material-symbols-rounded text-xs text-primary">event_repeat</span>
+                            {allocationText}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-right text-success-fin font-black">₹{Number(row.amt).toLocaleString()}</td>
+                    <td className={`whitespace-nowrap px-6 py-3.5 text-right font-black ${
+                      Number(row.fine || 0) > 0 ? 'text-[#DC2626]' : 'text-slate-500'
+                    }`}>
+                      ₹{Number(row.fine || 0).toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-[#64748B] font-medium">{row.collector || 'System'}</td>
+                    <td className="whitespace-nowrap px-6 py-3.5 text-right">
                       {(userRole === 'Super Admin' || userRole === 'Admin') && (
                         index === 0 ? (
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-end gap-3">
                             <button
                               onClick={() => handleOpenUpdateModal(row)}
-                              className="text-[#3B82F6] hover:text-[#2563EB] font-bold hover:underline cursor-pointer flex items-center gap-1"
-                              title="Update this collection's details"
+                              className="text-primary hover:text-primary-hover font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              title="Update payment mode/particulars"
                             >
                               <span className="material-symbols-rounded text-sm">edit</span>
                               Update
@@ -2197,7 +2196,7 @@ export default function AccountDetails() {
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-end gap-3">
                             <button
                               disabled
                               className="text-slate-400 font-bold flex items-center gap-1 cursor-not-allowed select-none opacity-60"
@@ -2226,9 +2225,9 @@ export default function AccountDetails() {
         </div>
 
         {/* Mobile Ledger Cards (No Horizontal Scroll, Hidden on Desktop) */}
-        <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+        <div className="block lg:hidden space-y-4">
           {(account.ledger || []).length === 0 ? (
-            <div className="text-center py-8 text-xs text-[#64748B] font-bold">
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-xs text-[#64748B] font-bold shadow-sm">
               No transactions recorded yet.
             </div>
           ) : (account.ledger || []).map((row, index) => {
@@ -2265,7 +2264,7 @@ export default function AccountDetails() {
               parsedAllocations.some(alloc => alloc.due_date === 'Advance' || (alloc.due_date && alloc.due_date > row.date));
 
             return (
-              <div key={row.id || row.refNo || Math.random()} className="bg-white border border-[#E2E8F0] rounded-xl p-4.5 space-y-3.5 shadow-sm">
+              <div key={row.id || row.refNo || Math.random()} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 space-y-3 shadow-sm">
                 {/* Header: Ref No & Date */}
                 <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
                   <div className="flex flex-col">
@@ -2293,27 +2292,37 @@ export default function AccountDetails() {
                 </div>
 
                 {/* Details grid */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2.5 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
                   <div>
-                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Amount Paid</span>
-                    <span className="text-[#16A34A] font-black text-xs">₹{Number(row.amt).toLocaleString()}</span>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Amount Paid</span>
+                    <span className="text-[#16A34A] block">₹{Number(row.amt).toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Fine / Charges</span>
-                    <span className={Number(row.fine) > 0 ? "text-[#DC2626] font-bold text-xs" : "text-[#64748B] font-bold text-xs"}>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Fine / Charges</span>
+                    <span className={Number(row.fine) > 0 ? "text-[#DC2626] block" : "text-[#64748B] block"}>
                       ₹{Number(row.fine || 0).toLocaleString()}
                     </span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-[9px] text-[#64748B] font-bold uppercase tracking-wider block">Collected By</span>
-                    <span className="text-[#0F172A] font-extrabold">{row.collector || 'System'}</span>
+                  <div className="col-span-2 border-t border-slate-100/80 pt-1.5">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Particulars</span>
+                    <span className="text-primary-text block">{row.particulars}</span>
+                    {allocationText && (
+                      <span className="text-[9px] text-[#0A3598] font-bold flex items-center gap-0.5 mt-0.5">
+                        <span className="material-symbols-rounded text-xs select-none">event_repeat</span>
+                        {allocationText}
+                      </span>
+                    )}
+                  </div>
+                  <div className="col-span-2 border-t border-slate-100/80 pt-1.5">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Collected By</span>
+                    <span className="text-primary-text block">{row.collector || 'System'}</span>
                   </div>
                   
                   {parsedAllocations.length > 0 && (
-                    <div className="col-span-2 space-y-1.5">
+                    <div className="col-span-2 space-y-1.5 border-t border-slate-100/80 pt-1.5">
                       <button
                         onClick={() => toggleInstallments(row.refNo)}
-                        className="w-full flex items-center justify-between px-2.5 py-1.5 bg-[#F8FAFC] hover:bg-slate-100/80 border border-[#E2E8F0] rounded-lg text-[10px] font-bold text-[#64748B] transition-all cursor-pointer select-none"
+                        className="w-full flex items-center justify-between px-2.5 py-1.5 bg-white hover:bg-slate-50 border border-[#E2E8F0] rounded-lg text-[10px] font-bold text-[#64748B] transition-all cursor-pointer select-none"
                       >
                         <span className="flex items-center gap-1">
                           <span className="material-symbols-rounded text-xs text-[#0A3598]">event_repeat</span>
@@ -2327,7 +2336,7 @@ export default function AccountDetails() {
                       </button>
 
                       {expandedInstallments[row.refNo] && (
-                        <div className="bg-[#F8FAFC] p-2.5 rounded-lg border border-[#E2E8F0] space-y-1 font-bold text-[10px] animate-fade-in">
+                        <div className="bg-white p-2.5 rounded-lg border border-[#E2E8F0] space-y-1 font-bold text-[10px] animate-fade-in shadow-xs">
                           {parsedAllocations.map((a, i) => (
                             <div key={i} className="flex justify-between items-center text-slate-700">
                               <span>
@@ -2348,28 +2357,28 @@ export default function AccountDetails() {
 
                 {/* Void/Reset Actions */}
                 {(userRole === 'Super Admin' || userRole === 'Admin') && (
-                  <div className="border-t border-[#E2E8F0]/50 pt-2.5 flex justify-end gap-2">
+                  <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     {index === 0 ? (
                       <>
                         <button
                           onClick={() => handleOpenUpdateModal(row)}
-                          className="px-3 py-1.5 bg-[#3B82F6]/10 hover:bg-[#3B82F6]/20 text-[#2563EB] text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                          className="flex-1 py-2 bg-[#3B82F6]/10 hover:bg-[#3B82F6]/20 text-[#2563EB] text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-xs"
                         >
-                          <span className="material-symbols-rounded text-xs select-none">edit</span>
+                          <span className="material-symbols-rounded text-sm select-none">edit</span>
                           Update
                         </button>
                         <button
                           onClick={() => handleResetCollection(row.refNo)}
-                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                          className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95"
                         >
-                          <span className="material-symbols-rounded text-xs select-none">delete</span>
+                          <span className="material-symbols-rounded text-sm select-none">delete</span>
                           Reset
                         </button>
                       </>
                     ) : (
-                      <span className="text-[9px] text-[#64748B] font-semibold flex items-center gap-1 select-none opacity-60">
+                      <span className="text-[9px] text-[#64748B] font-semibold flex items-center gap-1 select-none opacity-60 mx-auto pt-1">
                         <span className="material-symbols-rounded text-xs">lock</span>
-                        Locked (Older Txn)
+                        Locked (Older Transaction)
                       </span>
                     )}
                   </div>
@@ -2442,7 +2451,7 @@ export default function AccountDetails() {
                     <span className="bg-[#FFC107]/10 text-[#D97706] text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase">On Closure</span>
                   )}
                 </div>
-                <p className="text-[10px] text-[#64748B] mt-1">No Objection Certificate issued by Umbrella Finance upon full clearance.</p>
+                <p className="text-[10px] text-[#64748B] mt-1">No Objection Certificate issued by {companyName} upon full clearance.</p>
               </div>
               
               {account.account_status === 'Closed' || account.status === 'Closed' ? (
@@ -2462,7 +2471,7 @@ export default function AccountDetails() {
                     Print
                   </button>
                   <button 
-                    onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, I am sharing my Loan No Objection Certificate (NOC) for Account No: ${account.accNo} issued by Umbrella Finance. Status: Fully Settled & Closed.`)}`)}
+                    onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, I am sharing my Loan No Objection Certificate (NOC) for Account No: ${account.accNo} issued by ${companyName}. Status: Fully Settled & Closed.`)}`)}
                     className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
                   >
                     <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
@@ -3663,10 +3672,10 @@ export default function AccountDetails() {
               {/* Letterhead Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-5 gap-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Umbrella Logo" />
+                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Logo" />
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-[#0F172A]">UMBRELLA FINANCE</h2>
-                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">Chhote Kadam, Bade Sapne</p>
+                    <h2 className="text-lg font-black tracking-tight text-[#0F172A] uppercase">{companyName}</h2>
+                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">{companyTagline}</p>
                   </div>
                 </div>
                 <div className="text-left sm:text-right">
@@ -3686,7 +3695,7 @@ export default function AccountDetails() {
                 <p className="font-bold text-slate-900">TO WHOM IT MAY CONCERN</p>
                 
                 <p className="text-justify font-medium">
-                  This is to certify that the borrower <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has availed a Loan under Account Number <strong className="font-extrabold text-[#0A3598]">{account.accNo}</strong> from Umbrella Finance.
+                  This is to certify that the borrower <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has availed a Loan under Account Number <strong className="font-extrabold text-[#0A3598]">{account.accNo}</strong> from {companyName}.
                 </p>
 
                 <p className="text-justify font-medium">
@@ -3694,7 +3703,7 @@ export default function AccountDetails() {
                 </p>
 
                 <p className="text-justify font-medium">
-                  Umbrella Finance has received the complete settlement amount and has **No Objection** whatsoever against the borrower. We declare that the said loan account has been **Fully Closed & Settled** in our books of accounts, and there are no liabilities, claims, or dues outstanding against the borrower under this account.
+                  {companyName} has received the complete settlement amount and has **No Objection** whatsoever against the borrower. We declare that the said loan account has been **Fully Closed & Settled** in our books of accounts, and there are no liabilities, claims, or dues outstanding against the borrower under this account.
                 </p>
               </div>
 
@@ -3705,7 +3714,7 @@ export default function AccountDetails() {
                     <span>OFFICIAL</span>
                     <span>SEAL</span>
                   </div>
-                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Umbrella Finance Seal</p>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">{companyName} Seal</p>
                 </div>
                 <div className="text-right space-y-1.5">
                   <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
@@ -3800,10 +3809,10 @@ export default function AccountDetails() {
               {/* Letterhead Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-5 gap-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Umbrella Logo" />
+                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Logo" />
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-[#0F172A]">UMBRELLA FINANCE</h2>
-                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">Chhote Kadam, Bade Sapne</p>
+                    <h2 className="text-lg font-black tracking-tight text-[#0F172A] uppercase">{companyName}</h2>
+                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">{companyTagline}</p>
                   </div>
                 </div>
                 <div className="text-left sm:text-right">
@@ -3823,7 +3832,7 @@ export default function AccountDetails() {
                 <p className="font-bold text-slate-900">CERTIFICATE OF SAVINGS DEPOSIT</p>
                 
                 <p className="text-justify font-medium">
-                  This is to certify that the depositor <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has opened a Savings Account under Account Number <strong className="font-extrabold text-[#0A3598]">{account.accNo}</strong> with Umbrella Finance.
+                  This is to certify that the depositor <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has opened a Savings Account under Account Number <strong className="font-extrabold text-[#0A3598]">{account.accNo}</strong> with {companyName}.
                 </p>
 
                 <div className="bg-[#F8FAFC] p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-y-2 gap-x-4 font-semibold text-slate-700">
@@ -3837,7 +3846,7 @@ export default function AccountDetails() {
                 </div>
 
                 <p className="text-justify font-medium">
-                  We hereby confirm that this certificate serves as the official bond of the savings deposit terms. Umbrella Finance guarantees the payment of the maturity amount upon completion of the tenure and fulfillment of deposit terms.
+                  We hereby confirm that this certificate serves as the official bond of the savings deposit terms. {companyName} guarantees the payment of the maturity amount upon completion of the tenure and fulfillment of deposit terms.
                 </p>
 
                 {termsSavings && termsSavings.length > 0 && (
@@ -3859,7 +3868,7 @@ export default function AccountDetails() {
                     <span>OFFICIAL</span>
                     <span>SEAL</span>
                   </div>
-                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Umbrella Finance Seal</p>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">{companyName} Seal</p>
                 </div>
                 <div className="text-right space-y-1.5">
                   <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
@@ -3959,10 +3968,10 @@ export default function AccountDetails() {
               {/* Letterhead Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-5 gap-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Umbrella Logo" />
+                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Logo" />
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-[#0F172A]">UMBRELLA FINANCE</h2>
-                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">Chhote Kadam, Bade Sapne</p>
+                    <h2 className="text-lg font-black tracking-tight text-[#0F172A] uppercase">{companyName}</h2>
+                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">{companyTagline}</p>
                   </div>
                 </div>
                 <div className="text-left sm:text-right">
@@ -4084,7 +4093,7 @@ export default function AccountDetails() {
                     <span>OFFICIAL</span>
                     <span>SEAL</span>
                   </div>
-                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Umbrella Finance Seal</p>
+                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">{companyName} Seal</p>
                 </div>
                 <div className="text-right space-y-1.5">
                   <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">

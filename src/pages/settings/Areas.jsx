@@ -80,14 +80,14 @@ export default function Areas() {
     <div className="space-y-6">
       <SettingsNavigation />
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5">
         <div>
-          <h3 className="text-base font-bold text-primary-text">Operational Areas</h3>
-          <p className="text-xs text-secondary-text">Manage collection circles, pin codes, and area manager assignments</p>
+          <h3 className="text-base font-bold text-primary-text mb-0.5">Operational Areas</h3>
+          <p className="text-xs text-secondary-text leading-snug">Manage collection circles, pin codes, and area manager assignments</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
         >
           <span className="material-symbols-rounded text-sm select-none">add</span>
           Add New Area
@@ -95,9 +95,10 @@ export default function Areas() {
       </div>
 
       {/* Areas List Table */}
-      <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
+      <div className="lg:bg-surface lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm lg:overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border-fin">
+          {/* Desktop Table View */}
+          <table className="hidden lg:table min-w-full divide-y divide-border-fin">
             <thead className="bg-background-fin">
               <tr>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Area Code</th>
@@ -118,9 +119,9 @@ export default function Areas() {
                   <tr key={a.id} className="hover:bg-slate-50/50">
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{a.code}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{a.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap font-semibold text-primary-text">{a.branch_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{a.manager_name || 'Not Assigned'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap font-extrabold text-primary-text">{a.agents_count ?? 0} Agents</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{a.branch_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{a.manager_name || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{a.agents_count ?? 0}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                         a.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
@@ -150,12 +151,81 @@ export default function Areas() {
             </tbody>
           </table>
         </div>
-        <Pagination 
-          currentPage={currentPage}
-          totalPages={Math.ceil(areas.length / 20)}
-          onPageChange={setCurrentPage}
-        />
+
+        {/* Mobile Card List View */}
+        <div className="block lg:hidden space-y-4">
+          {(() => {
+            const sortedAreas = [...areas].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+            const paginatedAreas = sortedAreas.slice((currentPage - 1) * 20, currentPage * 20);
+
+            if (paginatedAreas.length === 0) {
+              return (
+                <div className="bg-surface border border-border-fin rounded-2xl p-8 text-center text-xs text-secondary-text shadow-sm">
+                  No operational areas found.
+                </div>
+              );
+            }
+
+            return paginatedAreas.map((a) => (
+              <div key={a.id} className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5">
+                {/* Title & Code */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-xs font-bold text-primary-text block">{a.name}</span>
+                    <span className="text-[10px] text-secondary-text font-bold uppercase tracking-wider">Code: {a.code}</span>
+                  </div>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                    a.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                  }`}>
+                    {a.status}
+                  </span>
+                </div>
+
+                {/* Details: Branch, Manager, Agents Count */}
+                <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Branch</span>
+                    <span className="text-primary-text truncate block">{a.branch_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Manager</span>
+                    <span className="text-primary-text truncate block">{a.manager_name || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Agents</span>
+                    <span className="text-primary-text block">{a.agents_count ?? 0}</span>
+                  </div>
+                </div>
+
+                {/* Actions Row */}
+                <div className="flex justify-end items-center">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenEdit(a)}
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                      title="Edit Area"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteArea(a)}
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                      title="Delete Area"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">delete</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
       </div>
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={Math.ceil(areas.length / 20)}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Add / Edit Form Modal */}
       {showForm && (

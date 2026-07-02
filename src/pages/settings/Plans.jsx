@@ -348,15 +348,15 @@ export default function Plans() {
     <div className="space-y-6">
       <SettingsNavigation />
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5">
         <div>
-          <h3 className="text-base font-bold text-primary-text">Plan Master</h3>
-          <p className="text-xs text-secondary-text">Configure loan plans, savings templates, and terms & conditions</p>
+          <h3 className="text-base font-bold text-primary-text mb-0.5">Plan Master</h3>
+          <p className="text-xs text-secondary-text leading-snug">Configure loan plans, savings templates, and terms & conditions</p>
         </div>
         {activePlanTab !== 'terms' && activePlanTab !== 'interest' && (
           <button
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
           >
             <span className="material-symbols-rounded text-sm select-none">add</span>
             Add New Plan
@@ -527,9 +527,10 @@ export default function Plans() {
           </div>
         </div>
       ) : activePlanTab === 'loan' ? (
-        <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
+        <div className="lg:bg-surface lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm lg:overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border-fin">
+            {/* Desktop Table View */}
+            <table className="hidden lg:table min-w-full divide-y divide-border-fin">
               <thead className="bg-background-fin">
                 <tr>
                   <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Plan Name</th>
@@ -586,6 +587,79 @@ export default function Plans() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card List View */}
+          <div className="block lg:hidden space-y-4">
+            {(() => {
+              const sorted = [...loanPlans].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+              const paginated = sorted.slice((loanCurrentPage - 1) * 20, loanCurrentPage * 20);
+
+              if (paginated.length === 0) {
+                return (
+                  <div className="bg-surface border border-border-fin rounded-2xl p-8 text-center text-xs text-secondary-text shadow-sm">
+                    No loan plans found.
+                  </div>
+                );
+              }
+
+              return paginated.map((lp) => (
+                <div key={lp.id} className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5">
+                  {/* Title & Status */}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-bold text-primary-text block">{lp.name}</span>
+                      <span className="text-[10px] text-secondary-text font-bold uppercase tracking-wider">{lp.interest_rate}% ({lp.interest_type})</span>
+                    </div>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                      lp.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                    }`}>
+                      {lp.status}
+                    </span>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Limits</span>
+                      <span className="text-primary-text block truncate">₹{parseFloat(lp.min_amount).toLocaleString()} - ₹{parseFloat(lp.max_amount).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Duration / Freq</span>
+                      <span className="text-primary-text block truncate">{lp.duration_value} {lp.duration_unit} ({lp.collection_frequency})</span>
+                    </div>
+                    <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Processing Fee</span>
+                      <span className="text-primary-text block">₹{parseFloat(lp.processing_fee).toLocaleString()}</span>
+                    </div>
+                    <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Penalty</span>
+                      <span className="text-primary-text block">₹{parseFloat(lp.penalty_per_day).toLocaleString()}/day</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEdit(lp, 'loan')}
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                        title="Edit Plan"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlan(lp.id, 'loan')}
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                        title="Delete Plan"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
           <Pagination 
             currentPage={loanCurrentPage}
             totalPages={Math.ceil(loanPlans.length / 20)}
@@ -593,9 +667,10 @@ export default function Plans() {
           />
         </div>
       ) : activePlanTab === 'saving' ? (
-        <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
+        <div className="lg:bg-surface lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm lg:overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border-fin">
+            {/* Desktop Table View */}
+            <table className="hidden lg:table min-w-full divide-y divide-border-fin">
               <thead className="bg-background-fin">
                 <tr>
                   <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Plan Name</th>
@@ -649,6 +724,75 @@ export default function Plans() {
                 })()}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="block lg:hidden space-y-4">
+            {(() => {
+              const sorted = [...savingPlans].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+              const paginated = sorted.slice((savingCurrentPage - 1) * 20, savingCurrentPage * 20);
+
+              if (paginated.length === 0) {
+                return (
+                  <div className="bg-surface border border-border-fin rounded-2xl p-8 text-center text-xs text-secondary-text shadow-sm">
+                    No savings plans found.
+                  </div>
+                );
+              }
+
+              return paginated.map((sp, index) => (
+                <div key={sp.id} className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5">
+                  {/* Title & Status */}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-bold text-primary-text block">{sp.name}</span>
+                      <span className="text-[10px] text-secondary-text font-bold uppercase tracking-wider">Interest: {sp.interest_rate}%</span>
+                    </div>
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                      sp.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                    }`}>
+                      {sp.status}
+                    </span>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Deposit Size</span>
+                      <span className="text-primary-text block truncate">₹{parseFloat(sp.deposit_amount).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Duration / Freq</span>
+                      <span className="text-primary-text block truncate">{sp.duration_value} {sp.duration_unit} ({sp.collection_frequency})</span>
+                    </div>
+                    <div className="col-span-2 border-t border-slate-100/80 pt-1.5 mt-0.5">
+                      <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Estimated Maturity</span>
+                      <span className="text-success-fin block font-bold text-[11px]">₹{parseFloat(sp.maturity_amount).toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div className="flex justify-end items-center">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEdit(sp, 'saving')}
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                        title="Edit Plan"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlan(sp.id, 'saving')}
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                        title="Delete Plan"
+                      >
+                        <span className="material-symbols-rounded text-sm select-none">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ));
+            })()}
           </div>
           <Pagination 
             currentPage={savingCurrentPage}

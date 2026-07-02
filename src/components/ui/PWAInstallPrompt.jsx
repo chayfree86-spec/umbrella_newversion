@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
 export function PWAInstallPrompt() {
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -100,10 +102,10 @@ export function PWAInstallPrompt() {
         {/* Text Details */}
         <div className="space-y-2 relative z-10">
           <h3 className="text-base font-extrabold text-[#0F172A] tracking-tight">
-            Install Umbrella Finance
+            Install {companyName}
           </h3>
           <p className="text-[11px] text-[#64748B] font-medium leading-relaxed px-2">
-            छोटे कदम, बड़े सपने
+            {companyTagline}
             <br />
             Add to your home screen for a fast, full-screen, native-quality banking experience.
           </p>

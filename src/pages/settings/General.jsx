@@ -13,22 +13,53 @@ export function SettingsNavigation() {
     { name: 'Plans', path: '/settings/plans', icon: 'workspace_premium' }
   ];
 
+  const activeRef = React.useRef(null);
+
+  useEffect(() => {
+    // Scroll active link into center view when tab changes
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+    }
+  }, []);
+
+  const isActive = (linkPath) => {
+    const currentPath = window.location.pathname;
+    if (linkPath === '/settings') {
+      return currentPath === '/settings';
+    }
+    if (linkPath === '/settings/users') {
+      return currentPath === '/settings/users' || currentPath.startsWith('/settings/user/');
+    }
+    if (linkPath === '/settings/agents') {
+      return currentPath === '/settings/agents' || currentPath.startsWith('/settings/agent/');
+    }
+    return currentPath === linkPath;
+  };
+
   return (
-    <div className="flex border-b border-border-fin overflow-x-auto space-x-6 mb-6">
-      {links.map((link) => (
-        <Link
-          key={link.path}
-          to={link.path}
-          className={`flex items-center gap-2 pb-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
-            window.location.pathname === link.path
-              ? 'border-primary text-primary'
-              : 'border-transparent text-secondary-text hover:text-primary-text'
-          }`}
-        >
-          <span className="material-symbols-rounded text-sm select-none">{link.icon}</span>
-          {link.name}
-        </Link>
-      ))}
+    <div className="flex border-b border-border-fin overflow-x-auto no-scrollbar space-x-6 mb-6">
+      {links.map((link) => {
+        const active = isActive(link.path);
+        return (
+          <Link
+            key={link.path}
+            ref={active ? activeRef : null}
+            to={link.path}
+            className={`flex items-center gap-2 pb-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
+              active
+                ? 'border-primary text-primary'
+                : 'border-transparent text-secondary-text hover:text-primary-text'
+            }`}
+          >
+            <span className="material-symbols-rounded text-sm select-none">{link.icon}</span>
+            {link.name}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -108,7 +139,7 @@ export default function General() {
     <div className="space-y-6">
       <SettingsNavigation />
 
-      <div className="bg-surface p-6 rounded-2xl border border-border-fin shadow-sm space-y-6">
+      <div className="bg-surface p-4 sm:p-6 rounded-2xl border border-border-fin shadow-sm space-y-6">
         <div>
           <h3 className="text-base font-bold text-primary-text mb-1">General System Settings</h3>
           <p className="text-xs text-secondary-text">Core settings for Umbrella Finance</p>

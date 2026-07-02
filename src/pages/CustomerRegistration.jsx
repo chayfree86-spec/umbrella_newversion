@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -1552,6 +1552,78 @@ export default function CustomerRegistration() {
       });
   };
 
+  const [activeUploadDoc, setActiveUploadDoc] = useState(null); // { name, key, fileInputId }
+  const [cameraTargetKey, setCameraTargetKey] = useState(null);
+  const [videoStream, setVideoStream] = useState(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const videoRef = useRef(null);
+
+  const startCamera = async (key) => {
+    setCameraTargetKey(key);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      setVideoStream(stream);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 300);
+    } catch (err) {
+      alert("Camera access denied or not available: " + err.message);
+      setCameraTargetKey(null);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      setVideoStream(null);
+    }
+    setCameraTargetKey(null);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && cameraTargetKey) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      
+      if (facingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      
+      setFormData(prev => ({ ...prev, [cameraTargetKey]: dataUrl }));
+      stopCamera();
+    }
+  };
+
+  const toggleCameraFacing = async () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newMode }
+      });
+      setVideoStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error toggling camera: ", err);
+    }
+  };
+
   const stepsList = [
     { num: 1, name: 'Account Setup' },
     { num: 2, name: 'Customer Details' },
@@ -1584,8 +1656,8 @@ export default function CustomerRegistration() {
   return (
     <div className="w-full space-y-6">
       {/* Visual Stepper Progress Bar */}
-      <div className="bg-white p-5 rounded-2xl border border-border-fin shadow-sm overflow-x-auto">
-        <div className="flex items-center justify-between min-w-[650px] px-2">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-border-fin shadow-sm overflow-hidden md:overflow-visible">
+        <div className="flex items-center justify-between w-full md:min-w-[650px] px-2">
           {stepsList.map((step, idx) => (
             <React.Fragment key={step.num}>
               <div 
@@ -1616,7 +1688,7 @@ export default function CustomerRegistration() {
                     step.num
                   )}
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider text-center transition-colors ${
+                <span className={`text-[10px] font-bold uppercase tracking-wider text-center transition-colors hidden md:block ${
                   currentStep === step.num
                     ? (formData.accountType === 'Saving' ? 'text-[#B45309]' : 'text-primary')
                     : 'text-[#64748B] group-hover:text-primary-text'
@@ -1625,7 +1697,7 @@ export default function CustomerRegistration() {
                 </span>
               </div>
               {idx < stepsList.length - 1 && (
-                <div className="flex-1 h-[2px] bg-[#E2E8F0] relative -top-3">
+                <div className="flex-1 h-[2px] bg-[#E2E8F0] relative top-0 md:-top-3">
                   <div className="absolute top-0 left-0 bottom-0 bg-[#16A34A] transition-all duration-500" style={{
                     width: currentStep > step.num ? '100%' : '0%'
                   }}></div>
@@ -1633,6 +1705,11 @@ export default function CustomerRegistration() {
               )}
             </React.Fragment>
           ))}
+        </div>
+        <div className="text-center mt-3.5 md:hidden">
+          <span className="text-[10px] font-black uppercase tracking-wider text-primary">
+            Step {currentStep} of 6: {stepsList[currentStep - 1].name}
+          </span>
         </div>
       </div>
 
@@ -1667,8 +1744,8 @@ export default function CustomerRegistration() {
         {/* Step 1: Account Setup */}
         {currentStep === 1 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-              <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+            <div className="md:col-span-2 bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                   <h3 className="text-base font-bold text-primary-text">Account Setup</h3>
                   <button
@@ -1819,7 +1896,7 @@ export default function CustomerRegistration() {
                             onChange={(e) => setFormData(prev => ({ ...prev, customDuration: e.target.value }))}
                             className="flex-1 min-w-0 px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                           />
-                          <div className="w-32">
+                          <div className="w-36 flex-shrink-0">
                             <Select
                               options={[
                                 { value: 'Days', label: 'Days' },
@@ -1919,7 +1996,7 @@ export default function CustomerRegistration() {
                             onChange={(e) => setFormData(prev => ({ ...prev, customDuration: e.target.value }))}
                             className="flex-1 min-w-0 px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                           />
-                            <div className="w-32">
+                            <div className="w-36 flex-shrink-0">
                               <Select
                                 options={[
                                   { value: 'Days', label: 'Days' },
@@ -1969,7 +2046,7 @@ export default function CustomerRegistration() {
             </div>
 
             {/* Calculations Card */}
-            <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm md:sticky md:top-6 z-20 flex flex-col">
+            <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm md:sticky md:top-6 z-20 flex flex-col">
               <div className="bg-white p-5 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] flex-1 flex flex-col justify-between min-h-[350px]">
                 <div className="flex-1 flex flex-col">
                   <h4 className="text-xs font-bold text-secondary-text uppercase tracking-wider border-b border-[#E2E8F0] pb-2 mb-1">Calculation Summary</h4>
@@ -2076,8 +2153,8 @@ export default function CustomerRegistration() {
 
         {/* Step 2: Customer Details */}
         {currentStep === 2 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">Customer Details</h3>
                 <button
@@ -2093,7 +2170,7 @@ export default function CustomerRegistration() {
               {/* Photo Upload Box */}
               <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
                 <div 
-                  onClick={() => document.getElementById('customer-photo-upload').click()}
+                  onClick={() => setActiveUploadDoc({ name: 'Customer Profile Photo', key: 'photo', fileInputId: 'customer-photo-upload' })}
                   className="w-24 h-24 rounded-2xl border-2 border-dashed border-[#CBD5E1] hover:border-primary flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-all relative overflow-hidden group"
                 >
                   {formData.photo ? (
@@ -2328,8 +2405,8 @@ export default function CustomerRegistration() {
 
         {/* Step 3: Address */}
         {currentStep === 3 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">Address</h3>
                 <button
@@ -2440,8 +2517,8 @@ export default function CustomerRegistration() {
 
         {/* Step 4: KYC */}
         {currentStep === 4 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">KYC Verification</h3>
                 <button
@@ -2536,7 +2613,7 @@ export default function CustomerRegistration() {
                 ].map((doc) => (
                   <div 
                     key={doc.key} 
-                    onClick={() => document.getElementById(`file-upload-${doc.key}`).click()}
+                    onClick={() => setActiveUploadDoc({ name: doc.name, key: doc.key, fileInputId: `file-upload-${doc.key}` })}
                     className="border border-border-fin rounded-xl p-4 bg-background-fin flex flex-col items-center text-center cursor-pointer hover:border-primary hover:bg-slate-50/50 hover:shadow-sm transition-all relative overflow-hidden group min-h-[120px] justify-center"
                   >
                     {formData[doc.key] ? (
@@ -2579,8 +2656,8 @@ export default function CustomerRegistration() {
 
         {/* Step 5: Guarantor/Nominee */}
         {currentStep === 5 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">
                   {formData.accountType === 'Saving' ? 'Nominee Details' : 'Guarantor Details'}
@@ -2597,7 +2674,7 @@ export default function CustomerRegistration() {
 
               <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
                 <div 
-                  onClick={() => document.getElementById('guarantor-photo-upload').click()}
+                  onClick={() => setActiveUploadDoc({ name: formData.accountType === 'Saving' ? 'Nominee Photo' : 'Guarantor Photo', key: 'guarantorPhoto', fileInputId: 'guarantor-photo-upload' })}
                   className="w-20 h-20 rounded-2xl border-2 border-dashed border-[#CBD5E1] hover:border-primary flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-all relative overflow-hidden group"
                 >
                   {formData.guarantorPhoto ? (
@@ -2730,7 +2807,7 @@ export default function CustomerRegistration() {
                   <div className="flex flex-wrap gap-4">
                     {/* Aadhaar Front */}
                     <div 
-                      onClick={() => document.getElementById('guarantor-aadhaar-front-input').click()}
+                      onClick={() => setActiveUploadDoc({ name: formData.accountType === 'Saving' ? 'Nominee Aadhaar Front' : 'Guarantor Aadhaar Front', key: 'guarantorAadhaarFront', fileInputId: 'guarantor-aadhaar-front-input' })}
                       className="border border-border-fin rounded-xl p-4 bg-background-fin flex flex-col items-center text-center cursor-pointer hover:border-primary hover:bg-slate-50/50 hover:shadow-sm transition-all relative overflow-hidden group min-h-[100px] justify-center w-48"
                     >
                       {formData.guarantorAadhaarFront ? (
@@ -2768,7 +2845,7 @@ export default function CustomerRegistration() {
 
                     {/* Aadhaar Back */}
                     <div 
-                      onClick={() => document.getElementById('guarantor-aadhaar-back-input').click()}
+                      onClick={() => setActiveUploadDoc({ name: formData.accountType === 'Saving' ? 'Nominee Aadhaar Back' : 'Guarantor Aadhaar Back', key: 'guarantorAadhaarBack', fileInputId: 'guarantor-aadhaar-back-input' })}
                       className="border border-border-fin rounded-xl p-4 bg-background-fin flex flex-col items-center text-center cursor-pointer hover:border-primary hover:bg-slate-50/50 hover:shadow-sm transition-all relative overflow-hidden group min-h-[100px] justify-center w-48"
                     >
                       {formData.guarantorAadhaarBack ? (
@@ -2813,8 +2890,8 @@ export default function CustomerRegistration() {
         {/* Step 6: Review */}
         {currentStep === 6 && (
           <div className="space-y-6">
-            <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-              <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+            <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <h3 className="text-base font-bold text-primary-text border-b border-border-fin pb-3 mb-2">Account & Plan Summary</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-xs font-semibold">
                   <div>
@@ -2884,8 +2961,8 @@ export default function CustomerRegistration() {
               </div>
             </div>
 
-            <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-              <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+            <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <h3 className="text-base font-bold text-primary-text border-b border-border-fin pb-3 mb-2">Customer Summary</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-semibold">
                   <div>
@@ -2995,12 +3072,12 @@ export default function CustomerRegistration() {
 
         {/* Stepper Wizard Controls */}
         <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-border-fin shadow-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {currentStep > 1 && (
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex items-center gap-2 px-5 py-3 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
+                className="flex items-center gap-1 px-3 py-2.5 sm:px-5 sm:py-3 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
               >
                 <span className="material-symbols-rounded text-sm select-none">arrow_back</span>
                 Back
@@ -3010,10 +3087,11 @@ export default function CustomerRegistration() {
             <button
               type="button"
               onClick={resetEntireForm}
-              className="flex items-center gap-2 px-4 py-3 border border-danger-fin/20 text-danger-fin hover:bg-danger-fin/5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
+              className="flex items-center gap-1 px-3 py-2.5 sm:px-4 sm:py-3 border border-danger-fin/20 text-danger-fin hover:bg-danger-fin/5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
             >
               <span className="material-symbols-rounded text-sm select-none">restart_alt</span>
-              Reset Entire Form
+              <span className="hidden sm:inline">Reset Entire Form</span>
+              <span className="sm:hidden">Reset</span>
             </button>
           </div>
 
@@ -3021,7 +3099,7 @@ export default function CustomerRegistration() {
             <button
               type="button"
               onClick={handleNext}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/95 shadow-sm active:scale-[0.98] rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-1 px-4 py-2.5 sm:px-6 sm:py-3 bg-primary text-white hover:bg-primary/95 shadow-sm active:scale-[0.98] rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
             >
               Next
               <span className="material-symbols-rounded text-sm select-none">arrow_forward</span>
@@ -3118,6 +3196,104 @@ export default function CustomerRegistration() {
         </div>
       )}
 
+      {/* Choice Modal (Camera vs File) */}
+      {activeUploadDoc && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200 animate-fade-in">
+          <div className="bg-white rounded-[2rem] border border-border-fin max-w-sm w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center border-b border-border-fin pb-2">
+              <h4 className="text-sm font-black text-primary-text">{activeUploadDoc.name}</h4>
+              <button 
+                type="button" 
+                onClick={() => setActiveUploadDoc(null)} 
+                className="text-secondary-text hover:text-primary-text cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-lg select-none">close</span>
+              </button>
+            </div>
+            <p className="text-[11px] font-bold text-secondary-text">Select how you want to upload this document:</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const key = activeUploadDoc.key;
+                  setActiveUploadDoc(null);
+                  startCamera(key);
+                }}
+                className="flex flex-col items-center justify-center p-4 border border-border-fin hover:border-primary bg-background-fin hover:bg-slate-50/50 rounded-xl gap-2 font-bold text-xs text-primary-text cursor-pointer transition-all active:scale-[0.97]"
+              >
+                <span className="material-symbols-rounded text-2xl text-primary">photo_camera</span>
+                Take Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const inputId = activeUploadDoc.fileInputId;
+                  setActiveUploadDoc(null);
+                  setTimeout(() => {
+                    document.getElementById(inputId).click();
+                  }, 100);
+                }}
+                className="flex flex-col items-center justify-center p-4 border border-border-fin hover:border-primary bg-background-fin hover:bg-slate-50/50 rounded-xl gap-2 font-bold text-xs text-primary-text cursor-pointer transition-all active:scale-[0.97]"
+              >
+                <span className="material-symbols-rounded text-2xl text-success-fin">upload_file</span>
+                Upload File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HTML5 Camera Overlay Modal */}
+      {cameraTargetKey && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[60] flex flex-col items-center justify-center p-4 transition-all duration-200">
+          <div className="bg-slate-950 rounded-2xl overflow-hidden max-w-md w-full relative flex flex-col shadow-2xl border border-slate-800 animate-scale-up">
+            {/* Video stream container */}
+            <div className="relative aspect-[3/4] bg-black flex items-center justify-center">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+              />
+              {/* Helper overlay box for framing the ID card */}
+              <div className="absolute inset-8 border-2 border-dashed border-white/50 rounded-lg pointer-events-none flex items-center justify-center">
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest bg-black/40 px-2.5 py-1 rounded-full">Frame Document Here</span>
+              </div>
+            </div>
+            
+            {/* Camera Controls */}
+            <div className="p-5 bg-slate-900 flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-4 py-2 border border-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              
+              {/* Capture circle button */}
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="w-14 h-14 bg-white hover:bg-slate-100 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-800 active:scale-90 transition-all cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full border border-slate-950 bg-white" />
+              </button>
+              
+              {/* Switch camera toggle button */}
+              <button
+                type="button"
+                onClick={toggleCameraFacing}
+                className="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center text-white cursor-pointer active:scale-95 transition-all"
+                title="Switch Camera"
+              >
+                <span className="material-symbols-rounded text-lg select-none">flip_camera_ios</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Custom themed warning/validation modal */}
       {warningDialog.isOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200 animate-fade-in">

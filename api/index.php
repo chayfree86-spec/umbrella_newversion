@@ -111,6 +111,13 @@ try {
     elseif ($uri === '/auth/reset-credentials' && $method === 'POST') {
         AuthController::resetCredentials($db, $input);
     }
+    elseif ($uri === '/auth/branding' && $method === 'GET') {
+        $settings = Setting::getAll($db);
+        Response::success([
+            'company_name' => $settings['company_name'] ?? 'Umbrella Finance',
+            'company_tagline' => $settings['company_tagline'] ?? 'Chhote Kadam, Bade Sapne'
+        ]);
+    }
     // ----------------------------------------------------------
     // Protected routes — require auth token
     // ----------------------------------------------------------

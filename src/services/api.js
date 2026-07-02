@@ -55,7 +55,9 @@ export const authApi = {
   changePassword: (password, pin) => 
     api.post('/auth/change-password', { password, pin }),
   resetCredentials: (username, password, pin) =>
-    api.post('/auth/reset-credentials', { username, password, pin })
+    api.post('/auth/reset-credentials', { username, password, pin }),
+  branding: () =>
+    api.get('/auth/branding')
 };
 
 // ============================================================

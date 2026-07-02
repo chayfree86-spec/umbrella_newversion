@@ -12,6 +12,22 @@ export function Layout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
   
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
+
+  const renderCompanyName = (className = "") => {
+    const parts = companyName.split(' ');
+    if (parts.length > 1) {
+      return (
+        <span className={className}>
+          <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>{parts[0]}</span>{' '}
+          <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>{parts.slice(1).join(' ')}</span>
+        </span>
+      );
+    }
+    return <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>{companyName}</span>;
+  };
+
   const isProfilePage = location.pathname.startsWith('/account/') || location.pathname.startsWith('/customer/');
 
   const [customTitle, setCustomTitle] = useState('');
@@ -251,7 +267,7 @@ export function Layout({ children }) {
       if (location.pathname === '/settings/plans') return 'Plan Master';
       return 'System Settings';
     }
-    return 'Umbrella Finance';
+    return companyName;
   };
 
   const isActive = (path) => {
@@ -276,14 +292,14 @@ export function Layout({ children }) {
 
         {/* Brand Header */}
         <div className={`py-4 ${isSidebarCollapsed ? 'px-4 justify-center' : 'px-5'} border-b border-border-fin flex items-center gap-3 overflow-hidden select-none h-16`}>
-          <img src="/logo.png" className="h-11 w-11 object-contain flex-shrink-0" alt="Umbrella Finance Logo" />
+          <img src="/logo.png" className="h-11 w-11 object-contain flex-shrink-0 rounded-full" alt="Logo" />
           {!isSidebarCollapsed && (
             <div className="flex flex-col min-w-0 animate-fade-in">
               <span className="text-lg uppercase tracking-tight mb-0.5" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900, lineHeight: 1.1 }}>
-                <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+                {renderCompanyName()}
               </span>
               <span className="text-[9px] font-bold text-secondary-text tracking-wide whitespace-nowrap">
-                Chhote Kadam, Bade Sapne
+                {companyTagline}
               </span>
             </div>
           )}
@@ -372,16 +388,16 @@ export function Layout({ children }) {
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Mobile Logo next to menu button */}
             <div className="lg:hidden flex items-center gap-2 overflow-hidden h-10 select-none">
-              <img src="/logo.png" className="h-7 w-7 object-contain flex-shrink-0" alt="Umbrella Logo" />
+              <img src="/logo.png" className="h-7 w-7 object-contain flex-shrink-0 rounded-full" alt="Logo" />
               <span className="text-sm uppercase tracking-tight" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>
-                <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+                {renderCompanyName()}
               </span>
             </div>
 
             {/* Breadcrumb / Title */}
             <div className="hidden lg:block">
               <span className="hidden sm:block text-[11px] font-bold text-secondary-text uppercase tracking-wider mb-0.5">
-                Umbrella Finance / {getPageTitle()}
+                {companyName} / {getPageTitle()}
               </span>
               <h1 className="text-lg font-bold text-primary-text leading-none sm:text-xl">
                 {getPageTitle()}
@@ -391,8 +407,8 @@ export function Layout({ children }) {
 
           {/* Action Header controls */}
           <div className="flex items-center gap-3">
-            {/* Global Search - Hidden on Dashboard, Hidden on Mobile */}
-            {location.pathname !== '/' && (
+            {/* Global Search - Only on Account and Collection pages, Hidden on Mobile */}
+            {(location.pathname.startsWith('/account/') || location.pathname === '/collection' || location.pathname === '/daily-collection') && (
               <div className="hidden lg:flex items-center relative sm:w-72 group bg-[#F1F5F9] p-[3px] rounded-full border border-[#E2E8F0] focus-within:border-primary/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-inner-sm">
                 <span className="material-symbols-rounded pl-2.5 text-base text-secondary-text/80 select-none group-focus-within:text-primary transition-colors duration-300">
                   search
@@ -504,12 +520,20 @@ export function Layout({ children }) {
             <h1 className="text-[#0F172A] text-base font-extrabold tracking-tight">
               {getPageTitle()}
             </h1>
-            {location.pathname !== '/register' && location.pathname !== '/collection' && location.pathname !== '/daily-collection' && (
+            {location.pathname === '/collection' && (
               <Link
                 to="/register"
                 className="w-10 h-10 rounded-xl bg-[#0A3598] hover:bg-[#0A3598]/90 text-white flex items-center justify-center transition-all active:scale-[0.95] shadow-sm cursor-pointer"
               >
                 <span className="material-symbols-rounded text-lg select-none">person_add</span>
+              </Link>
+            )}
+            {location.pathname === '/register' && (
+              <Link
+                to="/collection"
+                className="w-10 h-10 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-secondary-text hover:text-primary-text border border-[#E2E8F0] flex items-center justify-center transition-all active:scale-[0.95] shadow-sm cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-lg select-none">close</span>
               </Link>
             )}
           </div>
@@ -520,8 +544,8 @@ export function Layout({ children }) {
           {children}
         </main>
 
-        {/* Mobile Floating Bottom Search Bar (No Search on Dashboard or Profile pages, Sticky at bottom above footer) */}
-        {location.pathname !== '/' && !isProfilePage && (
+        {/* Mobile Floating Bottom Search Bar (Only on Account and Collection pages, Sticky at bottom above footer) */}
+        {(location.pathname.startsWith('/account/') || location.pathname === '/collection' || location.pathname === '/daily-collection') && (
           <div className="lg:hidden fixed bottom-[80px] left-4 right-4 z-20">
             <div className="flex items-center bg-white/95 backdrop-blur-md border border-[#E2E8F0] p-1.5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] gap-2">
               <span className="material-symbols-rounded pl-3 text-lg text-[#64748B]/80 select-none">
@@ -574,13 +598,13 @@ export function Layout({ children }) {
           <div className="relative w-72 max-w-xs bg-surface h-full flex flex-col p-6 shadow-2xl z-50 animate-slide-in">
             <div className="flex justify-between items-center pb-4 border-b border-border-fin mb-6">
               <div className="flex items-center gap-2 select-none">
-                <img src="/logo.png" className="h-9 w-9 object-contain flex-shrink-0" alt="Umbrella Finance Logo" />
+                <img src="/logo.png" className="h-9 w-9 object-contain flex-shrink-0 rounded-full" alt="Logo" />
                 <div className="flex flex-col min-w-0">
                   <span className="text-base uppercase tracking-tight mb-0.5" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900, lineHeight: 1.1 }}>
-                    <span className="text-[#0A3598]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Umbrella</span> <span className="text-[#FFC107]" style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 900 }}>Finance</span>
+                    {renderCompanyName()}
                   </span>
                   <span className="text-[8px] font-bold text-secondary-text tracking-wide whitespace-nowrap">
-                    Chhote Kadam, Bade Sapne
+                    {companyTagline}
                   </span>
                 </div>
               </div>
@@ -764,7 +788,7 @@ export function Layout({ children }) {
             <span className={`material-symbols-rounded text-[22px] leading-none mb-0.5 ${isActive('/collection') ? 'fill-1 font-bold' : ''}`}>
               assignment_ind
             </span>
-            <span className="text-[9px] font-bold tracking-tight">Customers</span>
+            <span className="text-[9px] font-bold tracking-tight">Accounts</span>
             {isActive('/collection') ? (
               <span className="w-1 h-1 rounded-full bg-[#0A3598] mt-0.5"></span>
             ) : (

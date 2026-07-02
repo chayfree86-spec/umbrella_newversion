@@ -17,6 +17,7 @@ const formatCrore = (val) => {
 };
 
 export default function Dashboard() {
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
   const [activeFilter, setActiveFilter] = useState("Today's Collection");
   const [dataSummary, setDataSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -314,7 +315,7 @@ export default function Dashboard() {
           </h2>
           <p className="text-sm text-surface/80 max-w-[60ch] leading-relaxed font-semibold">
             {d ? (
-              <>Umbrella Finance collection today is <strong className="text-accent font-black">{inr(d.today_collection)}</strong>.</>
+              <>{companyName} collection today is <strong className="text-accent font-black">{inr(d.today_collection)}</strong>.</>
             ) : (
               <>{error ? <span className="text-accent">{error}</span> : 'Loading live collection data…'}</>
             )}
@@ -381,8 +382,25 @@ export default function Dashboard() {
       </section>
 
       {/* Dynamic Drill-down Table Section */}
-      <section className="bg-surface p-6 rounded-2xl border border-border-fin shadow-sm overflow-hidden flex flex-col">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
+      <section className="lg:bg-surface lg:p-6 lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm lg:overflow-hidden flex flex-col">
+        {/* Title Header: Visible on Desktop, Hidden on Mobile */}
+        <div className="hidden lg:flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
+              <h3 className="text-base font-bold text-primary-text">{activeFilterData.title}</h3>
+            </div>
+            <p className="text-xs text-secondary-text mt-0.5 font-bold">{activeFilterData.desc}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] bg-primary/5 text-primary font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+              Filter Active: {activeFilter}
+            </span>
+          </div>
+        </div>
+
+        {/* Title Header: Standalone Card on Mobile */}
+        <div className="block lg:hidden bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 mb-4 space-y-3">
           <div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
@@ -398,7 +416,7 @@ export default function Dashboard() {
         </div>
         
         {/* Desktop Table (Hidden on Mobile) */}
-        <div className="hidden lg:block overflow-x-auto -mx-6">
+        <div className="hidden lg:block overflow-x-auto lg:-mx-6">
           <div className="inline-block min-w-full align-middle">
             <table className="min-w-full divide-y divide-border-fin">
               <thead className="bg-background-fin">
@@ -444,22 +462,22 @@ export default function Dashboard() {
         </div>
 
         {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
-        <div className="block lg:hidden space-y-3 px-4 -mx-6 mb-4">
+        <div className="block lg:hidden space-y-4">
           {(() => {
             const paginatedRows = activeFilterData.rows.slice((currentPage - 1) * 20, currentPage * 20);
 
             if (paginatedRows.length === 0) {
               return (
-                <div className="text-center py-8 text-secondary-text font-bold text-xs">
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-secondary-text font-bold text-xs shadow-sm">
                   {loading ? 'Loading…' : error ? error : 'No records available'}
                 </div>
               );
             }
 
             return paginatedRows.map((row, rowIdx) => (
-              <div key={rowIdx} className="bg-[#F8FAFC]/80 border border-border-fin rounded-xl p-4.5 space-y-3 shadow-sm">
+              <div key={rowIdx} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm space-y-3">
                 {/* Header: Customer / Date */}
-                <div className="flex justify-between items-start border-b border-border-fin/50 pb-2.5">
+                <div className="flex justify-between items-start border-b border-[#E2E8F0]/50 pb-2.5">
                   <span className="font-extrabold text-[#0F172A] text-xs truncate max-w-[170px]">
                     {row[0]}
                   </span>
@@ -469,12 +487,12 @@ export default function Dashboard() {
                 </div>
 
                 {/* Details (Columns index 2 and onward) */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[11px]">
+                <div className="grid grid-cols-2 gap-2.5 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
                   {activeFilterData.columns.slice(2).map((col, colIdx) => {
                     const val = row[colIdx + 2];
                     return (
                       <div key={colIdx} className="space-y-0.5">
-                        <span className="text-[9.5px] text-secondary-text font-bold uppercase tracking-wider block">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">
                           {col}
                         </span>
                         <div className="text-[#0F172A] font-extrabold break-all">
