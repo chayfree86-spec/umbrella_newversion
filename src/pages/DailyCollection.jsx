@@ -87,6 +87,252 @@ export default function DailyCollection() {
 
   const [receipt, setReceipt] = useState(null);
 
+  const handlePrint = (r) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Please allow popups to print the receipt.");
+      return;
+    }
+    
+    const html = `
+      <html>
+        <head>
+          <title>Receipt - ${r.receiptNo}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 15mm;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              color: #0f172a;
+              background-color: #fff;
+            }
+            .receipt-container {
+              width: 180mm;
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              padding: 14px 18px;
+              box-sizing: border-box;
+              background-color: #fff;
+              position: relative;
+              margin: 0 auto;
+            }
+            .receipt-container::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 3px;
+              background: linear-gradient(90deg, #0A3598 0%, #2563EB 100%);
+              border-top-left-radius: 8px;
+              border-top-right-radius: 8px;
+            }
+            .header-section {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 8px;
+              margin-bottom: 10px;
+            }
+            .brand-details {
+              display: flex;
+              flex-direction: column;
+            }
+            .brand-name {
+              font-size: 15px;
+              font-weight: 800;
+              color: #0A3598;
+              letter-spacing: -0.3px;
+              line-height: 1.2;
+            }
+            .brand-tagline {
+              font-size: 9px;
+              color: #64748b;
+              font-weight: 500;
+              margin-top: 1px;
+            }
+            .receipt-badge {
+              background: #F1F5F9;
+              color: #0A3598;
+              font-size: 10px;
+              font-weight: 700;
+              padding: 4px 8px;
+              border-radius: 4px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .metadata-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 12px;
+            }
+            .metadata-table td {
+              width: 33.33%;
+              padding: 4px 6px;
+              vertical-align: top;
+            }
+            .info-item {
+              display: flex;
+              flex-direction: column;
+              gap: 1px;
+            }
+            .info-label {
+              font-size: 8px;
+              color: #64748b;
+              text-transform: uppercase;
+              font-weight: 600;
+              letter-spacing: 0.5px;
+            }
+            .info-value {
+              font-size: 10px;
+              font-weight: 700;
+              color: #1e293b;
+            }
+            .table-section {
+              margin-bottom: 15px;
+            }
+            .receipt-table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            .receipt-table th {
+              background: #f8fafc;
+              border-bottom: 2px solid #e2e8f0;
+              color: #475569;
+              font-size: 9px;
+              font-weight: 700;
+              text-transform: uppercase;
+              padding: 6px 10px;
+              text-align: left;
+            }
+            .receipt-table td {
+              border-bottom: 1px solid #e2e8f0;
+              padding: 8px 10px;
+              font-size: 10px;
+              color: #334155;
+            }
+            .text-right {
+              text-align: right;
+            }
+            .font-bold {
+              font-weight: 700;
+            }
+            .signature-section {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 25px;
+              padding-top: 5px;
+            }
+            .signature-line {
+              width: 45mm;
+              border-top: 1px solid #cbd5e1;
+              text-align: center;
+              font-size: 9px;
+              color: #64748b;
+              padding-top: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-container">
+            <div class="header-section">
+              <div class="brand-details">
+                <span class="brand-name">Umbrella Finance</span>
+                <span class="brand-tagline">Chhote Kadam, Bade Sapne</span>
+              </div>
+              <div class="receipt-badge">Collection Receipt</div>
+            </div>
+
+            <table class="metadata-table">
+              <tr>
+                <td>
+                  <div class="info-item">
+                    <span class="info-label">Receipt Number</span>
+                    <span class="info-value">${r.receiptNo}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="info-item">
+                    <span class="info-label">Payment Date</span>
+                    <span class="info-value">${r.date}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="info-item">
+                    <span class="info-label">Account Number</span>
+                    <span class="info-value">${r.accNo}</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="info-item">
+                    <span class="info-label">Customer Name</span>
+                    <span class="info-value">${r.customer}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="info-item">
+                    <span class="info-label">Collector Name</span>
+                    <span class="info-value">${r.collector}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="info-item">
+                    <span class="info-label">Payment Mode</span>
+                    <span class="info-value">Cash</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <div class="table-section">
+              <table class="receipt-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th class="text-right">Amount</th>
+                    <th class="text-right">Fine</th>
+                    <th class="text-right">Total Received</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Daily collection received toward account ${r.accNo}</td>
+                    <td class="text-right">₹${Number(r.amt).toLocaleString('en-IN')}</td>
+                    <td class="text-right">₹${Number(r.fine).toLocaleString('en-IN')}</td>
+                    <td class="text-right font-bold text-right">₹${Number(r.total).toLocaleString('en-IN')}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="signature-section">
+              <div class="signature-line">Customer's Signature</div>
+              <div class="signature-line">Authorized Signatory</div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   useEffect(() => {
     setCurrentPage(1);
   }, [filterType, filterStatus, searchFilter]);
@@ -633,7 +879,7 @@ export default function DailyCollection() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => window.print()} className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90">
+              <button onClick={() => handlePrint(receipt)} className="flex items-center justify-center gap-1 px-4 py-2.5 bg-[#0A3598] text-white rounded-xl text-xs font-bold hover:bg-[#0A3598]/90">
                 <span className="material-symbols-rounded text-sm select-none">print</span>Print
               </button>
               <button onClick={() => setReceipt(null)} className="px-4 py-2.5 border border-[#E2E8F0] hover:bg-slate-50 text-[#64748B] rounded-xl text-xs font-bold">
