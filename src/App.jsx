@@ -89,16 +89,13 @@ export default function App() {
 
   const parseMessage = (msg) => {
     if (!msg) return '';
-    const regex = /(₹[0-9,]+|[A-Z]{2,3}-[0-9]{4}|Sumit Kumar)/g;
+    const regex = /(₹[0-9,]+|[A-Z]{2,3}-[0-9]{4})/g;
     const parts = msg.split(regex);
     return parts.map((part, i) => {
       if (part.startsWith('₹')) {
         return <strong key={i} className="text-[#16A34A] font-black text-sm">{part}</strong>;
       }
       if (/^[A-Z]{2,3}-[0-9]{4}$/.test(part)) {
-        return <strong key={i} className="text-[#0A3598] font-black text-xs">{part}</strong>;
-      }
-      if (part === 'Sumit Kumar') {
         return <strong key={i} className="text-[#0A3598] font-black text-xs">{part}</strong>;
       }
       return part;

@@ -12,8 +12,8 @@ export function Layout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
   
-  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
-  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
+  const [companyName, setCompanyName] = useState(() => localStorage.getItem('company_name') || 'Umbrella Finance');
+  const [companyTagline, setCompanyTagline] = useState(() => localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne');
 
   const renderCompanyName = (className = "") => {
     const parts = companyName.split(' ');
@@ -69,9 +69,23 @@ export function Layout({ children }) {
         Object.entries(s).forEach(([key, val]) => {
           localStorage.setItem(key, typeof val === 'boolean' ? String(val) : String(val ?? ''));
         });
+        if (s.company_name) setCompanyName(s.company_name);
+        if (s.company_tagline) setCompanyTagline(s.company_tagline);
       })
       .catch(() => {});
   }, [location.pathname]);
+
+  // Listen to custom event for settings update
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      setCompanyName(localStorage.getItem('company_name') || 'Umbrella Finance');
+      setCompanyTagline(localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne');
+    };
+    window.addEventListener('settings-updated', handleSettingsUpdate);
+    return () => {
+      window.removeEventListener('settings-updated', handleSettingsUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();

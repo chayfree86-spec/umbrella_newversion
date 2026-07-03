@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -108,89 +108,114 @@ export default function Collection() {
     return accounts.some(acc => acc.ledger?.some(tx => tx.date === dStr));
   };
 
+  // Guards against stale responses when the selected date changes mid-fetch
+  const fetchSeq = useRef(0);
+
   const fetchAccountsAndCollections = () => {
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const dateStrYMD = `${year}-${month}-${day}`;
 
-    Promise.all([
-      loanApi.list({ limit: 100 }),
-      savingApi.list({ limit: 100 }),
-      reportApi.dailyCollection({ start_date: dateStrYMD, end_date: dateStrYMD })
-    ]).then(([loansRes, savingsRes, collectionsRes]) => {
-      const collections = collectionsRes.data || [];
+    const seq = ++fetchSeq.current;
 
-      const loanList = (loansRes.data || []).map(l => {
-        const matched = collections.filter(c => c.AccountNo === l.loan_account_no);
-        const ledger = matched.map(m => ({
-          id: m.ReceiptNo,
-          date: selectedDateStr,
-          refNo: m.ReceiptNo,
-          type: 'EMI Payment',
-          amt: Number(m.AmountCollected),
-          fine: Number(m.PenaltyAmount || 0),
-          collector: m.AgentName || 'Agent',
-          status: 'Approved'
-        }));
+    // A failed report call (e.g. missing permission) must not blank the page
+    reportApi.dailyCollection({ start_date: dateStrYMD, end_date: dateStrYMD })
+      .catch(() => ({ data: [] }))
+      .then(collectionsRes => {
+        if (seq !== fetchSeq.current) return;
+        const collections = collectionsRes.data || [];
 
-        return {
-          accNo: l.loan_account_no,
-          type: 'Loan',
-          accountStatus: l.account_status,
-          planName: l.plan_name,
-          approvedAmt: Number(l.principal_amount),
-          totalPaid: Number(l.total_paid),
-          outstanding: Number(l.outstanding_amount),
-          emiAmt: Number(l.emi_amount),
-          paymentCycle: l.collection_frequency,
-          customer: { name: l.customer_name, phone: l.customer_mobile },
-          agent: l.agent_name,
-          branch: l.branch_name,
-          area: l.area_name,
-          ledger: ledger,
-          todayDue: Number(l.today_due || 0),
-          nextDueDate: l.next_due_date
+        const mapLoanRow = (l) => {
+          const matched = collections.filter(c => c.AccountNo === l.loan_account_no);
+          const ledger = matched.map(m => ({
+            id: m.ReceiptNo,
+            date: selectedDateStr,
+            refNo: m.ReceiptNo,
+            type: 'EMI Payment',
+            amt: Number(m.AmountCollected),
+            fine: Number(m.PenaltyAmount || 0),
+            collector: m.AgentName || 'Agent',
+            status: 'Approved'
+          }));
+
+          return {
+            accNo: l.loan_account_no,
+            type: 'Loan',
+            accountStatus: l.account_status,
+            planName: l.plan_name,
+            approvedAmt: Number(l.principal_amount),
+            totalPaid: Number(l.total_paid),
+            outstanding: Number(l.outstanding_amount),
+            emiAmt: Number(l.emi_amount),
+            paymentCycle: l.collection_frequency,
+            customer: { name: l.customer_name, phone: l.customer_mobile },
+            agent: l.agent_name,
+            branch: l.branch_name,
+            area: l.area_name,
+            ledger: ledger,
+            todayDue: Number(l.today_due || 0),
+            nextDueDate: l.next_due_date
+          };
         };
-      });
 
-      const savingList = (savingsRes.data || []).map(s => {
-        const matched = collections.filter(c => c.AccountNo === s.saving_account_no);
-        const ledger = matched.map(m => ({
-          id: m.ReceiptNo,
-          date: selectedDateStr,
-          refNo: m.ReceiptNo,
-          type: 'Savings Deposit',
-          amt: Number(m.AmountCollected),
-          fine: 0,
-          collector: m.AgentName || 'Agent',
-          status: 'Approved'
-        }));
+        const mapSavingRow = (s) => {
+          const matched = collections.filter(c => c.AccountNo === s.saving_account_no);
+          const ledger = matched.map(m => ({
+            id: m.ReceiptNo,
+            date: selectedDateStr,
+            refNo: m.ReceiptNo,
+            type: 'Savings Deposit',
+            amt: Number(m.AmountCollected),
+            fine: 0,
+            collector: m.AgentName || 'Agent',
+            status: 'Approved'
+          }));
 
-        return {
-          accNo: s.saving_account_no,
-          type: 'Saving',
-          accountStatus: s.account_status,
-          planName: s.plan_name,
-          approvedAmt: Number(s.deposit_amount),
-          totalPaid: Number(s.total_deposited),
-          outstanding: 0,
-          emiAmt: Number(s.deposit_amount),
-          paymentCycle: s.collection_frequency,
-          customer: { name: s.customer_name, phone: s.customer_mobile },
-          agent: s.agent_name,
-          branch: s.branch_name,
-          area: s.area_name,
-          ledger: ledger,
-          todayDue: Number(s.today_due || 0),
-          nextDueDate: s.next_due_date
+          return {
+            accNo: s.saving_account_no,
+            type: 'Saving',
+            accountStatus: s.account_status,
+            planName: s.plan_name,
+            approvedAmt: Number(s.deposit_amount),
+            totalPaid: Number(s.total_deposited),
+            outstanding: 0,
+            emiAmt: Number(s.deposit_amount),
+            paymentCycle: s.collection_frequency,
+            customer: { name: s.customer_name, phone: s.customer_mobile },
+            agent: s.agent_name,
+            branch: s.branch_name,
+            area: s.area_name,
+            ledger: ledger,
+            todayDue: Number(s.today_due || 0),
+            nextDueDate: s.next_due_date
+          };
         };
-      });
 
-      setAccounts([...loanList, ...savingList]);
-    }).catch((err) => {
-      console.error(err);
-    });
+        // Accounts stream in 20 per request: the first page renders
+        // immediately so the list opens fast, remaining pages keep
+        // appending in the background (metrics and agent-wise bulk
+        // lists need the full set to stay correct).
+        let all = [];
+        const PER_PAGE = 20;
+        const loadPage = (page) => Promise.all([
+          loanApi.list({ page, per_page: PER_PAGE }),
+          savingApi.list({ page, per_page: PER_PAGE })
+        ]).then(([loansRes, savingsRes]) => {
+          if (seq !== fetchSeq.current) return;
+          const loanList = (loansRes.data || []).map(mapLoanRow);
+          const savingList = (savingsRes.data || []).map(mapSavingRow);
+          all = [...all, ...loanList, ...savingList];
+          setAccounts(all);
+          const hasMore = loansRes.pagination?.has_more || savingsRes.pagination?.has_more;
+          if (hasMore && page < 100) return loadPage(page + 1);
+        });
+
+        return loadPage(1);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
   };
 
   useEffect(() => {
@@ -608,7 +633,7 @@ export default function Collection() {
 
           {/* Calendar Picker (Jump to Date) */}
           <DatePicker
-            value={selectedDate.toISOString().split('T')[0]}
+            value={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
             onChange={(val) => {
               if (val) {
                 setSelectedDate(new Date(val));

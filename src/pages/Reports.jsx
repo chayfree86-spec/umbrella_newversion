@@ -86,7 +86,7 @@ export default function Reports() {
           ];
         case 'agent':
           return [
-            row.LogDate || new Date().toISOString().slice(0, 10),
+            row.LogDate || new Date().toLocaleDateString('sv-SE'),
             row.AgentName || 'N/A',
             row.AreaName || 'N/A',
             String(row.AssignedCustomers || 0),
@@ -105,7 +105,7 @@ export default function Reports() {
           ];
         case 'maturity':
           return [
-            row.MaturityDate || new Date().toISOString().slice(0, 10),
+            row.MaturityDate || new Date().toLocaleDateString('sv-SE'),
             row.CustomerName || 'N/A',
             row.AccountNo || 'N/A',
             row.PlanName || 'N/A',
@@ -359,7 +359,7 @@ export default function Reports() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      const dateStr = new Date().toISOString().slice(0, 10);
+      const dateStr = new Date().toLocaleDateString('sv-SE');
       const filename = `${reportTitle.replace(/\s+/g, '_')}_${dateStr}.csv`;
       link.setAttribute("download", filename);
       document.body.appendChild(link);

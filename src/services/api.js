@@ -134,8 +134,10 @@ export const customerApi = {
   delete: (id) => api.delete(`/customers/${id}`),
   search: (q) => api.get(`/customers/search`, { params: { q } }),
   checkMobile: (mobile) => api.get('/customers/check-mobile', { params: { mobile } }),
+  // No manual Content-Type here — the browser must set the multipart
+  // boundary itself, otherwise PHP receives an empty $_FILES
   uploadDocs: (id, formData) => api.post(`/customers/${id}/documents`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': undefined }
   }),
   profile: (id) => api.get(`/customers/${id}/profile`)
 };

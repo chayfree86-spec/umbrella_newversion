@@ -569,8 +569,8 @@ export default function AccountDetails() {
       .catch(err => alert(err.message || 'Reset failed.'));
   };
 
-  const handleDeleteAccount = () => {
-    if (!window.confirm("Are you sure you want to delete this rejected account? This action cannot be undone.")) return;
+  const handleDeleteAccount = async () => {
+    if (!(await window.confirm("Are you sure you want to delete this rejected account? This action cannot be undone."))) return;
     const api = isLoan ? loanApi : savingApi;
     api.delete(accNo)
       .then(() => {
@@ -691,8 +691,8 @@ export default function AccountDetails() {
       });
   };
 
-  const handleResetCollection = (receiptNo) => {
-    if (!window.confirm(`Are you sure you want to reset/delete collection receipt ${receiptNo}? This will recalculate the ledger. This action cannot be undone.`)) return;
+  const handleResetCollection = async (receiptNo) => {
+    if (!(await window.confirm(`Are you sure you want to reset/delete collection receipt ${receiptNo}? This will recalculate the ledger. This action cannot be undone.`))) return;
     collectionApi.deleteCollection(receiptNo)
       .then(() => {
         alert("Collection reset successfully.");
@@ -739,8 +739,8 @@ export default function AccountDetails() {
       .finally(() => setIsUpdating(false));
   };
 
-  const handleClearLedger = () => {
-    if (!window.confirm("Are you sure you want to clear the entire payment ledger for this account? All collected collections/deposits will be permanently deleted and all installments will be reset to Pending. This action cannot be undone.")) return;
+  const handleClearLedger = async () => {
+    if (!(await window.confirm("Are you sure you want to clear the entire payment ledger for this account? All collected collections/deposits will be permanently deleted and all installments will be reset to Pending. This action cannot be undone."))) return;
     const api = isLoan ? loanApi : savingApi;
     api.clearLedger(accNo)
       .then(() => {
@@ -752,17 +752,20 @@ export default function AccountDetails() {
       .catch(err => alert(err.message || 'Clearing ledger failed.'));
   };
 
-  // Helper to open modal and set defaults
+  // Helper to open modal and set defaults (live backend fields)
   const openClosureModal = () => {
     setCloseDate(new Date().toLocaleDateString('sv-SE'));
-    setCloseRemarks('Loan Settlement');
-    if (account.type === 'Loan') {
-      setClosePrincipal(account.outstanding);
+    setCloseRemarks(isLoan ? 'Loan Settlement' : 'Maturity Payout');
+    if (isLoan) {
+      setClosePrincipal(Number(account.outstanding_amount || 0));
       setCloseInterestFine(0); // Accrued Interest / Fine
       setCloseDiscountCharges(0); // Waiver / Discount
     } else {
-      setClosePrincipal(account.totalPaid);
-      setCloseInterestFine(812); // Expected Interest (6.5%)
+      const deposited = Number(account.total_deposited || 0);
+      // Same interest formula the backend uses on maturity payout
+      const expectedInterest = Math.round(deposited * (Number(account.interest_rate || 0) / 100));
+      setClosePrincipal(deposited);
+      setCloseInterestFine(expectedInterest);
       setCloseDiscountCharges(0); // Penalty / Charges
     }
     setConfirmClosure(false);
@@ -854,7 +857,7 @@ export default function AccountDetails() {
 
     const collectionDate = selectedDayObj
       ? `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(selectedDayObj.day).padStart(2, '0')}`
-      : new Date().toISOString().slice(0, 10);
+      : new Date().toLocaleDateString('sv-SE');
 
     const apiCall = isLoan
       ? loanApi.collect(accNo, collectAmt, collectFine, collectPayMode, '', collectionDate)
@@ -1031,7 +1034,7 @@ export default function AccountDetails() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Statement_${accNumber}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `Statement_${accNumber}_${new Date().toLocaleDateString('sv-SE')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

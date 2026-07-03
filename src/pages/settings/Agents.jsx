@@ -20,7 +20,7 @@ export default function Agents() {
     branch_id: '',
     area_id: '',
     policy_id: '',
-    joining_date: new Date().toISOString().split('T')[0]
+    joining_date: new Date().toLocaleDateString('sv-SE')
   });
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export default function Agents() {
         setShowAddForm(false);
         setNewAgent({
           code: '', name: '', mobile: '', email: '', branch_id: '', area_id: '', policy_id: '',
-          joining_date: new Date().toISOString().split('T')[0]
+          joining_date: new Date().toLocaleDateString('sv-SE')
         });
         alert('New agent profile created successfully.');
       })

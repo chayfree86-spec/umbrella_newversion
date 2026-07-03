@@ -117,6 +117,9 @@ export default function General() {
     EDITABLE_KEYS.forEach(k => { payload[k] = form[k]; });
     settingsApi.update(payload)
       .then(() => {
+        localStorage.setItem('company_name', form.company_name);
+        localStorage.setItem('company_tagline', form.company_tagline);
+        window.dispatchEvent(new Event('settings-updated'));
         alert('Settings saved successfully.');
         loadSettings();
       })
@@ -142,7 +145,7 @@ export default function General() {
       <div className="bg-surface p-4 sm:p-6 rounded-2xl border border-border-fin shadow-sm space-y-6">
         <div>
           <h3 className="text-base font-bold text-primary-text mb-1">General System Settings</h3>
-          <p className="text-xs text-secondary-text">Core settings for Umbrella Finance</p>
+          <p className="text-xs text-secondary-text">Core settings for {form.company_name || 'Umbrella Finance'}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

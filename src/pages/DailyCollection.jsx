@@ -78,6 +78,7 @@ export default function DailyCollection() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [searchFilter, setSearchFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [collectionAmount, setCollectionAmount] = useState('');
@@ -98,20 +99,40 @@ export default function DailyCollection() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
+  // Server-side pagination: each page fetches its own 20 records from the API.
+  // In "All" mode loans + savings are fetched 10 each so a page stays at 20 rows.
   const fetchAccounts = useCallback(() => {
     setLoading(true);
+
+    const wantLoans = filterType !== 'Saving';
+    const wantSavings = filterType !== 'Loan';
+    const perPage = (wantLoans && wantSavings) ? 10 : 20;
+
+    const params = { page: currentPage, per_page: perPage };
+    if (filterStatus !== 'All') params.status = filterStatus;
+    if (searchFilter.trim()) params.search = searchFilter.trim();
+
+    const empty = { data: [], pagination: { total_pages: 0 } };
     Promise.all([
-      loanApi.list({ limit: 100 }),
-      savingApi.list({ limit: 100 })
+      wantLoans ? loanApi.list(params) : Promise.resolve(empty),
+      wantSavings ? savingApi.list(params) : Promise.resolve(empty)
     ])
       .then(([loansRes, savingsRes]) => {
         const loans = (loansRes.data || []).map(mapLoan);
         const savings = (savingsRes.data || []).map(mapSaving);
         setAccounts([...loans, ...savings]);
+        setTotalPages(Math.max(
+          Number(loansRes.pagination?.total_pages || 0),
+          Number(savingsRes.pagination?.total_pages || 0),
+          1
+        ));
       })
-      .catch(() => setAccounts([]))
+      .catch(() => {
+        setAccounts([]);
+        setTotalPages(1);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentPage, filterType, filterStatus, searchFilter]);
 
   useEffect(() => {
     fetchAccounts();
@@ -150,8 +171,8 @@ export default function DailyCollection() {
     }).catch(err => alert(err.message || 'Approval failed.'));
   };
 
-  const handleReject = (acc) => {
-    if (!window.confirm(`Reject ${acc.accNo}?`)) return;
+  const handleReject = async (acc) => {
+    if (!(await window.confirm(`Reject ${acc.accNo}?`))) return;
     const call = acc.type === 'Loan' ? loanApi.reject(acc.accNo) : savingApi.reject(acc.accNo);
     call.then(() => {
       alert(`${acc.accNo} rejected.`);
@@ -178,7 +199,9 @@ export default function DailyCollection() {
     }
 
     setSubmitting(true);
-    const today = new Date().toISOString().slice(0, 10);
+    // Local (IST) date — toISOString() is UTC and gives yesterday's date before 5:30 AM
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const call = selectedAccount.type === 'Loan'
       ? loanApi.collect(selectedAccount.accNo, amt, fine, 'Cash', null, today)
       : savingApi.deposit(selectedAccount.accNo, amt, 'Cash', null, today);
@@ -202,30 +225,9 @@ export default function DailyCollection() {
       .finally(() => setSubmitting(false));
   };
 
-  const filteredAccounts = accounts.filter(acc => {
-    if (filterType !== 'All' && acc.type !== filterType) return false;
-    if (filterStatus !== 'All' && acc.status !== filterStatus) return false;
-    if (searchFilter) {
-      const q = searchFilter.toLowerCase().trim();
-      
-      // Smart matching for short account numbers (e.g., "8", "10", "12")
-      const isShortNumber = /^\d+$/.test(q);
-      let shortNumberMatch = false;
-      if (isShortNumber) {
-        const padded = q.padStart(6, '0');
-        if (acc.accNo.endsWith(padded)) {
-          shortNumberMatch = true;
-        }
-      }
-
-      const hit = shortNumberMatch
-        || (acc.accNo || '').toLowerCase().includes(q)
-        || (acc.customerName || '').toLowerCase().includes(q)
-        || (acc.customerMobile || '').includes(q);
-      if (!hit) return false;
-    }
-    return true;
-  });
+  // Filtering (type/status/search) now happens on the server via query params;
+  // this page only sorts the rows of the currently loaded page.
+  const filteredAccounts = accounts;
 
   return (
     <div className="w-full space-y-6">
@@ -346,8 +348,7 @@ export default function DailyCollection() {
                 {loading ? (
                   <tr><td colSpan="7" className="text-center py-10 text-xs text-[#64748B]">Loading accounts…</td></tr>
                 ) : (() => {
-                  const sorted = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
-                  const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
+                  const paginated = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
 
                   if (paginated.length === 0) {
                     return (
@@ -431,8 +432,7 @@ export default function DailyCollection() {
           {loading ? (
             <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-xs text-[#64748B] shadow-sm">Loading accounts…</div>
           ) : (() => {
-            const sorted = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
-            const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
+            const paginated = [...filteredAccounts].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
 
             if (paginated.length === 0) {
               return (
@@ -515,9 +515,9 @@ export default function DailyCollection() {
             ));
           })()}
         </div>
-        <Pagination 
+        <Pagination
           currentPage={currentPage}
-          totalPages={Math.ceil(filteredAccounts.length / 20)}
+          totalPages={totalPages}
           onPageChange={setCurrentPage}
         />
       </div>

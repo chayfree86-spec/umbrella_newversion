@@ -234,13 +234,13 @@ export default function FundManagement() {
   // Capital Form
   const [investorName, setInvestorName] = useState('');
   const [capitalAmount, setCapitalAmount] = useState('');
-  const [capitalDate, setCapitalDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [capitalDate, setCapitalDate] = useState(() => new Date().toLocaleDateString('sv-SE'));
   const [capitalSource, setCapitalSource] = useState('Self');
   const [capitalNote, setCapitalNote] = useState('');
 
   // Transfer Form
   const [transferAmount, setTransferAmount] = useState('');
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transferDate, setTransferDate] = useState(() => new Date().toLocaleDateString('sv-SE'));
   const [transferNote, setTransferNote] = useState('');
   const [transferType, setTransferType] = useState('saving_to_loan');
 
@@ -301,7 +301,7 @@ export default function FundManagement() {
     setSelectedTxn(txn);
     setEditAmount(String(txn.amount));
     setEditNote(txn.desc || txn.description || '');
-    setEditDate(txn.entry_date || txn.date || new Date().toISOString().slice(0, 10));
+    setEditDate(txn.entry_date || txn.date || new Date().toLocaleDateString('sv-SE'));
     setShowEditCapitalModal(true);
   };
 
@@ -326,8 +326,8 @@ export default function FundManagement() {
       .catch(err => alert(err.message || 'Failed to update transaction.'));
   };
 
-  const handleDeleteClick = (id) => {
-    if (window.confirm('Are you sure you want to delete this transaction? This will also revert its impact from the cash book and capital pool.')) {
+  const handleDeleteClick = async (id) => {
+    if (await window.confirm('Are you sure you want to delete this transaction? This will also revert its impact from the cash book and capital pool.')) {
       fundApi.deleteTransaction(id)
         .then(() => {
           fetchData();
