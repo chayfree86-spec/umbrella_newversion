@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -7,7 +7,8 @@ import { Pagination } from '../components/ui/Pagination';
 
 export default function Collection() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
+  const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
 
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
   const isAgent = userRole === 'Agent / Collection Executive';
@@ -107,89 +108,114 @@ export default function Collection() {
     return accounts.some(acc => acc.ledger?.some(tx => tx.date === dStr));
   };
 
+  // Guards against stale responses when the selected date changes mid-fetch
+  const fetchSeq = useRef(0);
+
   const fetchAccountsAndCollections = () => {
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const dateStrYMD = `${year}-${month}-${day}`;
 
-    Promise.all([
-      loanApi.list({ limit: 100 }),
-      savingApi.list({ limit: 100 }),
-      reportApi.dailyCollection({ start_date: dateStrYMD, end_date: dateStrYMD })
-    ]).then(([loansRes, savingsRes, collectionsRes]) => {
-      const collections = collectionsRes.data || [];
+    const seq = ++fetchSeq.current;
 
-      const loanList = (loansRes.data || []).map(l => {
-        const matched = collections.filter(c => c.AccountNo === l.loan_account_no);
-        const ledger = matched.map(m => ({
-          id: m.ReceiptNo,
-          date: selectedDateStr,
-          refNo: m.ReceiptNo,
-          type: 'EMI Payment',
-          amt: Number(m.AmountCollected),
-          fine: Number(m.PenaltyAmount || 0),
-          collector: m.AgentName || 'Agent',
-          status: 'Approved'
-        }));
+    // A failed report call (e.g. missing permission) must not blank the page
+    reportApi.dailyCollection({ start_date: dateStrYMD, end_date: dateStrYMD })
+      .catch(() => ({ data: [] }))
+      .then(collectionsRes => {
+        if (seq !== fetchSeq.current) return;
+        const collections = collectionsRes.data || [];
 
-        return {
-          accNo: l.loan_account_no,
-          type: 'Loan',
-          accountStatus: l.account_status,
-          planName: l.plan_name,
-          approvedAmt: Number(l.principal_amount),
-          totalPaid: Number(l.total_paid),
-          outstanding: Number(l.outstanding_amount),
-          emiAmt: Number(l.emi_amount),
-          paymentCycle: l.collection_frequency,
-          customer: { name: l.customer_name, phone: l.customer_mobile },
-          agent: l.agent_name,
-          branch: l.branch_name,
-          area: l.area_name,
-          ledger: ledger,
-          todayDue: Number(l.today_due || 0),
-          nextDueDate: l.next_due_date
+        const mapLoanRow = (l) => {
+          const matched = collections.filter(c => c.AccountNo === l.loan_account_no);
+          const ledger = matched.map(m => ({
+            id: m.ReceiptNo,
+            date: selectedDateStr,
+            refNo: m.ReceiptNo,
+            type: 'EMI Payment',
+            amt: Number(m.AmountCollected),
+            fine: Number(m.PenaltyAmount || 0),
+            collector: m.AgentName || 'Agent',
+            status: 'Approved'
+          }));
+
+          return {
+            accNo: l.loan_account_no,
+            type: 'Loan',
+            accountStatus: l.account_status,
+            planName: l.plan_name,
+            approvedAmt: Number(l.principal_amount),
+            totalPaid: Number(l.total_paid),
+            outstanding: Number(l.outstanding_amount),
+            emiAmt: Number(l.emi_amount),
+            paymentCycle: l.collection_frequency,
+            customer: { name: l.customer_name, phone: l.customer_mobile },
+            agent: l.agent_name,
+            branch: l.branch_name,
+            area: l.area_name,
+            ledger: ledger,
+            todayDue: Number(l.today_due || 0),
+            nextDueDate: l.next_due_date
+          };
         };
-      });
 
-      const savingList = (savingsRes.data || []).map(s => {
-        const matched = collections.filter(c => c.AccountNo === s.saving_account_no);
-        const ledger = matched.map(m => ({
-          id: m.ReceiptNo,
-          date: selectedDateStr,
-          refNo: m.ReceiptNo,
-          type: 'Savings Deposit',
-          amt: Number(m.AmountCollected),
-          fine: 0,
-          collector: m.AgentName || 'Agent',
-          status: 'Approved'
-        }));
+        const mapSavingRow = (s) => {
+          const matched = collections.filter(c => c.AccountNo === s.saving_account_no);
+          const ledger = matched.map(m => ({
+            id: m.ReceiptNo,
+            date: selectedDateStr,
+            refNo: m.ReceiptNo,
+            type: 'Savings Deposit',
+            amt: Number(m.AmountCollected),
+            fine: 0,
+            collector: m.AgentName || 'Agent',
+            status: 'Approved'
+          }));
 
-        return {
-          accNo: s.saving_account_no,
-          type: 'Saving',
-          accountStatus: s.account_status,
-          planName: s.plan_name,
-          approvedAmt: Number(s.deposit_amount),
-          totalPaid: Number(s.total_deposited),
-          outstanding: 0,
-          emiAmt: Number(s.deposit_amount),
-          paymentCycle: s.collection_frequency,
-          customer: { name: s.customer_name, phone: s.customer_mobile },
-          agent: s.agent_name,
-          branch: s.branch_name,
-          area: s.area_name,
-          ledger: ledger,
-          todayDue: Number(s.today_due || 0),
-          nextDueDate: s.next_due_date
+          return {
+            accNo: s.saving_account_no,
+            type: 'Saving',
+            accountStatus: s.account_status,
+            planName: s.plan_name,
+            approvedAmt: Number(s.deposit_amount),
+            totalPaid: Number(s.total_deposited),
+            outstanding: 0,
+            emiAmt: Number(s.deposit_amount),
+            paymentCycle: s.collection_frequency,
+            customer: { name: s.customer_name, phone: s.customer_mobile },
+            agent: s.agent_name,
+            branch: s.branch_name,
+            area: s.area_name,
+            ledger: ledger,
+            todayDue: Number(s.today_due || 0),
+            nextDueDate: s.next_due_date
+          };
         };
-      });
 
-      setAccounts([...loanList, ...savingList]);
-    }).catch((err) => {
-      console.error(err);
-    });
+        // Accounts stream in 20 per request: the first page renders
+        // immediately so the list opens fast, remaining pages keep
+        // appending in the background (metrics and agent-wise bulk
+        // lists need the full set to stay correct).
+        let all = [];
+        const PER_PAGE = 20;
+        const loadPage = (page) => Promise.all([
+          loanApi.list({ page, per_page: PER_PAGE }),
+          savingApi.list({ page, per_page: PER_PAGE })
+        ]).then(([loansRes, savingsRes]) => {
+          if (seq !== fetchSeq.current) return;
+          const loanList = (loansRes.data || []).map(mapLoanRow);
+          const savingList = (savingsRes.data || []).map(mapSavingRow);
+          all = [...all, ...loanList, ...savingList];
+          setAccounts(all);
+          const hasMore = loansRes.pagination?.has_more || savingsRes.pagination?.has_more;
+          if (hasMore && page < 100) return loadPage(page + 1);
+        });
+
+        return loadPage(1);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
   };
 
   useEffect(() => {
@@ -257,11 +283,19 @@ export default function Collection() {
 
     // Search query
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      const isShortNumber = /^\d+$/.test(q);
+      let shortNumberMatch = false;
+      const accNoRaw = (acc.accNo || '').toLowerCase();
+      if (isShortNumber) {
+        const padded = q.padStart(6, '0');
+        if (accNoRaw.endsWith(padded)) {
+          shortNumberMatch = true;
+        }
+      }
       const name = (acc.customer?.name || acc.name || '').toLowerCase();
       const phone = (acc.customer?.phone || acc.phone || '');
-      const accNo = acc.accNo.toLowerCase();
-      return name.includes(q) || phone.includes(q) || accNo.includes(q);
+      return shortNumberMatch || name.includes(q) || phone.includes(q) || accNoRaw.includes(q);
     }
 
     return true;
@@ -487,9 +521,9 @@ export default function Collection() {
         </div>
       )}
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         {activeTab === 'single' ? (
-          <div className="flex flex-wrap items-center gap-3 flex-1">
+          <div className="w-full flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 flex-1">
             {/* Branch Filter */}
             <Select 
               options={[{ value: 'All', label: 'All Branches' }, ...branches.map(b => ({ value: b.name, label: b.name }))] }
@@ -522,12 +556,12 @@ export default function Collection() {
             />
 
             {/* Today's Pay Status Tabs */}
-            <div className="flex bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shrink-0">
+            <div className="w-full sm:w-auto flex bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shrink-0">
               {['All', 'Pending', 'Paid'].map(s => (
                 <button
                   key={s}
                   onClick={() => setFilterStatus(s)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 sm:flex-none px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
                     filterStatus === s 
                       ? 'bg-[#0A3598] text-white shadow-sm'
                       : 'text-[#64748B] hover:text-[#0F172A]'
@@ -539,7 +573,7 @@ export default function Collection() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3 flex-1">
+          <div className="w-full flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 flex-1">
             <Select 
               options={agents.map(a => ({ value: a.name, label: `${a.name} (${a.code})` }))}
               value={selectedAgentForBulk}
@@ -571,18 +605,18 @@ export default function Collection() {
         )}
 
         {/* Horizontal Date Selection Bar */}
-        <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shadow-sm shrink-0">
+        <div className="w-full xl:w-auto flex items-center justify-between gap-1 bg-[#F8FAFC] border border-[#E2E8F0] p-1 rounded-xl shadow-sm shrink-0">
           {/* Prev Day Button */}
           <button 
             type="button"
             onClick={handlePrevDay}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+            className="w-8 h-8 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
           >
             <span className="material-symbols-rounded text-base select-none">chevron_left</span>
           </button>
 
           {/* Selected Date Text */}
-          <div className="flex items-center">
+          <div className="flex-1 flex items-center justify-center">
             <span className="text-[11px] font-black text-[#0A3598] min-w-[72px] text-center select-none tracking-tight">
               {selectedDateStr}
             </span>
@@ -592,21 +626,21 @@ export default function Collection() {
           <button 
             type="button"
             onClick={handleNextDay}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+            className="w-8 h-8 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
           >
             <span className="material-symbols-rounded text-base select-none">chevron_right</span>
           </button>
 
           {/* Calendar Picker (Jump to Date) */}
           <DatePicker
-            value={selectedDate.toISOString().split('T')[0]}
+            value={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
             onChange={(val) => {
               if (val) {
                 setSelectedDate(new Date(val));
               }
             }}
             customTrigger={
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
+              <div className="w-8 h-8 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5">
                 <span className="material-symbols-rounded text-base select-none">event</span>
               </div>
             }
@@ -615,46 +649,46 @@ export default function Collection() {
       </div>
 
       {/* Metrics Bento Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Target Collection</span>
-            <span className="material-symbols-rounded text-slate-300 text-lg select-none">track_changes</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Target Collection</span>
+            <span className="material-symbols-rounded text-slate-300 text-base sm:text-lg select-none">track_changes</span>
           </div>
-          <strong className="text-xl font-black text-[#0F172A] block">₹{totalTargetToday.toLocaleString()}</strong>
-          <span className="text-[9px] text-[#64748B] block">Expected EMI collections today</span>
+          <strong className="text-base sm:text-xl font-black text-[#0F172A] block">₹{totalTargetToday.toLocaleString()}</strong>
+          <span className="text-[8.5px] sm:text-[9px] text-[#64748B] block leading-tight">Expected EMI collections today</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected Today</span>
-            <span className="material-symbols-rounded text-emerald-400 text-lg select-none">payments</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Collected Today</span>
+            <span className="material-symbols-rounded text-emerald-400 text-base sm:text-lg select-none">payments</span>
           </div>
-          <strong className="text-xl font-black text-[#16A34A] block">₹{totalCollectedToday.toLocaleString()}</strong>
-          <span className="text-[9px] text-emerald-600 font-semibold block">EMI payments recorded</span>
+          <strong className="text-base sm:text-xl font-black text-[#16A34A] block">₹{totalCollectedToday.toLocaleString()}</strong>
+          <span className="text-[8.5px] sm:text-[9px] text-emerald-600 font-semibold block leading-tight">EMI payments recorded</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pending Balance</span>
-            <span className="material-symbols-rounded text-amber-400 text-lg select-none">hourglass_empty</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Pending Balance</span>
+            <span className="material-symbols-rounded text-amber-400 text-base sm:text-lg select-none">hourglass_empty</span>
           </div>
-          <strong className="text-xl font-black text-[#EA580C] block">₹{totalPendingToday.toLocaleString()}</strong>
-          <span className="text-[9px] text-[#EA580C] font-semibold block">Remaining to collect</span>
+          <strong className="text-base sm:text-xl font-black text-[#EA580C] block">₹{totalPendingToday.toLocaleString()}</strong>
+          <span className="text-[8.5px] sm:text-[9px] text-[#EA580C] font-semibold block leading-tight">Remaining to collect</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 relative overflow-hidden group">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-1.5 sm:space-y-2 relative overflow-hidden group">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completion Rate</span>
-            <span className="text-xs font-bold text-[#0A3598] bg-[#0A3598]/5 px-2 py-0.5 rounded">{progressPercent}%</span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completion Rate</span>
+            <span className="text-[10px] sm:text-xs font-bold text-[#0A3598] bg-[#0A3598]/5 px-1.5 sm:px-2 py-0.5 rounded">{progressPercent}%</span>
           </div>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-2">
+          <div className="w-full bg-slate-100 h-1.5 sm:h-2 rounded-full overflow-hidden mt-2">
             <div 
               className="bg-[#0A3598] h-full rounded-full transition-all duration-500" 
               style={{ width: `${Math.min(100, progressPercent)}%` }}
             ></div>
           </div>
-          <span className="text-[9px] text-[#64748B] block mt-1">Today's collection progress</span>
+          <span className="text-[8.5px] sm:text-[9px] text-[#64748B] block leading-tight">Today's collection progress</span>
         </div>
       </div>
 
@@ -688,11 +722,11 @@ export default function Collection() {
 
       {/* Tab 1: Single Collection checklist */}
       {activeTab === 'single' && (
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6 space-y-5 animate-fade-in">
-          {/* Collection Checklist Table */}
-          <div className="overflow-x-auto -mx-6">
+        <div className="lg:bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-sm lg:p-6 lg:space-y-5 lg:animate-fade-in">
+          <div className="overflow-x-auto lg:-mx-6">
             <div className="inline-block min-w-full align-middle">
-              <table className="min-w-full divide-y divide-[#E2E8F0]">
+              {/* Desktop Table (Hidden on Mobile) */}
+              <table className="hidden lg:table min-w-full divide-y divide-[#E2E8F0]">
                 <thead className="bg-[#F8FAFC]">
                   <tr>
                     <th scope="col" className="px-6 py-3.5 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Account No</th>
@@ -714,6 +748,7 @@ export default function Collection() {
                       return paginatedAccounts.map((acc) => {
                         const name = acc.customer?.name || acc.name || 'Customer';
                         const phone = acc.customer?.phone || acc.phone || 'N/A';
+                        const emi = Number(acc.emi_amount || acc.emiAmt || 0);
                         
                         // Check today status
                         const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
@@ -726,35 +761,31 @@ export default function Collection() {
                             onClick={() => navigate(`/account/${acc.accNo}`)}
                             className="hover:bg-[#F8FAFC]/50 transition-colors cursor-pointer"
                           >
-                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0A3598]">
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs font-extrabold text-[#0A3598] select-all">
                               {acc.accNo}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4">
-                              <div className="text-xs font-bold text-[#0F172A]">{name}</div>
-                              <div className="text-[10px] text-[#64748B]">{phone}</div>
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs">
+                              <span className="font-extrabold text-[#0F172A] block">{name}</span>
+                              <span className="text-[10px] text-[#64748B] font-semibold block">{phone}</span>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-xs">
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs font-bold">
                               <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                                 acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
                               }`}>
                                 {acc.type}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-[#0F172A]">
-                              ₹{(acc.emiAmt || 0).toLocaleString()}
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs font-black text-[#0F172A]">
+                              ₹{emi.toLocaleString()}
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-xs font-bold">
+                            <td className="whitespace-nowrap px-6 py-3.5 text-xs">
                               <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                                todayPaid 
-                                  ? 'bg-[#16A34A]/10 text-[#16A34A]' 
-                                  : todayRejected
-                                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                                    : 'bg-[#EA580C]/10 text-[#EA580C]'
+                                todayPaid ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#EA580C]/10 text-[#EA580C]'
                               }`}>
-                                {todayPaid ? 'Collected' : todayRejected ? 'Reset' : 'Pending'}
+                                {todayPaid ? 'Collected' : 'Pending'}
                               </span>
                             </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <td className="whitespace-nowrap px-6 py-3.5 text-center text-xs font-bold" onClick={(e) => e.stopPropagation()}>
                               {todayPaid ? (
                                 <button
                                   onClick={() => {
@@ -762,23 +793,18 @@ export default function Collection() {
                                     setReceiptTxn(todayPayment);
                                     setShowReceipt(true);
                                   }}
-                                  className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                  className="inline-flex items-center gap-1 px-3 py-1 bg-[#16A34A] text-white rounded-lg text-[10px] font-black hover:bg-[#16A34A]/90 active:scale-95 transition-all cursor-pointer shadow-xs"
                                 >
-                                  <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                                  <span className="material-symbols-rounded text-xs select-none">receipt</span>
                                   Receipt
                                 </button>
                               ) : isFutureDate ? (
-                                <button
-                                  disabled
-                                  className="px-5 py-1.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none mx-auto"
-                                >
-                                  Scheduled
-                                </button>
+                                <span className="text-[10px] text-[#94A3B8] font-bold">Scheduled</span>
                               ) : (
-                                <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center justify-center gap-2">
                                   <button
                                     onClick={() => handleOpenCollect(acc)}
-                                    className="px-4 py-1.5 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-[#0A3598] text-white rounded-lg text-[10px] font-black hover:bg-[#0A3598]/90 active:scale-95 transition-all cursor-pointer shadow-xs"
                                   >
                                     <span className="material-symbols-rounded text-sm select-none">payments</span>
                                     Collect
@@ -807,12 +833,124 @@ export default function Collection() {
                 </tbody>
               </table>
             </div>
-            <Pagination 
-              currentPage={currentPage}
-              totalPages={Math.ceil(filteredAccounts.length / 20)}
-              onPageChange={setCurrentPage}
-            />
           </div>
+
+          {/* Mobile-friendly Card List (No Horizontal Scroll, Hidden on Desktop) */}
+          <div className="block lg:hidden space-y-4">
+            {(() => {
+              const sortedAccounts = [...filteredAccounts].sort((a, b) => {
+                return b.accNo.localeCompare(a.accNo);
+              });
+              const paginatedAccounts = sortedAccounts.slice((currentPage - 1) * 20, currentPage * 20);
+
+              if (paginatedAccounts.length === 0) {
+                return (
+                  <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-[#64748B] font-bold text-xs shadow-sm">
+                    No active collection accounts found for today matching the filters.
+                  </div>
+                );
+              }
+
+              return paginatedAccounts.map((acc) => {
+                const name = acc.customer?.name || acc.name || 'Customer';
+                const phone = acc.customer?.phone || acc.phone || 'N/A';
+                
+                // Check today status
+                const todayPayment = acc.ledger?.find(tx => tx.date === todayStr && tx.status !== 'Rejected');
+                const todayPaid = !!todayPayment;
+                const todayRejected = !todayPayment && !!acc.ledger?.some(tx => tx.date === todayStr && tx.status === 'Rejected');
+
+                return (
+                  <div 
+                    key={acc.accNo} 
+                    className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm hover:border-[#0A3598]/30 transition-all cursor-pointer space-y-3"
+                    onClick={() => navigate(`/account/${acc.accNo}`)}
+                  >
+                    {/* Header: Acc No & Status */}
+                    <div className="flex justify-between items-center border-b border-[#E2E8F0]/50 pb-2.5">
+                      <span className="font-extrabold text-[#0A3598] text-xs">
+                        {acc.accNo}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${
+                          acc.type === 'Loan' ? 'bg-[#0A3598]/10 text-[#0A3598]' : 'bg-[#FFC107]/10 text-[#D97706]'
+                        }`}>
+                          {acc.type}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase ${
+                          todayPaid ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#EA580C]/10 text-[#EA580C]'
+                        }`}>
+                          {todayPaid ? 'Collected' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-2.5 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                      <div className="col-span-2">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Customer</span>
+                        <span className="text-primary-text block">{name}</span>
+                        <span className="text-secondary-text/80 block font-semibold text-[9px]">{phone}</span>
+                      </div>
+                      <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Daily EMI</span>
+                        <span className="text-primary-text block">₹{(acc.emi_amount || acc.emiAmt || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                        <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Next Due</span>
+                        <span className="text-primary-text block">{acc.nextDueDate || 'Today'}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions Row */}
+                    <div className="flex justify-end items-center" onClick={(e) => e.stopPropagation()}>
+                      {todayPaid ? (
+                        <button
+                          onClick={() => {
+                            setReceiptAccountNo(acc.accNo);
+                            setReceiptTxn(todayPayment);
+                            setShowReceipt(true);
+                          }}
+                          className="w-full py-2 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                        >
+                          <span className="material-symbols-rounded text-sm select-none">receipt</span>
+                          Receipt
+                        </button>
+                      ) : isFutureDate ? (
+                        <button
+                          disabled
+                          className="w-full py-2 rounded-xl text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed select-none text-center"
+                        >
+                          Scheduled
+                        </button>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 w-full">
+                          <button
+                            onClick={() => handleOpenCollect(acc)}
+                            className="w-full py-2 bg-[#0A3598] hover:bg-[#0A3598]/90 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                          >
+                            <span className="material-symbols-rounded text-sm select-none">payments</span>
+                            Collect
+                          </button>
+                          {todayRejected && (
+                            <span className="text-[9px] text-[#EF4444] font-black uppercase tracking-wider mt-1.5 block">
+                              Rejected Today
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredAccounts.length / 20)}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 
@@ -1172,8 +1310,8 @@ export default function Collection() {
           
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative z-10 border border-[#E2E8F0] text-[#0F172A] font-sans flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="text-center pb-4 border-b border-dashed border-[#E2E8F0]">
-              <span className="text-sm font-bold block">Umbrella Finance</span>
-              <span className="text-[10px] text-[#64748B] block mt-0.5">Chhote Kadam, Bade Sapne</span>
+              <span className="text-sm font-bold block">{companyName}</span>
+              <span className="text-[10px] text-[#64748B] block mt-0.5">{companyTagline}</span>
               <span className="text-xs font-bold text-[#0A3598] mt-2 block bg-[#0A3598]/5 py-1 rounded-lg">Collection Receipt</span>
             </div>
 

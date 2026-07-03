@@ -30,9 +30,12 @@ class AuthController {
             }
             $pin = trim($input['pin']);
             
-            // Allow fallback check in case pin_hash is empty but password matching (for default migration)
             if (empty($user['pin_hash'])) {
-                // If DB seed just loaded or no pin_hash, support default seed fallback '1234'
+                // Default-PIN fallback is a super-admin-only bypass (fresh seed).
+                // Every other role must have a proper hashed PIN set in the backend.
+                if ($user['role_slug'] !== 'super_admin') {
+                    Response::error('Security PIN is not set for this account. Please contact the administrator.', 403);
+                }
                 if ($pin !== '2310' && $pin !== '1234') {
                     Response::error('Incorrect Security PIN.', 401);
                 }

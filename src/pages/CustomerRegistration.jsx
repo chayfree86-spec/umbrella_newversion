@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import { branchApi, areaApi, agentApi, planApi, customerApi, settingsApi, fundApi } from '../services/api';
@@ -163,274 +162,6 @@ const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequenc
   }
 };
 
-const defaultAccounts = {
-  'LN-9082': {
-    accNo: 'LN-9082',
-    type: 'Loan',
-    accountStatus: 'Approved',
-    approvedDate: '15-04-2026',
-    todayStatus: 'Pending',
-    planName: 'Durga Shakti Personal Loan',
-    approvedAmt: 10000,
-    disbursedAmt: 9800,
-    processingFee: 200,
-    interestRate: '12% Flat p.a.',
-    disbursalDate: '15-04-2026',
-    totalPaid: 6500,
-    outstanding: 3500,
-    emiAmt: 112,
-    paymentCycle: 'Daily',
-    tenureDays: 100,
-    paidDays: 58,
-    nextDueDate: '29-06-2026',
-    pendingDue: 224,
-    fine: 0,
-    customer: {
-      id: 'c1',
-      name: 'Sumit Kumar',
-      phone: '9876543210',
-      aadhaar: '1234 5678 9012',
-      pan: 'ABCDE1234F',
-      address: 'H.No 12, Gandhi Marg, Hazratganj, Lucknow, UP - 226001',
-      occupation: 'Retail Shopkeeper',
-      monthlyIncome: '₹22,000',
-      bank: {
-        name: 'State Bank of India',
-        accountNo: '30291049281',
-        ifsc: 'SBIN0001234',
-        cheque: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-      }
-    },
-    guarantor: {
-      name: 'Satish Sharma',
-      phone: '9876543212',
-      relation: 'Friend',
-      aadhaar: '1234 5678 9013',
-      address: 'Gomti Nagar, Lucknow, UP',
-      income: '₹25,000 / month',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      aadhaarFront: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150',
-      aadhaarBack: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-    },
-    ledger: [
-      { id: '101', date: '28-06-2026', refNo: 'RC-2026-8902', type: 'EMI Payment', amt: 112, fine: 0, collector: 'Rahul Singh' },
-      { id: '102', date: '27-06-2026', refNo: 'RC-2026-8791', type: 'EMI Payment', amt: 112, fine: 0, collector: 'Rahul Singh' },
-      { id: '103', date: '26-06-2026', refNo: 'RC-2026-8604', type: 'EMI Payment', amt: 112, fine: 10, collector: 'Rahul Singh' },
-      { id: '104', date: '25-06-2026', refNo: 'RC-2026-8511', type: 'EMI Payment', amt: 112, fine: 0, collector: 'Rahul Singh' },
-      { id: '105', date: '24-06-2026', refNo: 'RC-2026-8409', type: 'EMI Payment', amt: 112, fine: 0, collector: 'Vikas Kumar' }
-    ]
-  },
-  'SV-4109': {
-    accNo: 'SV-4109',
-    type: 'Saving',
-    accountStatus: 'Approved',
-    approvedDate: '20-04-2026',
-    todayStatus: 'Paid',
-    planName: 'Daily Pragati Savings',
-    approvedAmt: 0,
-    disbursedAmt: 0,
-    processingFee: 0,
-    interestRate: '6.5%',
-    disbursalDate: '20-04-2026',
-    totalPaid: 12500,
-    outstanding: 0,
-    emiAmt: 100,
-    paymentCycle: 'Daily',
-    tenureDays: 365,
-    paidDays: 125,
-    nextDueDate: '29-06-2026',
-    pendingDue: 0,
-    fine: 0,
-    customer: {
-      id: 'c1',
-      name: 'Sumit Kumar',
-      phone: '9876543210',
-      aadhaar: '1234 5678 9012',
-      pan: 'ABCDE1234F',
-      address: 'H.No 12, Gandhi Marg, Hazratganj, Lucknow, UP - 226001',
-      occupation: 'Retail Shopkeeper',
-      monthlyIncome: '₹22,000',
-      bank: {
-        name: 'State Bank of India',
-        accountNo: '30291049281',
-        ifsc: 'SBIN0001234',
-        cheque: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-      }
-    },
-    nominee: {
-      name: 'Kusum Devi',
-      phone: '9876543219',
-      relation: 'Mother',
-      age: '52 Years',
-      share: '100%',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      aadhaarFront: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150',
-      aadhaarBack: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-    },
-    ledger: [
-      { id: '201', date: '28-06-2026', refNo: 'RC-2026-8903', type: 'Savings Deposit', amt: 100, fine: 0, collector: 'Amit Verma' },
-      { id: '202', date: '27-06-2026', refNo: 'RC-2026-8800', type: 'Savings Deposit', amt: 100, fine: 0, collector: 'Amit Verma' },
-      { id: '203', date: '25-06-2026', refNo: 'RC-2026-8591', type: 'Savings Deposit', amt: 100, fine: 0, collector: 'Amit Verma' },
-      { id: '204', date: '24-06-2026', refNo: 'RC-2026-8488', type: 'Savings Deposit', amt: 100, fine: 0, collector: 'Amit Verma' }
-    ]
-  },
-  'LN-8830': {
-    accNo: 'LN-8830',
-    type: 'Loan',
-    accountStatus: 'Defaulter',
-    approvedDate: '10-05-2026',
-    todayStatus: 'Overdue',
-    planName: 'Vyapar Vriddhi Loan',
-    approvedAmt: 50000,
-    disbursedAmt: 49000,
-    processingFee: 1000,
-    interestRate: '14% Flat p.a.',
-    disbursalDate: '10-05-2026',
-    totalPaid: 5000,
-    outstanding: 45000,
-    emiAmt: 4512,
-    paymentCycle: 'Daily',
-    tenureDays: 120,
-    paidDays: 42,
-    nextDueDate: '29-06-2026',
-    pendingDue: 4512,
-    fine: 50,
-    customer: {
-      id: 'c1',
-      name: 'Sumit Kumar',
-      phone: '9876543210',
-      aadhaar: '1234 5678 9012',
-      pan: 'ABCDE1234F',
-      address: 'H.No 12, Gandhi Marg, Hazratganj, Lucknow, UP - 226001',
-      occupation: 'Retail Shopkeeper',
-      monthlyIncome: '₹22,000',
-      bank: {
-        name: 'State Bank of India',
-        accountNo: '30291049281',
-        ifsc: 'SBIN0001234',
-        cheque: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-      }
-    },
-    guarantor: {
-      name: 'Satish Sharma',
-      phone: '9876543212',
-      relation: 'Friend',
-      aadhaar: '1234 5678 9013',
-      address: 'Gomti Nagar, Lucknow, UP',
-      income: '₹25,000 / month',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      aadhaarFront: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150',
-      aadhaarBack: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-    },
-    ledger: [
-      { id: '301', date: '28-06-2026', refNo: 'RC-2026-8904', type: 'EMI Payment', amt: 4512, fine: 0, collector: 'Rahul Singh' },
-      { id: '302', date: '27-06-2026', refNo: 'RC-2026-8801', type: 'EMI Payment', amt: 4512, fine: 0, collector: 'Rahul Singh' }
-    ]
-  },
-  'SV-1049': {
-    accNo: 'SV-1049',
-    type: 'Saving',
-    accountStatus: 'Processing',
-    approvedDate: null,
-    todayStatus: 'Pending',
-    planName: 'Daily Pragati Savings',
-    approvedAmt: 0,
-    disbursedAmt: 0,
-    processingFee: 0,
-    interestRate: '6.5%',
-    disbursalDate: null,
-    totalPaid: 0,
-    outstanding: 25000,
-    emiAmt: 200,
-    paymentCycle: 'Daily',
-    tenureDays: 365,
-    paidDays: 0,
-    nextDueDate: 'Awaiting Approval',
-    pendingDue: 200,
-    fine: 0,
-    customer: {
-      id: 'c4',
-      name: 'Sunita Sharma',
-      phone: '9876543220',
-      aadhaar: '1234 5678 9016',
-      pan: 'PQRST1234Q',
-      address: 'Kalyanpur, Kanpur, Uttar Pradesh - 208017',
-      occupation: 'School Teacher',
-      monthlyIncome: '₹25,000',
-      bank: {
-        name: 'ICICI Bank',
-        accountNo: '60292049284',
-        ifsc: 'ICIC0005678',
-        cheque: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-      }
-    },
-    nominee: {
-      name: 'Satish Sharma',
-      phone: '9876543212',
-      relation: 'Friend',
-      age: '32 Years',
-      share: '100%',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      aadhaarFront: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150',
-      aadhaarBack: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-    },
-    ledger: []
-  },
-  'LN-8722': {
-    accNo: 'LN-8722',
-    type: 'Loan',
-    accountStatus: 'Account Closed',
-    approvedDate: '01-01-2026',
-    todayStatus: 'Closed',
-    planName: 'Durga Shakti Personal Loan',
-    approvedAmt: 15000,
-    disbursedAmt: 14700,
-    processingFee: 300,
-    interestRate: '12% Flat p.a.',
-    disbursalDate: '01-01-2026',
-    totalPaid: 15000,
-    outstanding: 0,
-    emiAmt: 112,
-    paymentCycle: 'Daily',
-    tenureDays: 100,
-    paidDays: 100,
-    nextDueDate: 'Completed',
-    pendingDue: 0,
-    fine: 0,
-    customer: {
-      id: 'c5',
-      name: 'Ramesh Chandra',
-      phone: '9876543221',
-      aadhaar: '1234 5678 9017',
-      pan: 'UVWXY1234R',
-      address: 'Alambagh, Lucknow, Uttar Pradesh - 226005',
-      occupation: 'Retail Shopkeeper',
-      monthlyIncome: '₹40,000',
-      bank: {
-        name: 'Bank of Baroda',
-        accountNo: '70292049285',
-        ifsc: 'BARB0ALAMBA',
-        cheque: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-      }
-    },
-    guarantor: {
-      name: 'Satish Sharma',
-      phone: '9876543212',
-      relation: 'Friend',
-      aadhaar: '1234 5678 9013',
-      address: 'Gomti Nagar, Lucknow, UP',
-      income: '₹25,000 / month',
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      aadhaarFront: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150',
-      aadhaarBack: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=150'
-    },
-    ledger: [
-      { id: '401', date: '10-04-2026', refNo: 'RC-2026-1102', type: 'Final Clearance', amt: 150, fine: 0, collector: 'Rahul Singh' },
-      { id: '402', date: '09-04-2026', refNo: 'RC-2026-1099', type: 'EMI Payment', amt: 150, fine: 0, collector: 'Rahul Singh' }
-    ]
-  }
-};
-
 export default function CustomerRegistration() {
   const [branches, setBranches] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -440,24 +171,14 @@ export default function CustomerRegistration() {
   const [liveSettings, setLiveSettings] = useState({});
   const [availableLoanFund, setAvailableLoanFund] = useState(0);
 
-  // Load initial form data from localStorage or default
+  // Fresh form state — nothing persists in localStorage, everything stays live
   const getInitialFormData = () => {
-    const saved = localStorage.getItem('customer_registration_draft');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (!parsed.startDate) parsed.startDate = getTodayDateString();
-        return parsed;
-      } catch (e) {
-        // Fallback
-      }
-    }
     return {
       accountType: 'Loan',
       planId: '',
       startDate: getTodayDateString(),
       customAmount: '',
-      customRate: localStorage.getItem('custom_interest_rate') || '',
+      customRate: '',
       customDuration: '',
       customDurationUnit: 'Days',
       customFrequency: 'Daily',
@@ -506,208 +227,14 @@ export default function CustomerRegistration() {
     };
   };
 
-  const location = useLocation();
   const [formData, setFormData] = useState(getInitialFormData);
 
-  const [currentStep, setCurrentStep] = useState(() => {
-    const saved = localStorage.getItem('customer_registration_step');
-    return saved ? Number(saved) : 1;
-  });
+  const [currentStep, setCurrentStep] = useState(1);
 
-  // Load draft from accounts_database_v2 if draftId query param is present
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const draftId = params.get('draftId');
-    if (draftId) {
-      const dbSaved = localStorage.getItem('accounts_database_v2');
-      if (dbSaved) {
-        const db = JSON.parse(dbSaved);
-        const draftAccount = db[draftId];
-        if (draftAccount && draftAccount.accountStatus === 'Pending') {
-          const cust = draftAccount.customer || {};
-          const guar = draftAccount.guarantor || {};
-          const nom = draftAccount.nominee || {};
-          
-          setFormData({
-            accountType: draftAccount.type || 'Loan',
-            planId: draftAccount.planId || '',
-            startDate: draftAccount.approvedDate || getTodayDateString(),
-            customAmount: draftAccount.approvedAmt || '',
-            customRate: draftAccount.interestRate || '',
-            customDuration: draftAccount.tenureDays || '',
-            customDurationUnit: 'Days',
-            customFrequency: draftAccount.paymentCycle || 'Daily',
-            customType: 'Flat',
-            customEmi: draftAccount.emiAmt || '',
-            customProcessingFee: draftAccount.processingFee || '0',
-            customPenalty: '0',
-            customDailyDeposit: draftAccount.emiAmt || '',
-            customMaturity: '',
-            fullName: cust.name || '',
-            mobile: cust.phone || '',
-            altMobile: cust.altPhone || '',
-            dob: cust.dob || '',
-            gender: cust.gender || 'Male',
-            fatherHusbandName: cust.fatherName || '',
-            occupation: cust.occupation || '',
-            monthlyIncome: cust.monthlyIncome || '',
-            branch: cust.branch || '',
-            area: cust.area || '',
-            agent: cust.agent || '',
-            photo: cust.photo || null,
-            houseNumber: cust.houseNumber || '',
-            street: cust.street || '',
-            villageCity: cust.villageCity || '',
-            landmark: cust.landmark || '',
-            district: cust.district || '',
-            state: cust.state || 'Uttar Pradesh',
-            pinCode: cust.pinCode || '',
-            aadhaarNumber: cust.aadhaarNo || '',
-            panNumber: cust.panNo || '',
-            bankName: cust.bank?.name || '',
-            bankAccountNo: cust.bank?.accountNo || '',
-            bankIfsc: cust.bank?.ifsc || '',
-            chequeUpload: cust.bank?.cheque || null,
-            aadhaarFront: cust.aadhaarFront || null,
-            aadhaarBack: cust.aadhaarBack || null,
-            panUpload: cust.panUpload || null,
-            signature: cust.signature || null,
-            guarantorPhoto: guar.photo || null,
-            guarantorName: guar.name || '',
-            guarantorMobile: guar.phone || '',
-            guarantorRelation: guar.relation || '',
-            guarantorAddress: guar.address || '',
-            guarantorAadhaar: guar.aadhaar || '',
-            guarantorAadhaarFront: guar.aadhaarFront || null,
-            guarantorAadhaarBack: guar.aadhaarBack || null,
-            nomineeName: nom.name || '',
-            nomineeMobile: nom.phone || '',
-            nomineeRelation: nom.relation || '',
-            nomineeAge: nom.age || '',
-            nomineeShare: nom.share || '100%',
-            nomineePhoto: nom.photo || null,
-            nomineeAadhaarFront: nom.aadhaarFront || null,
-            nomineeAadhaarBack: nom.aadhaarBack || null
-          });
-          if (draftAccount.draftStep) {
-            setCurrentStep(Number(draftAccount.draftStep));
-          }
-        }
-      }
-    }
-  }, [location.search]);
+  // Draft restore from localStorage removed — registrations are live-only.
 
-  // Auto-save draft state to accounts_database_v2 as a Pending draft
-  useEffect(() => {
-    let draftId = new URLSearchParams(location.search).get('draftId');
-    if (!draftId) {
-      draftId = localStorage.getItem('current_registration_draft_id');
-      if (!draftId) {
-        draftId = `DFT-${Math.floor(1000 + Math.random() * 9000)}`;
-        localStorage.setItem('current_registration_draft_id', draftId);
-      }
-    }
-
-    const dbSaved = localStorage.getItem('accounts_database_v2');
-    let db = {};
-    if (dbSaved) {
-      db = JSON.parse(dbSaved);
-    } else {
-      db = defaultAccounts;
-    }
-
-    // Skip saving empty form
-    if (!formData.fullName && !formData.mobile && currentStep === 1) {
-      return;
-    }
-
-    db[draftId] = {
-      accNo: draftId,
-      type: formData.accountType,
-      accountStatus: 'Pending',
-      approvedDate: null,
-      todayStatus: 'Pending',
-      planName: formData.accountType === 'Saving' ? 'Daily Pragati Savings' : 'Vyapar Vriddhi Loan',
-      planId: formData.planId,
-      approvedAmt: parseFloat(formData.customAmount) || 0,
-      disbursedAmt: parseFloat(formData.customAmount) * 0.98 || 0,
-      processingFee: parseFloat(formData.customProcessingFee) || 0,
-      interestRate: formData.customRate || '12%',
-      disbursalDate: null,
-      totalPaid: 0,
-      outstanding: parseFloat(formData.customAmount) || 0,
-      emiAmt: parseFloat(formData.accountType === 'Saving' ? formData.customDailyDeposit : formData.customEmi) || 0,
-      paymentCycle: formData.customFrequency || 'Daily',
-      tenureDays: parseInt(formData.customDuration) || 0,
-      paidDays: 0,
-      nextDueDate: 'Draft Form',
-      pendingDue: 0,
-      fine: 0,
-      draftStep: currentStep,
-      customer: {
-        id: `c_${draftId}`,
-        name: formData.fullName || 'Draft Customer',
-        phone: formData.mobile || '',
-        altPhone: formData.altMobile || '',
-        dob: formData.dob || '',
-        gender: formData.gender || 'Male',
-        fatherName: formData.fatherHusbandName || '',
-        occupation: formData.occupation || '',
-        monthlyIncome: formData.monthlyIncome || '',
-        branch: formData.branch || 'Main Branch - Lucknow',
-        area: formData.area || '',
-        agent: formData.agent || '',
-        photo: formData.photo || null,
-        houseNumber: formData.houseNumber,
-        street: formData.street,
-        villageCity: formData.villageCity,
-        landmark: formData.landmark,
-        district: formData.district,
-        state: formData.state || 'Uttar Pradesh',
-        pinCode: formData.pinCode,
-        aadhaarNo: formData.aadhaarNumber || '',
-        panNo: formData.panNumber || '',
-        bank: {
-          name: formData.bankName,
-          accountNo: formData.bankAccountNo,
-          ifsc: formData.bankIfsc,
-          cheque: formData.chequeUpload
-        },
-        aadhaarFront: formData.aadhaarFront,
-        aadhaarBack: formData.aadhaarBack,
-        panUpload: formData.panUpload,
-        signature: formData.signature
-      },
-      guarantor: {
-        name: formData.guarantorName,
-        phone: formData.guarantorMobile,
-        relation: formData.guarantorRelation,
-        address: formData.guarantorAddress,
-        aadhaar: formData.guarantorAadhaar,
-        photo: formData.guarantorPhoto,
-        aadhaarFront: formData.guarantorAadhaarFront,
-        aadhaarBack: formData.guarantorAadhaarBack
-      },
-      nominee: {
-        name: formData.nomineeName,
-        phone: formData.nomineeMobile,
-        relation: formData.nomineeRelation,
-        age: formData.nomineeAge,
-        share: formData.nomineeShare || '100%',
-        photo: formData.nomineePhoto,
-        aadhaarFront: formData.nomineeAadhaarFront,
-        aadhaarBack: formData.nomineeAadhaarBack
-      },
-      ledger: []
-    };
-
-    localStorage.setItem('accounts_database_v2', JSON.stringify(db));
-    localStorage.setItem('customer_registration_draft', JSON.stringify(formData));
-  }, [formData, currentStep, location.search]);
-
-  useEffect(() => {
-    localStorage.setItem('customer_registration_step', String(currentStep));
-  }, [currentStep]);
+  // Draft auto-save to localStorage (accounts_database_v2) removed —
+  // no app data is kept in localStorage; everything lives on the server.
 
   useEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -834,7 +361,7 @@ export default function CustomerRegistration() {
           planId: '',
           startDate: getTodayDateString(),
           customAmount: '',
-          customRate: localStorage.getItem('custom_interest_rate') || '',
+          customRate: '',
           customDuration: '',
           customDurationUnit: 'Days',
           customFrequency: 'Daily',
@@ -941,7 +468,7 @@ export default function CustomerRegistration() {
       () => {
         setFormData({
           accountType: 'Loan', planId: '', startDate: getTodayDateString(),
-          customAmount: '', customRate: localStorage.getItem('custom_interest_rate') || '', customDuration: '', customDurationUnit: 'Days', customFrequency: 'Daily', customType: 'Flat', customEmi: '', customProcessingFee: '0', customPenalty: '0', customDailyDeposit: '', customMaturity: '',
+          customAmount: '', customRate: '', customDuration: '', customDurationUnit: 'Days', customFrequency: 'Daily', customType: 'Flat', customEmi: '', customProcessingFee: '0', customPenalty: '0', customDailyDeposit: '', customMaturity: '',
           fullName: '', mobile: '', altMobile: '', dob: '', gender: 'Male',
           fatherHusbandName: '', occupation: '', monthlyIncome: '',
           branch: '', area: '', agent: '', photo: null,
@@ -950,8 +477,6 @@ export default function CustomerRegistration() {
           guarantorPhoto: null, guarantorName: '', guarantorMobile: '', guarantorRelation: '', guarantorAddress: '', guarantorAadhaar: '', guarantorAadhaarFront: null, guarantorAadhaarBack: null
         });
         setCurrentStep(1);
-        localStorage.removeItem('customer_registration_draft');
-        localStorage.removeItem('customer_registration_step');
       }
     );
   };
@@ -1071,7 +596,7 @@ export default function CustomerRegistration() {
       } else if (durationUnit === 'Years') {
         date.setFullYear(date.getFullYear() + duration);
       }
-      return date.toISOString().split('T')[0];
+      return date.toLocaleDateString('sv-SE');
     }
     if (freq === 'Daily') {
       date.setDate(date.getDate() + duration);
@@ -1084,7 +609,7 @@ export default function CustomerRegistration() {
         date.setDate(0);
       }
     }
-    return date.toISOString().split('T')[0];
+    return date.toLocaleDateString('sv-SE');
   };
 
   const planEndDate = selectedPlan && formData.startDate
@@ -1201,7 +726,7 @@ export default function CustomerRegistration() {
     : 0;
 
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
-  const isKycFieldRequired = userRole !== 'Super Admin' && localStorage.getItem('mandatory_kyc') !== 'false';
+  const isKycFieldRequired = userRole !== 'Super Admin' && liveSettings.mandatory_kyc !== false;
 
   const isStep1Valid = () => {
     if (!formData.accountType || !formData.planId || !formData.startDate) return false;
@@ -1228,7 +753,7 @@ export default function CustomerRegistration() {
   const isStep4Valid = () => {
     const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
     if (userRole === 'Super Admin') return true;
-    const isKycMandatory = localStorage.getItem('mandatory_kyc') !== 'false';
+    const isKycMandatory = liveSettings.mandatory_kyc !== false;
     if (!isKycMandatory) return true;
     return formData.aadhaarNumber && formData.panNumber && formData.bankName && formData.bankAccountNo && formData.bankIfsc;
   };
@@ -1384,7 +909,7 @@ export default function CustomerRegistration() {
       else if (!formData.state) { missingField = 'state'; missingLabel = 'State'; }
       else if (!formData.pinCode) { missingField = 'pinCode'; missingLabel = 'PIN Code'; }
     } else if (currentStep === 4) {
-      const isKycMandatory = localStorage.getItem('mandatory_kyc') !== 'false';
+      const isKycMandatory = liveSettings.mandatory_kyc !== false;
       const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
       if (userRole !== 'Super Admin' && isKycMandatory) {
         if (!formData.aadhaarNumber) { missingField = 'aadhaarNumber'; missingLabel = 'Aadhaar Number'; }
@@ -1415,6 +940,53 @@ export default function CustomerRegistration() {
 
   const handleBack = () => {
     setCurrentStep(prev => prev - 1);
+  };
+
+  // Uploads captured KYC images (base64 data URLs) to the server after
+  // registration so documents live in the backend, not the browser.
+  const uploadKycDocuments = (customerId, data) => {
+    const dataUrlToBlob = (dataUrl) => {
+      try {
+        const [head, body] = dataUrl.split(',');
+        const mime = (head.match(/data:(.*?);base64/) || [])[1] || 'image/jpeg';
+        const bin = atob(body);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+      } catch {
+        return null;
+      }
+    };
+
+    // Keys aadhaar_front / aadhaar_back / pan / cheque update customer_kyc
+    // paths on the backend; the rest are stored in customer_documents.
+    const docs = {
+      aadhaar_front: data.aadhaarFront,
+      aadhaar_back: data.aadhaarBack,
+      pan: data.panUpload,
+      cheque: data.chequeUpload,
+      photo: data.photo,
+      signature: data.signature,
+      guarantor_photo: data.guarantorPhoto,
+      guarantor_aadhaar_front: data.guarantorAadhaarFront,
+      guarantor_aadhaar_back: data.guarantorAadhaarBack
+    };
+
+    const fd = new FormData();
+    let count = 0;
+    Object.entries(docs).forEach(([key, val]) => {
+      if (val && typeof val === 'string' && val.startsWith('data:')) {
+        const blob = dataUrlToBlob(val);
+        if (blob) {
+          const ext = blob.type === 'image/png' ? 'png' : 'jpg';
+          fd.append(key, blob, `${key}.${ext}`);
+          count++;
+        }
+      }
+    });
+
+    if (count === 0) return Promise.resolve();
+    return customerApi.uploadDocs(customerId, fd);
   };
 
   const handleSubmit = (e, print = false) => {
@@ -1518,6 +1090,17 @@ export default function CustomerRegistration() {
 
     customerApi.register(payload)
       .then(res => {
+        // Push captured KYC documents to the server (non-blocking)
+        const newCustomerId = res.data?.customer_id;
+        if (newCustomerId) {
+          uploadKycDocuments(newCustomerId, formData)
+            .catch(() => {
+              showWarning(
+                'Document Upload Failed',
+                'Customer was registered, but KYC documents could not be uploaded. Please re-upload them from the customer profile.'
+              );
+            });
+        }
         showSuccess(
           print ? 'Registration Saved & Print Sent' : 'Registration Completed',
           print 
@@ -1532,7 +1115,7 @@ export default function CustomerRegistration() {
         setCurrentStep(1);
         setFormData({
           accountType: 'Loan', planId: '', startDate: getTodayDateString(),
-          customAmount: '', customRate: localStorage.getItem('custom_interest_rate') || '', customDuration: '', customDurationUnit: 'Days', customFrequency: 'Daily', customType: 'Flat', customEmi: '', customProcessingFee: '0', customPenalty: '0', customDailyDeposit: '', customMaturity: '',
+          customAmount: '', customRate: '', customDuration: '', customDurationUnit: 'Days', customFrequency: 'Daily', customType: 'Flat', customEmi: '', customProcessingFee: '0', customPenalty: '0', customDailyDeposit: '', customMaturity: '',
           fullName: '', mobile: '', altMobile: '', dob: '', gender: 'Male',
           fatherHusbandName: '', occupation: '', monthlyIncome: '', 
           branch: lastBranch, 
@@ -1544,12 +1127,82 @@ export default function CustomerRegistration() {
           guarantorPhoto: null, guarantorName: '', guarantorMobile: '', guarantorRelation: '', guarantorAddress: '',
           guarantorAadhaar: '', guarantorAadhaarFront: null, guarantorAadhaarBack: null
         });
-        localStorage.removeItem('customer_registration_draft');
-        localStorage.removeItem('customer_registration_step');
       })
       .catch(err => {
         showWarning('Registration Failed', err.message || 'Server error occurred during customer onboarding.');
       });
+  };
+
+  const [activeUploadDoc, setActiveUploadDoc] = useState(null); // { name, key, fileInputId }
+  const [cameraTargetKey, setCameraTargetKey] = useState(null);
+  const [videoStream, setVideoStream] = useState(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const videoRef = useRef(null);
+
+  const startCamera = async (key) => {
+    setCameraTargetKey(key);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      setVideoStream(stream);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 300);
+    } catch (err) {
+      alert("Camera access denied or not available: " + err.message);
+      setCameraTargetKey(null);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      setVideoStream(null);
+    }
+    setCameraTargetKey(null);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && cameraTargetKey) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      
+      if (facingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      
+      setFormData(prev => ({ ...prev, [cameraTargetKey]: dataUrl }));
+      stopCamera();
+    }
+  };
+
+  const toggleCameraFacing = async () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newMode }
+      });
+      setVideoStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error toggling camera: ", err);
+    }
   };
 
   const stepsList = [
@@ -1561,7 +1214,7 @@ export default function CustomerRegistration() {
     { num: 6, name: 'Review & Save' }
   ];
 
-  const isRegistrationAllowed = localStorage.getItem('allow_registrations') !== 'false';
+  const isRegistrationAllowed = liveSettings.allow_registrations !== false;
 
   if (!isRegistrationAllowed) {
     return (
@@ -1584,8 +1237,8 @@ export default function CustomerRegistration() {
   return (
     <div className="w-full space-y-6">
       {/* Visual Stepper Progress Bar */}
-      <div className="bg-white p-5 rounded-2xl border border-border-fin shadow-sm overflow-x-auto">
-        <div className="flex items-center justify-between min-w-[650px] px-2">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-border-fin shadow-sm overflow-hidden md:overflow-visible">
+        <div className="flex items-center justify-between w-full md:min-w-[650px] px-2">
           {stepsList.map((step, idx) => (
             <React.Fragment key={step.num}>
               <div 
@@ -1616,7 +1269,7 @@ export default function CustomerRegistration() {
                     step.num
                   )}
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider text-center transition-colors ${
+                <span className={`text-[10px] font-bold uppercase tracking-wider text-center transition-colors hidden md:block ${
                   currentStep === step.num
                     ? (formData.accountType === 'Saving' ? 'text-[#B45309]' : 'text-primary')
                     : 'text-[#64748B] group-hover:text-primary-text'
@@ -1625,7 +1278,7 @@ export default function CustomerRegistration() {
                 </span>
               </div>
               {idx < stepsList.length - 1 && (
-                <div className="flex-1 h-[2px] bg-[#E2E8F0] relative -top-3">
+                <div className="flex-1 h-[2px] bg-[#E2E8F0] relative top-0 md:-top-3">
                   <div className="absolute top-0 left-0 bottom-0 bg-[#16A34A] transition-all duration-500" style={{
                     width: currentStep > step.num ? '100%' : '0%'
                   }}></div>
@@ -1633,6 +1286,11 @@ export default function CustomerRegistration() {
               )}
             </React.Fragment>
           ))}
+        </div>
+        <div className="text-center mt-3.5 md:hidden">
+          <span className="text-[10px] font-black uppercase tracking-wider text-primary">
+            Step {currentStep} of 6: {stepsList[currentStep - 1].name}
+          </span>
         </div>
       </div>
 
@@ -1667,8 +1325,8 @@ export default function CustomerRegistration() {
         {/* Step 1: Account Setup */}
         {currentStep === 1 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-              <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+            <div className="md:col-span-2 bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                   <h3 className="text-base font-bold text-primary-text">Account Setup</h3>
                   <button
@@ -1708,7 +1366,7 @@ export default function CustomerRegistration() {
                             ...prev, 
                             planId: val,
                             customAmount: '',
-                            customRate: localStorage.getItem('custom_interest_rate') || '',
+                            customRate: '',
                             customDuration: '',
                             customDurationUnit: 'Days',
                             customFrequency: 'Daily',
@@ -1794,7 +1452,6 @@ export default function CustomerRegistration() {
                           onChange={(e) => {
                             const val = e.target.value;
                             setFormData(prev => ({ ...prev, customRate: val }));
-                            localStorage.setItem('custom_interest_rate', val);
                           }}
                           className="w-full px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                         />
@@ -1819,7 +1476,7 @@ export default function CustomerRegistration() {
                             onChange={(e) => setFormData(prev => ({ ...prev, customDuration: e.target.value }))}
                             className="flex-1 min-w-0 px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                           />
-                          <div className="w-32">
+                          <div className="w-36 flex-shrink-0">
                             <Select
                               options={[
                                 { value: 'Days', label: 'Days' },
@@ -1902,9 +1559,6 @@ export default function CustomerRegistration() {
                           onChange={(e) => {
                             const val = e.target.value;
                             setFormData(prev => ({ ...prev, customRate: val }));
-                            if (formData.planId === 'custom') {
-                              localStorage.setItem('custom_interest_rate', val);
-                            }
                           }}
                           className="w-full px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                         />
@@ -1919,7 +1573,7 @@ export default function CustomerRegistration() {
                             onChange={(e) => setFormData(prev => ({ ...prev, customDuration: e.target.value }))}
                             className="flex-1 min-w-0 px-4 py-3 bg-slate-50/50 border border-border-fin rounded-xl text-sm font-semibold text-primary-text placeholder-secondary-text/60 focus:outline-none focus:bg-white focus:border-primary/45 focus:ring-4 focus:ring-primary/5 transition-all"
                           />
-                            <div className="w-32">
+                            <div className="w-36 flex-shrink-0">
                               <Select
                                 options={[
                                   { value: 'Days', label: 'Days' },
@@ -1969,7 +1623,7 @@ export default function CustomerRegistration() {
             </div>
 
             {/* Calculations Card */}
-            <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm md:sticky md:top-6 z-20 flex flex-col">
+            <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm md:sticky md:top-6 z-20 flex flex-col">
               <div className="bg-white p-5 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] flex-1 flex flex-col justify-between min-h-[350px]">
                 <div className="flex-1 flex flex-col">
                   <h4 className="text-xs font-bold text-secondary-text uppercase tracking-wider border-b border-[#E2E8F0] pb-2 mb-1">Calculation Summary</h4>
@@ -2076,8 +1730,8 @@ export default function CustomerRegistration() {
 
         {/* Step 2: Customer Details */}
         {currentStep === 2 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">Customer Details</h3>
                 <button
@@ -2093,7 +1747,7 @@ export default function CustomerRegistration() {
               {/* Photo Upload Box */}
               <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
                 <div 
-                  onClick={() => document.getElementById('customer-photo-upload').click()}
+                  onClick={() => setActiveUploadDoc({ name: 'Customer Profile Photo', key: 'photo', fileInputId: 'customer-photo-upload' })}
                   className="w-24 h-24 rounded-2xl border-2 border-dashed border-[#CBD5E1] hover:border-primary flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-all relative overflow-hidden group"
                 >
                   {formData.photo ? (
@@ -2328,8 +1982,8 @@ export default function CustomerRegistration() {
 
         {/* Step 3: Address */}
         {currentStep === 3 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">Address</h3>
                 <button
@@ -2440,8 +2094,8 @@ export default function CustomerRegistration() {
 
         {/* Step 4: KYC */}
         {currentStep === 4 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">KYC Verification</h3>
                 <button
@@ -2536,7 +2190,7 @@ export default function CustomerRegistration() {
                 ].map((doc) => (
                   <div 
                     key={doc.key} 
-                    onClick={() => document.getElementById(`file-upload-${doc.key}`).click()}
+                    onClick={() => setActiveUploadDoc({ name: doc.name, key: doc.key, fileInputId: `file-upload-${doc.key}` })}
                     className="border border-border-fin rounded-xl p-4 bg-background-fin flex flex-col items-center text-center cursor-pointer hover:border-primary hover:bg-slate-50/50 hover:shadow-sm transition-all relative overflow-hidden group min-h-[120px] justify-center"
                   >
                     {formData[doc.key] ? (
@@ -2579,8 +2233,8 @@ export default function CustomerRegistration() {
 
         {/* Step 5: Guarantor/Nominee */}
         {currentStep === 5 && (
-          <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-            <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+          <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+            <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-6 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
               <div className="flex justify-between items-center border-b border-border-fin pb-3 mb-3">
                 <h3 className="text-base font-bold text-primary-text">
                   {formData.accountType === 'Saving' ? 'Nominee Details' : 'Guarantor Details'}
@@ -2597,7 +2251,7 @@ export default function CustomerRegistration() {
 
               <div className="flex flex-col sm:flex-row items-center gap-4 py-2">
                 <div 
-                  onClick={() => document.getElementById('guarantor-photo-upload').click()}
+                  onClick={() => setActiveUploadDoc({ name: formData.accountType === 'Saving' ? 'Nominee Photo' : 'Guarantor Photo', key: 'guarantorPhoto', fileInputId: 'guarantor-photo-upload' })}
                   className="w-20 h-20 rounded-2xl border-2 border-dashed border-[#CBD5E1] hover:border-primary flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-all relative overflow-hidden group"
                 >
                   {formData.guarantorPhoto ? (
@@ -2730,7 +2384,7 @@ export default function CustomerRegistration() {
                   <div className="flex flex-wrap gap-4">
                     {/* Aadhaar Front */}
                     <div 
-                      onClick={() => document.getElementById('guarantor-aadhaar-front-input').click()}
+                      onClick={() => setActiveUploadDoc({ name: formData.accountType === 'Saving' ? 'Nominee Aadhaar Front' : 'Guarantor Aadhaar Front', key: 'guarantorAadhaarFront', fileInputId: 'guarantor-aadhaar-front-input' })}
                       className="border border-border-fin rounded-xl p-4 bg-background-fin flex flex-col items-center text-center cursor-pointer hover:border-primary hover:bg-slate-50/50 hover:shadow-sm transition-all relative overflow-hidden group min-h-[100px] justify-center w-48"
                     >
                       {formData.guarantorAadhaarFront ? (
@@ -2768,7 +2422,7 @@ export default function CustomerRegistration() {
 
                     {/* Aadhaar Back */}
                     <div 
-                      onClick={() => document.getElementById('guarantor-aadhaar-back-input').click()}
+                      onClick={() => setActiveUploadDoc({ name: formData.accountType === 'Saving' ? 'Nominee Aadhaar Back' : 'Guarantor Aadhaar Back', key: 'guarantorAadhaarBack', fileInputId: 'guarantor-aadhaar-back-input' })}
                       className="border border-border-fin rounded-xl p-4 bg-background-fin flex flex-col items-center text-center cursor-pointer hover:border-primary hover:bg-slate-50/50 hover:shadow-sm transition-all relative overflow-hidden group min-h-[100px] justify-center w-48"
                     >
                       {formData.guarantorAadhaarBack ? (
@@ -2813,8 +2467,8 @@ export default function CustomerRegistration() {
         {/* Step 6: Review */}
         {currentStep === 6 && (
           <div className="space-y-6">
-            <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-              <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+            <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <h3 className="text-base font-bold text-primary-text border-b border-border-fin pb-3 mb-2">Account & Plan Summary</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-xs font-semibold">
                   <div>
@@ -2884,8 +2538,8 @@ export default function CustomerRegistration() {
               </div>
             </div>
 
-            <div className="bg-[#F8FAFC]/80 p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
-              <div className="bg-white p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
+            <div className="bg-[#F8FAFC]/80 p-1 sm:p-2.5 rounded-[2rem] border border-[#E2E8F0] shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-[calc(2rem-0.625rem)] space-y-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]">
                 <h3 className="text-base font-bold text-primary-text border-b border-border-fin pb-3 mb-2">Customer Summary</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-semibold">
                   <div>
@@ -2995,12 +2649,12 @@ export default function CustomerRegistration() {
 
         {/* Stepper Wizard Controls */}
         <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-border-fin shadow-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {currentStep > 1 && (
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex items-center gap-2 px-5 py-3 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
+                className="flex items-center gap-1 px-3 py-2.5 sm:px-5 sm:py-3 border border-border-fin hover:bg-background-fin text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
               >
                 <span className="material-symbols-rounded text-sm select-none">arrow_back</span>
                 Back
@@ -3010,10 +2664,11 @@ export default function CustomerRegistration() {
             <button
               type="button"
               onClick={resetEntireForm}
-              className="flex items-center gap-2 px-4 py-3 border border-danger-fin/20 text-danger-fin hover:bg-danger-fin/5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
+              className="flex items-center gap-1 px-3 py-2.5 sm:px-4 sm:py-3 border border-danger-fin/20 text-danger-fin hover:bg-danger-fin/5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-95"
             >
               <span className="material-symbols-rounded text-sm select-none">restart_alt</span>
-              Reset Entire Form
+              <span className="hidden sm:inline">Reset Entire Form</span>
+              <span className="sm:hidden">Reset</span>
             </button>
           </div>
 
@@ -3021,7 +2676,7 @@ export default function CustomerRegistration() {
             <button
               type="button"
               onClick={handleNext}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/95 shadow-sm active:scale-[0.98] rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-1 px-4 py-2.5 sm:px-6 sm:py-3 bg-primary text-white hover:bg-primary/95 shadow-sm active:scale-[0.98] rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer"
             >
               Next
               <span className="material-symbols-rounded text-sm select-none">arrow_forward</span>
@@ -3118,6 +2773,104 @@ export default function CustomerRegistration() {
         </div>
       )}
 
+      {/* Choice Modal (Camera vs File) */}
+      {activeUploadDoc && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200 animate-fade-in">
+          <div className="bg-white rounded-[2rem] border border-border-fin max-w-sm w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center border-b border-border-fin pb-2">
+              <h4 className="text-sm font-black text-primary-text">{activeUploadDoc.name}</h4>
+              <button 
+                type="button" 
+                onClick={() => setActiveUploadDoc(null)} 
+                className="text-secondary-text hover:text-primary-text cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-lg select-none">close</span>
+              </button>
+            </div>
+            <p className="text-[11px] font-bold text-secondary-text">Select how you want to upload this document:</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const key = activeUploadDoc.key;
+                  setActiveUploadDoc(null);
+                  startCamera(key);
+                }}
+                className="flex flex-col items-center justify-center p-4 border border-border-fin hover:border-primary bg-background-fin hover:bg-slate-50/50 rounded-xl gap-2 font-bold text-xs text-primary-text cursor-pointer transition-all active:scale-[0.97]"
+              >
+                <span className="material-symbols-rounded text-2xl text-primary">photo_camera</span>
+                Take Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const inputId = activeUploadDoc.fileInputId;
+                  setActiveUploadDoc(null);
+                  setTimeout(() => {
+                    document.getElementById(inputId).click();
+                  }, 100);
+                }}
+                className="flex flex-col items-center justify-center p-4 border border-border-fin hover:border-primary bg-background-fin hover:bg-slate-50/50 rounded-xl gap-2 font-bold text-xs text-primary-text cursor-pointer transition-all active:scale-[0.97]"
+              >
+                <span className="material-symbols-rounded text-2xl text-success-fin">upload_file</span>
+                Upload File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HTML5 Camera Overlay Modal */}
+      {cameraTargetKey && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[60] flex flex-col items-center justify-center p-4 transition-all duration-200">
+          <div className="bg-slate-950 rounded-2xl overflow-hidden max-w-md w-full relative flex flex-col shadow-2xl border border-slate-800 animate-scale-up">
+            {/* Video stream container */}
+            <div className="relative aspect-[3/4] bg-black flex items-center justify-center">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+              />
+              {/* Helper overlay box for framing the ID card */}
+              <div className="absolute inset-8 border-2 border-dashed border-white/50 rounded-lg pointer-events-none flex items-center justify-center">
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest bg-black/40 px-2.5 py-1 rounded-full">Frame Document Here</span>
+              </div>
+            </div>
+            
+            {/* Camera Controls */}
+            <div className="p-5 bg-slate-900 flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-4 py-2 border border-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              
+              {/* Capture circle button */}
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="w-14 h-14 bg-white hover:bg-slate-100 rounded-full flex items-center justify-center shadow-lg border-4 border-slate-800 active:scale-90 transition-all cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-full border border-slate-950 bg-white" />
+              </button>
+              
+              {/* Switch camera toggle button */}
+              <button
+                type="button"
+                onClick={toggleCameraFacing}
+                className="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center text-white cursor-pointer active:scale-95 transition-all"
+                title="Switch Camera"
+              >
+                <span className="material-symbols-rounded text-lg select-none">flip_camera_ios</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Custom themed warning/validation modal */}
       {warningDialog.isOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200 animate-fade-in">

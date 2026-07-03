@@ -57,7 +57,7 @@ export function Select({
   };
 
   return (
-    <div className={`relative ${compact ? 'w-auto min-w-[140px] shrink-0' : 'w-full'} text-left`} ref={wrapperRef}>
+    <div className={`relative ${compact ? 'w-full md:w-auto md:min-w-[140px] md:shrink-0' : 'w-full'} text-left`} ref={wrapperRef}>
       {label && (
         <label className="block text-xs font-bold text-secondary-text mb-1.5 uppercase tracking-wider">
           {label} {required && <span className="text-danger-fin">*</span>}
@@ -71,7 +71,7 @@ export function Select({
           compact ? 'px-3.5 py-2 text-xs font-bold' : 'px-4 py-3 text-sm font-medium'
         }`}
       >
-        <span className={selectedOption ? 'text-primary-text font-bold' : 'text-secondary-text'}>
+        <span className={`truncate text-left min-w-0 ${selectedOption ? 'text-primary-text font-bold' : 'text-secondary-text'}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <span className="material-symbols-rounded text-sm text-secondary-text select-none ml-2">
@@ -84,7 +84,7 @@ export function Select({
           openUp ? 'bottom-full mb-1.5 origin-bottom animate-scale-up' : 'top-full mt-1.5 origin-top animate-[scaleIn_0.2s_ease-out]'
         }`}>
           {searchable && (
-            <div className="p-2 border-b border-border-fin sticky top-0 bg-surface z-10">
+            <div className="p-2 border-b border-border-fin sticky top-0 bg-surface z-10 rounded-t-xl">
               <div className="relative flex items-center">
                 <span className="material-symbols-rounded absolute left-3 text-sm text-secondary-text pointer-events-none select-none">
                   search
@@ -101,7 +101,7 @@ export function Select({
             </div>
           )}
 
-          <div className="py-1">
+          <div className="py-0">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => (
                 <button
@@ -109,6 +109,8 @@ export function Select({
                   type="button"
                   onClick={() => handleSelect(opt.value)}
                   className={`w-full text-left px-4 py-2.5 text-xs transition-colors duration-150 flex items-center justify-between font-bold cursor-pointer ${
+                    !searchable ? 'first:rounded-t-xl' : ''
+                  } last:rounded-b-xl ${
                     opt.value === value
                       ? 'bg-primary text-surface'
                       : 'text-primary-text hover:bg-background-fin'

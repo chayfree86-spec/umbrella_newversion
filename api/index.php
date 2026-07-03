@@ -111,6 +111,13 @@ try {
     elseif ($uri === '/auth/reset-credentials' && $method === 'POST') {
         AuthController::resetCredentials($db, $input);
     }
+    elseif ($uri === '/auth/branding' && $method === 'GET') {
+        $settings = Setting::getAll($db);
+        Response::success([
+            'company_name' => $settings['company_name'] ?? 'Umbrella Finance',
+            'company_tagline' => $settings['company_tagline'] ?? 'Chhote Kadam, Bade Sapne'
+        ]);
+    }
     // ----------------------------------------------------------
     // Protected routes — require auth token
     // ----------------------------------------------------------
@@ -333,6 +340,10 @@ try {
             RoleGuard::check($authUser, 'loans.close');
             LoanController::close($db, $authUser, $m[1], $input);
         }
+        elseif (preg_match('#^/loan-accounts/([^/]+)/clear-ledger$#', $uri, $m) && $method === 'POST') {
+            RoleGuard::check($authUser, 'loans.approve');
+            LoanController::clearLedger($db, $authUser, $m[1]);
+        }
 
         // ----------------------------------------------------------
         // SAVING ACCOUNT ROUTES
@@ -377,6 +388,10 @@ try {
         elseif (preg_match('#^/saving-accounts/([^/]+)/close$#', $uri, $m) && $method === 'POST') {
             RoleGuard::check($authUser, 'savings.close');
             SavingController::close($db, $authUser, $m[1], $input);
+        }
+        elseif (preg_match('#^/saving-accounts/([^/]+)/clear-ledger$#', $uri, $m) && $method === 'POST') {
+            RoleGuard::check($authUser, 'savings.approve');
+            SavingController::clearLedger($db, $authUser, $m[1]);
         }
 
         // ----------------------------------------------------------
@@ -455,10 +470,14 @@ try {
         // REPORT ROUTES
         // ----------------------------------------------------------
         elseif ($uri === '/reports/dashboard' && $method === 'GET') {
-            ReportController::dashboard($db, $authUser);
+            // ReportController::dashboard does not exist; the dashboard
+            // summary lives in DashboardController
+            DashboardController::summary($db, $authUser);
         }
         elseif ($uri === '/reports/daily-collection' && $method === 'GET') {
-            RoleGuard::check($authUser, 'reports.view');
+            // collections.view (not reports.view) so agents can load their own
+            // daily ledger — the controller already scopes data to the agent
+            RoleGuard::check($authUser, 'collections.view');
             ReportController::dailyCollection($db, $authUser);
         }
         elseif ($uri === '/reports/branch-wise' && $method === 'GET') {

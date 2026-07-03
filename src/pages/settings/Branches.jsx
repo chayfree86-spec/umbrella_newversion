@@ -115,14 +115,14 @@ export default function Branches() {
     <div className="space-y-6">
       <SettingsNavigation />
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5">
         <div>
-          <h3 className="text-base font-bold text-primary-text">Branches Settings</h3>
-          <p className="text-xs text-secondary-text">Configure operational rules, stop registrations, or freeze collections per branch</p>
+          <h3 className="text-base font-bold text-primary-text mb-0.5">Branches Settings</h3>
+          <p className="text-xs text-secondary-text leading-snug">Configure operational rules, stop registrations, or freeze collections per branch</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-surface rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all cursor-pointer"
         >
           <span className="material-symbols-rounded text-sm select-none">add</span>
           Add New Branch
@@ -130,17 +130,18 @@ export default function Branches() {
       </div>
 
       {/* Branches List Table */}
-      <div className="bg-surface rounded-2xl border border-border-fin shadow-sm overflow-hidden">
+      <div className="lg:bg-surface lg:rounded-2xl lg:border lg:border-border-fin lg:shadow-sm lg:overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border-fin">
+          {/* Desktop Table View */}
+          <table className="hidden lg:table min-w-full divide-y divide-border-fin">
             <thead className="bg-background-fin">
               <tr>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Branch Code</th>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Branch Name</th>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">City</th>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Branch Manager</th>
-                <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Onboarding Policy</th>
-                <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Collections Policy</th>
+                <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Onboarding</th>
+                <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Collections</th>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-[11px] font-bold text-secondary-text uppercase tracking-wider">Actions</th>
               </tr>
@@ -215,12 +216,109 @@ export default function Branches() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Card List View */}
+        <div className="block lg:hidden space-y-4">
+          {(() => {
+            const sortedBranches = [...branches].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+            const paginatedBranches = sortedBranches.slice((currentPage - 1) * 20, currentPage * 20);
+
+            if (paginatedBranches.length === 0) {
+              return (
+                <div className="bg-surface border border-border-fin rounded-2xl p-8 text-center text-xs text-secondary-text shadow-sm">
+                  No branches found.
+                </div>
+              );
+            }
+
+            return paginatedBranches.map((b) => (
+              <div key={b.id} className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5">
+                {/* Title & Code */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-xs font-bold text-primary-text block">{b.name}</span>
+                    <span className="text-[10px] text-secondary-text font-bold uppercase tracking-wider">Code: {b.code}</span>
+                  </div>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                    b.status === 'Active' ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#DC2626]/10 text-[#DC2626]'
+                  }`}>
+                    {b.status}
+                  </span>
+                </div>
+
+                {/* Details: City, Manager, Onboarding, Collections */}
+                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-secondary-text bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">City</span>
+                    <span className="text-primary-text block">{b.city || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider">Manager</span>
+                    <span className="text-primary-text block">{b.manager_name || 'Not Assigned'}</span>
+                  </div>
+                  <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider mb-1">Onboarding</span>
+                    <button
+                      onClick={() => togglePolicy(b, 'allow_registrations')}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
+                        b.allow_registrations 
+                          ? 'bg-[#16A34A]/10 text-[#16A34A]' 
+                          : 'bg-[#DC2626]/10 text-[#DC2626]'
+                      }`}
+                    >
+                      <span className="material-symbols-rounded text-[10px] select-none">
+                        {b.allow_registrations ? 'check_circle' : 'cancel'}
+                      </span>
+                      {b.allow_registrations ? 'Allowed' : 'Suspended'}
+                    </button>
+                  </div>
+                  <div className="border-t border-slate-100/80 pt-1.5 mt-0.5">
+                    <span className="text-secondary-text/60 block text-[8px] uppercase tracking-wider mb-1">Collections</span>
+                    <button
+                      onClick={() => togglePolicy(b, 'allow_collections')}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8.5px] font-extrabold tracking-wider uppercase transition-all cursor-pointer ${
+                        b.allow_collections 
+                          ? 'bg-[#16A34A]/10 text-[#16A34A]' 
+                          : 'bg-[#DC2626]/10 text-[#DC2626]'
+                      }`}
+                    >
+                      <span className="material-symbols-rounded text-[10px] select-none">
+                        {b.allow_collections ? 'check_circle' : 'cancel'}
+                      </span>
+                      {b.allow_collections ? 'Allowed' : 'Suspended'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Actions Row */}
+                <div className="flex justify-end items-center">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenEdit(b)}
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                      title="Edit Branch"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(b)}
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                      title="Delete Branch"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">delete</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
         <Pagination 
           currentPage={currentPage}
           totalPages={Math.ceil(branches.length / 20)}
           onPageChange={setCurrentPage}
         />
-      </div>
 
       {/* Add / Edit Form Modal */}
       {showForm && (

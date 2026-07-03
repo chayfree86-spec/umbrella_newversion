@@ -8,13 +8,16 @@ class CollectionController {
         $branchId = $_GET['branch_id'] ?? null;
         $agentId = $_GET['agent_id'] ?? null;
         $date = $_GET['date'] ?? date('Y-m-d');
+        // Optional date range (Reports page sends start_date/end_date)
+        $startDate = $_GET['start_date'] ?? $date;
+        $endDate = $_GET['end_date'] ?? $date;
 
         if ($authUser['role_slug'] === 'agent') {
             $agentId = $authUser['agent_id'];
         }
 
-        $bind = ['date' => $date];
-        $whereSql = "WHERE lc.collection_date = :date AND lc.is_reversal = 0";
+        $bind = ['start_date' => $startDate, 'end_date' => $endDate];
+        $whereSql = "WHERE lc.collection_date BETWEEN :start_date AND :end_date AND lc.is_reversal = 0";
 
         if ($branchId) {
             $whereSql .= " AND lc.branch_id = :branch_id";

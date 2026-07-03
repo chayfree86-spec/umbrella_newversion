@@ -65,7 +65,7 @@ function MonthPicker({ value, onChange }) {
   };
 
   return (
-    <div className="relative" ref={wrapperRef}>
+    <div className="relative w-full sm:w-auto" ref={wrapperRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -234,13 +234,13 @@ export default function FundManagement() {
   // Capital Form
   const [investorName, setInvestorName] = useState('');
   const [capitalAmount, setCapitalAmount] = useState('');
-  const [capitalDate, setCapitalDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [capitalDate, setCapitalDate] = useState(() => new Date().toLocaleDateString('sv-SE'));
   const [capitalSource, setCapitalSource] = useState('Self');
   const [capitalNote, setCapitalNote] = useState('');
 
   // Transfer Form
   const [transferAmount, setTransferAmount] = useState('');
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transferDate, setTransferDate] = useState(() => new Date().toLocaleDateString('sv-SE'));
   const [transferNote, setTransferNote] = useState('');
   const [transferType, setTransferType] = useState('saving_to_loan');
 
@@ -301,7 +301,7 @@ export default function FundManagement() {
     setSelectedTxn(txn);
     setEditAmount(String(txn.amount));
     setEditNote(txn.desc || txn.description || '');
-    setEditDate(txn.entry_date || txn.date || new Date().toISOString().slice(0, 10));
+    setEditDate(txn.entry_date || txn.date || new Date().toLocaleDateString('sv-SE'));
     setShowEditCapitalModal(true);
   };
 
@@ -326,8 +326,8 @@ export default function FundManagement() {
       .catch(err => alert(err.message || 'Failed to update transaction.'));
   };
 
-  const handleDeleteClick = (id) => {
-    if (window.confirm('Are you sure you want to delete this transaction? This will also revert its impact from the cash book and capital pool.')) {
+  const handleDeleteClick = async (id) => {
+    if (await window.confirm('Are you sure you want to delete this transaction? This will also revert its impact from the cash book and capital pool.')) {
       fundApi.deleteTransaction(id)
         .then(() => {
           fetchData();
@@ -353,8 +353,8 @@ export default function FundManagement() {
   return (
     <div className="w-full space-y-8 py-2">
       {/* Header with Buttons */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 w-full">
           {/* Month/Year Filter (Custom MonthPicker) */}
           <MonthPicker
             value={monthFilter}
@@ -364,7 +364,7 @@ export default function FundManagement() {
           {/* Type Filter */}
           <Select
             options={[
-              { value: 'all', label: 'All Transaction Types' },
+              { value: 'all', label: 'All' },
               { value: 'capital', label: 'Capital Additions' },
               { value: 'transfer', label: 'Fund Transfers' },
               { value: 'deposit', label: 'Savings Deposits' }
@@ -375,43 +375,45 @@ export default function FundManagement() {
             searchable={false}
           />
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={() => setShowTransferModal(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#64748B] rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-[0.97]"
           >
             <span className="material-symbols-rounded text-sm select-none">swap_horiz</span>
-            Internal Fund Transfer
+            <span className="hidden sm:inline">Internal Fund Transfer</span>
+            <span className="sm:hidden">Transfer</span>
           </button>
           <button
             onClick={() => setShowAddCapitalModal(true)}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 transition-all cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#1E3A8A] text-white rounded-xl text-xs font-bold hover:bg-[#1E3A8A]/90 transition-all cursor-pointer active:scale-[0.97]"
           >
             <span className="material-symbols-rounded text-sm select-none">add</span>
-            Add Capital / Investment
+            <span className="hidden sm:inline">Add Capital / Investment</span>
+            <span className="sm:hidden">Add Capital</span>
           </button>
         </div>
       </div>
 
       {/* Funds Summary Matrix Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Card 1: Total Capital */}
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Total Capital</span>
             <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">account_balance</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#0F172A]">{inr(totalCapital)}</h3>
+          <h3 className="text-base sm:text-lg font-extrabold text-[#0F172A]">{inr(totalCapital)}</h3>
           <p className="text-[9px] text-[#64748B]">Owner & Investors Equity</p>
         </div>
 
         {/* Card 2: Savings Balance */}
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Savings Balance</span>
             <span className="material-symbols-rounded text-base text-[#D97706] select-none">savings</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#D97706]">{inr(totalSavings)}</h3>
+          <h3 className="text-base sm:text-lg font-extrabold text-[#D97706]">{inr(totalSavings)}</h3>
           <p className="text-[9px] text-[#64748B] leading-snug">
             Available Cash: <span className="font-bold text-slate-800">{inr(availableSavingsCash)}</span>
             {netSavingsTransferred > 0 && (
@@ -423,22 +425,22 @@ export default function FundManagement() {
         </div>
 
         {/* Card 3: Loans Disbursed */}
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Active Loans</span>
             <span className="material-symbols-rounded text-base text-[#EA580C] select-none">credit_score</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#EA580C]">{inr(totalDisbursed)}</h3>
+          <h3 className="text-base sm:text-lg font-extrabold text-[#EA580C]">{inr(totalDisbursed)}</h3>
           <p className="text-[9px] text-[#64748B]">Out on field</p>
         </div>
 
         {/* Card 4: Available Loan Fund */}
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Available Loan Fund</span>
             <span className="material-symbols-rounded text-base text-[#16A34A] select-none">payments</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#16A34A]">{inr(availableLoanFund)}</h3>
+          <h3 className="text-base sm:text-lg font-extrabold text-[#16A34A]">{inr(availableLoanFund)}</h3>
           <p className="text-[9px] text-[#64748B] leading-snug">
             {netSavingsTransferred > 0 ? (
               <>
@@ -454,26 +456,34 @@ export default function FundManagement() {
         </div>
 
         {/* Card 5: Overall Cash Balance */}
-        <div className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 col-span-2 lg:col-span-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#E2E8F0] shadow-sm space-y-2 col-span-2 lg:col-span-1">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Overall Cash</span>
             <span className="material-symbols-rounded text-base text-[#1E3A8A] select-none">wallet</span>
           </div>
-          <h3 className="text-lg font-extrabold text-[#1E3A8A]">{inr(overallCashBalance)}</h3>
+          <h3 className="text-base sm:text-lg font-extrabold text-[#1E3A8A]">{inr(overallCashBalance)}</h3>
           <p className="text-[9px] text-[#64748B]">Total actual cash in hand</p>
         </div>
       </div>
 
       {/* Transaction History Log */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden space-y-4 p-6">
-        <div>
+      <div className="lg:bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-sm lg:overflow-hidden lg:p-6 lg:space-y-4">
+        {/* Title Header: Visible on Desktop, Hidden on Mobile */}
+        <div className="hidden lg:block">
           <h3 className="text-sm font-bold text-[#0F172A]">Fund Transaction Logs</h3>
           <p className="text-xs text-[#64748B]">Audit log of capital additions, internal transfers, and allocations</p>
         </div>
 
-        <div className="overflow-x-auto -mx-6">
+        {/* Title Header: Visible on Mobile, styled as a standalone card */}
+        <div className="block lg:hidden bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-4 mb-4">
+          <h3 className="text-sm font-bold text-[#0F172A]">Fund Transaction Logs</h3>
+          <p className="text-xs text-[#64748B]">Audit log of capital additions, internal transfers, and allocations</p>
+        </div>
+
+        <div className="overflow-x-auto lg:-mx-6">
           <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full divide-y divide-[#E2E8F0]">
+            {/* Desktop Table View */}
+            <table className="hidden lg:table min-w-full divide-y divide-[#E2E8F0]">
               <thead className="bg-[#F8FAFC]">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Date</th>
@@ -545,6 +555,77 @@ export default function FundManagement() {
             </table>
           </div>
         </div>
+
+        {/* Mobile Card List View */}
+        <div className="block lg:hidden space-y-4">
+          {(() => {
+            const sorted = [...filteredTransactions].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+            const paginated = sorted.slice((currentPage - 1) * 20, currentPage * 20);
+
+            if (paginated.length === 0) {
+              return (
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 text-center text-xs text-[#64748B] shadow-sm">
+                  {loading ? 'Loading transactions...' : 'No matching transactions found.'}
+                </div>
+              );
+            }
+
+            return paginated.map((txn) => (
+              <div key={txn.id} className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm space-y-3">
+                {/* Header Row: Date & Badge */}
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-secondary-text">{txn.transaction_date || txn.date}</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                    (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') ? 'bg-[#1E3A8A]/10 text-[#1E3A8A]' :
+                    (txn.transaction_type || txn.type || '').includes('Transfer') ? 'bg-[#FFC107]/10 text-[#D97706]' :
+                    (txn.transaction_type || txn.type || '').includes('Deposit') ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#64748B]/10 text-[#64748B]'
+                  }`}>
+                    {txn.transaction_type || txn.type}
+                  </span>
+                </div>
+
+                {/* Middle Row: Description & Amount */}
+                <div className="flex justify-between items-start gap-4">
+                  <span className="text-xs font-semibold text-primary-text break-words line-clamp-2 max-w-[70%]">
+                    {txn.description || txn.desc}
+                  </span>
+                  <span className={`text-xs font-black whitespace-nowrap ${
+                    (txn.transaction_type || txn.type || '').includes('Capital') || (txn.transaction_type || txn.type || '').includes('Funding') || (txn.transaction_type || txn.type || '').includes('Deposit')
+                      ? 'text-success-fin'
+                      : 'text-danger-fin'
+                  }`}>
+                    {inr(txn.amount)}
+                  </span>
+                </div>
+
+                {/* Footer Row: Ref No, User, and Actions */}
+                <div className="flex justify-between items-center text-[10px] font-bold">
+                  <div className="flex flex-col gap-0.5 text-secondary-text">
+                    <span>Ref: {txn.reference_no || txn.ref || 'N/A'}</span>
+                    <span className="font-semibold text-secondary-text/80">By: {txn.created_by || txn.user}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleEditClick(txn)}
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                      title="Edit Transaction"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(txn.id)}
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
+                      title="Delete Transaction"
+                    >
+                      <span className="material-symbols-rounded text-sm select-none">delete</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+
         <Pagination 
           currentPage={currentPage}
           totalPages={Math.ceil(filteredTransactions.length / 20)}
