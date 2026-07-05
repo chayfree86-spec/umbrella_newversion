@@ -200,7 +200,7 @@ CREATE TABLE `customers` (
   `branch_id` INT UNSIGNED NOT NULL,
   `area_id` INT UNSIGNED NOT NULL,
   `agent_id` INT UNSIGNED NOT NULL,
-  `status` ENUM('Active','Inactive','Blocked') DEFAULT 'Active',
+  `status` ENUM('Active','Blocked','Deactive') DEFAULT 'Active',
   `created_by` INT UNSIGNED DEFAULT NULL,
   `updated_by` INT UNSIGNED DEFAULT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,

@@ -811,29 +811,43 @@ export default function AccountDetails() {
     }
 
     // Calendar rule: only the LAST (most recent) payment stays editable.
-    // Older paid days are locked — no action can be taken on them here.
-    if (['Paid', 'Advance', 'Settled'].includes(dayObj.status)) {
-      const latest = (account.ledger || [])[0];
-      const latestDateStr = latest && latest.date ? String(latest.date).slice(0, 10) : null;
-      if (dayObj.status !== 'Settled' && latest && latestDateStr === clickedDateStr) {
-        // Agar last payment ki date se pehle ke installments unpaid hain,
-        // to yeh day bhi lock — pehle purane dues clear hone chahiye.
-        const hasEarlierUnpaid = (statementData.installments || []).some(inst => {
-          const dueStr = String(inst.due_date || '').slice(0, 10);
-          return dueStr && dueStr < clickedDateStr && inst.status !== 'Paid';
-        });
-        if (hasEarlierUnpaid) {
-          alert('This day is locked. Installments before this date are still unpaid — please collect the pending dues first. The last payment can be edited from the Detailed Transaction Ledger below.');
-          return;
-        }
+    // Works for both loans and savings — ledger[0].date is collection_date
+    // for loans and deposit_date for savings.
+    const latest = (account.ledger || [])[0];
+    const latestDateStr = latest && latest.date ? String(latest.date).slice(0, 10) : null;
+
+    // Last payment ki date se PEHLE ke saare din locked — na collection,
+    // na edit. Purane dues aaj ki date se hi collect honge (FIFO).
+    if (latest && latestDateStr && clickedDateStr < latestDateStr) {
+      const lastPayLabel = new Date(latestDateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      alert(`This day is locked. The last payment was recorded on ${lastPayLabel} — dates before it cannot be used for collection or editing. Pending dues will be adjusted automatically when you collect on the current date.`);
+      return;
+    }
+
+    if (latest && latestDateStr === clickedDateStr) {
+      // Click on the last payment's date — regardless of the day's own
+      // paid/unpaid status. If any installment BEFORE this date is still
+      // unpaid, the day stays locked until older dues are cleared.
+      const hasEarlierUnpaid = (statementData.installments || []).some(inst => {
+        const dueStr = String(inst.due_date || '').slice(0, 10);
+        return dueStr && dueStr < clickedDateStr && inst.status !== 'Paid';
+      });
+      if (hasEarlierUnpaid) {
+        alert('This day is locked. Installments before this date are still unpaid — please collect the pending dues first. The last payment can be edited from the Detailed Transaction Ledger below.');
+        return;
+      }
+      if (['Paid', 'Advance'].includes(dayObj.status)) {
         if (userRole === 'Super Admin' || userRole === 'Admin') {
           handleOpenUpdateModal(latest);
         } else {
           alert('Only an administrator can edit the last payment.');
         }
-      } else {
-        alert('This day is locked. Only the most recent payment can be edited or reset.');
+        return;
       }
+      // Day ka apna due abhi baki hai aur pehle ka sab clear — collect flow chalega
+    } else if (['Paid', 'Advance', 'Settled'].includes(dayObj.status)) {
+      // Older paid days: no action can be taken on them from the calendar
+      alert('This day is locked. Only the most recent payment can be edited or reset.');
       return;
     }
 
