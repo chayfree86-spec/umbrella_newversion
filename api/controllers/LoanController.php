@@ -535,6 +535,15 @@ class LoanController {
                 WHERE id = :id
             ")->execute(['id' => $account['id']]);
 
+            // Find minimum cash book ID that will be deleted
+            $stmtMin = $db->prepare("
+                SELECT MIN(id) FROM cash_book 
+                WHERE reference_type = 'loan_collection' 
+                  AND reference_no IN (SELECT receipt_no FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection')
+            ");
+            $stmtMin->execute(['acc_no' => $account['loan_account_no']]);
+            $minId = $stmtMin->fetchColumn();
+
             // Delete central receipts
             $db->prepare("DELETE FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection'")
                ->execute(['acc_no' => $account['loan_account_no']]);
@@ -542,11 +551,39 @@ class LoanController {
             // Delete from cash book
             $db->prepare("
                 DELETE FROM cash_book 
-                WHERE reference_type = 'loan_collection' AND branch_id = :branch_id AND entry_date >= :start_date
-            ")->execute([
-                'branch_id' => $account['branch_id'],
-                'start_date' => $account['start_date']
-            ]);
+                WHERE reference_type = 'loan_collection' 
+                  AND reference_no IN (SELECT receipt_no FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection')
+            ")->execute(['acc_no' => $account['loan_account_no']]);
+
+            // Recalculate cash book running balances
+            if ($minId) {
+                $stmtPrev = $db->prepare("
+                    SELECT balance_after FROM cash_book 
+                    WHERE branch_id = :branch_id AND id < :min_id 
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $stmtPrev->execute(['branch_id' => $account['branch_id'], 'min_id' => $minId]);
+                $runningBalance = (float)($stmtPrev->fetchColumn() ?: 0);
+
+                $stmtNext = $db->prepare("
+                    SELECT id, entry_type, amount FROM cash_book 
+                    WHERE branch_id = :branch_id AND id >= :min_id 
+                    ORDER BY id ASC
+                ");
+                $stmtNext->execute(['branch_id' => $account['branch_id'], 'min_id' => $minId]);
+                $nextEntries = $stmtNext->fetchAll();
+
+                $stmtUpdate = $db->prepare("UPDATE cash_book SET balance_after = :bal WHERE id = :id");
+                foreach ($nextEntries as $entry) {
+                    $amt = (float)$entry['amount'];
+                    if ($entry['entry_type'] === 'credit') {
+                        $runningBalance += $amt;
+                    } else {
+                        $runningBalance -= $amt;
+                    }
+                    $stmtUpdate->execute(['bal' => $runningBalance, 'id' => $entry['id']]);
+                }
+            }
 
             $db->commit();
             AuditLog::log($db, $authUser['id'], 'clear_loan_ledger', 'loan_accounts', $account['id']);

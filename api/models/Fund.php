@@ -34,8 +34,19 @@ class Fund {
         // Total savings represents the actual sum of customer accounts (liability)
         $totalSavings = $customerSavings;
 
+        // Fetch Expense Totals to deduct from Available Funds
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expense_type = 'Saving Balance'");
+        $stmt->execute();
+        $savingExpenses = (float)$stmt->fetchColumn();
+
+        $stmt = $db->prepare("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE expense_type = 'Loan Balance'");
+        $stmt->execute();
+        $loanExpenses = (float)$stmt->fetchColumn();
+
+        $overallExpenses = $savingExpenses + $loanExpenses;
+
         // Available cash in the savings pool
-        $availableSavingsCash = max(0.0, $customerSavings - $netSavingsTransferred);
+        $availableSavingsCash = max(0.0, $customerSavings - $netSavingsTransferred - $savingExpenses);
 
         // Total Disbursed Loans (Approved principal)
         $stmt = $db->prepare("SELECT COALESCE(SUM(principal_amount), 0) FROM loan_accounts WHERE account_status NOT IN ('Processing', 'Rejected') AND deleted_at IS NULL");
@@ -57,14 +68,14 @@ class Fund {
         $stmt->execute();
         $principalRepaid = $stmt->fetchColumn();
 
-        // Overall Cash Balance = (Capital + Savings + Interest + Penalties + Principal Repaid) - Disbursed
+        // Overall Cash Balance = (Capital + Savings + Interest + Penalties + Principal Repaid) - Disbursed - Expenses
         // Using $rawTotalCapital + $availableSavingsCash is mathematically identical to ($totalCapital + $customerSavings)
-        $overallCash = ($totalCapital + $customerSavings + $interestReceived + $penaltiesReceived + $principalRepaid) - $totalDisbursed;
+        $overallCash = ($totalCapital + $customerSavings + $interestReceived + $penaltiesReceived + $principalRepaid) - $totalDisbursed - $overallExpenses;
 
         // Loan pool size (includes pure capital + net transfers from savings)
         $loanPool = $totalCapital + $netSavingsTransferred;
 
-        $availableLoanFund = max(0.0, $loanPool - $totalDisbursed + $principalRepaid + $interestReceived + $penaltiesReceived);
+        $availableLoanFund = max(0.0, $loanPool - $totalDisbursed + $principalRepaid + $interestReceived + $penaltiesReceived - $loanExpenses);
 
         return [
             'totalCapital' => (float)$totalCapital,

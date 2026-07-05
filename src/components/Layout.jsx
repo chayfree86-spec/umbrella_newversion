@@ -262,6 +262,7 @@ export function Layout({ children }) {
     { name: 'Registration', path: '/register', icon: 'person_add' },
     { name: 'Accounts', path: '/collection', icon: 'assignment_ind' },
     { name: 'Daily Collection', path: '/daily-collection', icon: 'payments' },
+    { name: 'Expense', path: '/expense', icon: 'receipt_long' },
     { name: 'Reports', path: '/reports', icon: 'description' },
     { name: 'Funds Management', path: '/funds', icon: 'account_balance_wallet' }
   ];
@@ -271,6 +272,7 @@ export function Layout({ children }) {
     if (location.pathname === '/register') return 'Customer Registration (Stepper)';
     if (location.pathname === '/collection') return 'Accounts Directory';
     if (location.pathname === '/daily-collection') return 'Daily Collection Dashboard';
+    if (location.pathname === '/expense') return 'Expense Management';
     if (location.pathname === '/funds') return 'Capital & Fund Management';
     if (location.pathname === '/reports') return 'Financial Reports & Ledger';
     if (location.pathname.startsWith('/customer')) return 'Customer Profile';

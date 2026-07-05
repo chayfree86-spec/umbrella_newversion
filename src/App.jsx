@@ -9,6 +9,7 @@ import CustomerProfile from './pages/CustomerProfile';
 import AccountDetails from './pages/AccountDetails';
 import Reports from './pages/Reports';
 import FundManagement from './pages/FundManagement';
+import Expense from './pages/Expense';
 import General from './pages/settings/General';
 import Users from './pages/settings/Users';
 import Policies from './pages/settings/Policies';
@@ -115,6 +116,7 @@ export default function App() {
             <Route path="/daily-collection" element={<Collection />} />
             <Route path="/funds" element={<FundManagement />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/expense" element={<Expense />} />
             <Route path="/customer/:id" element={<CustomerProfile />} />
             <Route path="/account/:accNo" element={<AccountDetails />} />
             

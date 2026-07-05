@@ -94,15 +94,22 @@ export default function Reports() {
             inr(row.ActualCollected),
             row.PerformanceRate || '0%'
           ];
-        case 'cashbook':
+        case 'cashbook': {
+          const balAfter = Number(row.Balance || 0);
+          const amt = Number(row.Amount || 0);
+          const isCredit = (row.Type || '').toLowerCase() === 'credit';
+          const balBefore = isCredit ? (balAfter - amt) : (balAfter + amt);
           return [
             row.Date || 'N/A',
             row.RefNo || 'N/A',
             row.Particulars || row.Category || 'N/A',
-            (row.Type || '').toLowerCase() === 'credit' ? 'Credit' : 'Debit',
-            (row.Type || '').toLowerCase() === 'debit' ? inr(row.Amount) : '-',
-            (row.Type || '').toLowerCase() === 'credit' ? inr(row.Amount) : '-'
+            isCredit ? 'Credit' : 'Debit',
+            inr(balBefore),
+            isCredit ? '-' : inr(row.Amount),
+            isCredit ? inr(row.Amount) : '-',
+            inr(balAfter)
           ];
+        }
         case 'maturity':
           return [
             row.MaturityDate || new Date().toLocaleDateString('sv-SE'),
@@ -312,7 +319,7 @@ export default function Reports() {
         { value: 'Credit', label: 'Credit Only' },
         { value: 'Debit', label: 'Debit Only' }
       ],
-      columns: ['Transaction Date', 'Txn Ref ID', 'Particulars/Account', 'Ledger Type', 'Debit Amount', 'Credit Amount']
+      columns: ['Transaction Date', 'Txn Ref ID', 'Particulars/Account', 'Ledger Type', 'Before Balance', 'Debit Amount', 'Credit Amount', 'After Balance']
     },
     maturity: {
       title: 'Maturity & Payout Logs',

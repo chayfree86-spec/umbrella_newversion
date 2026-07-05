@@ -413,9 +413,9 @@ export default function FundManagement() {
             <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Savings Balance</span>
             <span className="material-symbols-rounded text-base text-[#D97706] select-none">savings</span>
           </div>
-          <h3 className="text-base sm:text-lg font-extrabold text-[#D97706]">{inr(totalSavings)}</h3>
+          <h3 className="text-base sm:text-lg font-extrabold text-[#D97706]">{inr(availableSavingsCash)}</h3>
           <p className="text-[9px] text-[#64748B] leading-snug">
-            Available Cash: <span className="font-bold text-slate-800">{inr(availableSavingsCash)}</span>
+            Customer Deposits: <span className="font-bold text-slate-800">{inr(totalSavings)}</span>
             {netSavingsTransferred > 0 && (
               <span className="block text-[8px] text-[#EA580C] font-semibold mt-0.5">
                 (Transferred {inr(netSavingsTransferred)} to Loan)
@@ -748,7 +748,7 @@ export default function FundManagement() {
               {transferType === 'saving_to_loan' ? (
                 <div className="p-3.5 bg-amber-500/10 rounded-2xl border border-amber-500/20 space-y-0.5">
                    <span className="text-[10px] text-secondary-text block font-bold uppercase tracking-wider">Available Savings Cash</span>
-                   <span className="text-lg font-extrabold text-amber-600">{inr(totalSavings)}</span>
+                   <span className="text-lg font-extrabold text-amber-600">{inr(availableSavingsCash)}</span>
                 </div>
                ) : (
                 <div className="p-3.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 space-y-0.5">

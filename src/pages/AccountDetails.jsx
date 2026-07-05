@@ -183,6 +183,8 @@ export default function AccountDetails() {
               : null;
             
             accData.customer = {
+              id: custData.id,
+              status: custData.status || 'Active',
               name: custData.full_name || 'N/A',
               occupation: custData.occupation || 'Business',
               phone: custData.mobile || 'N/A',
@@ -578,6 +580,31 @@ export default function AccountDetails() {
         navigate('/collection');
       })
       .catch(err => alert(err.message || 'Deletion failed.'));
+  };
+
+  // Customer profile ko Active/Deactive toggle karna (title row button)
+  const handleToggleCustomerStatus = async () => {
+    const current = account.customer?.status || 'Active';
+    const next = current === 'Active' ? 'Deactive' : 'Active';
+    if (!(await window.confirm(`Change customer profile status from ${current} to ${next}?`))) return;
+    customerApi.setStatus(account.customer_id, next)
+      .then(() => {
+        alert(`Customer profile is now ${next}.`);
+        fetchAccount();
+      })
+      .catch(err => alert(err.message || 'Status update failed.'));
+  };
+
+  // HARD delete — sirf Processing account wale profile; DB se customer aur
+  // usase judi saari rows (accounts, KYC, docs, guarantor) permanently clear
+  const handleHardDeleteProfile = async () => {
+    if (!(await window.confirm('PERMANENT DELETE: This will erase the customer profile and ALL related records (accounts, KYC, documents, guarantors) from the database. This cannot be undone. Continue?'))) return;
+    customerApi.delete(account.customer_id)
+      .then(() => {
+        alert('Customer profile permanently deleted.');
+        navigate('/collection');
+      })
+      .catch(err => alert(err.message || 'Delete failed.'));
   };
 
   const handleAddLoan = (e) => {
@@ -1509,7 +1536,38 @@ export default function AccountDetails() {
         </div>
 
         {/* Quick Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {(userRole === 'Super Admin' || userRole === 'Admin') && account.customer_id && (
+            <>
+              {/* Customer profile Active/Deactive toggle */}
+              <button
+                onClick={handleToggleCustomerStatus}
+                title={`Customer profile status: ${account.customer?.status || 'Active'} — click to ${((account.customer?.status || 'Active') === 'Active') ? 'deactivate' : 'activate'}`}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5 border ${
+                  (account.customer?.status || 'Active') === 'Active'
+                    ? 'bg-[#16A34A]/10 text-[#16A34A] border-[#16A34A]/25 hover:bg-[#16A34A]/20'
+                    : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                <span className="material-symbols-rounded text-sm select-none">
+                  {(account.customer?.status || 'Active') === 'Active' ? 'how_to_reg' : 'person_off'}
+                </span>
+                {(account.customer?.status || 'Active') === 'Active' ? 'Active' : 'Deactive'}
+              </button>
+
+              {/* HARD delete — sirf Processing account par */}
+              {accStatus === 'Processing' && (
+                <button
+                  onClick={handleHardDeleteProfile}
+                  title="Permanently delete this customer profile and everything related to it"
+                  className="px-4 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-rounded text-sm select-none">delete_forever</span>
+                  Delete Profile
+                </button>
+              )}
+            </>
+          )}
           {['Approved', 'Active', 'Defaulter', 'NPA'].includes(accStatus) ? (
             <>
               <Link
@@ -1836,6 +1894,13 @@ export default function AccountDetails() {
                   height: 14px !important;
                 }
               }
+              @media (min-width: 1024px) {
+                .calendar-icon {
+                  font-size: 18px !important;
+                  width: 18px !important;
+                  height: 18px !important;
+                }
+              }
             `}</style>
             <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-[#F1F5F9] pb-3.5">
               <div className="flex items-center gap-3">
@@ -1910,152 +1975,152 @@ export default function AccountDetails() {
                 Account approved on <strong className="text-[#0F172A]">{new Date(account.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>. No EMI schedule before this date.
               </div>
             ) : (
-            <>
-            {/* Grid Calendar representation */}
-            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider mb-2">
-              <div>Mon</div>
-              <div>Tue</div>
-              <div>Wed</div>
-              <div>Thu</div>
-              <div>Fri</div>
-              <div>Sat</div>
-              <div>Sun</div>
-            </div>
+            <div className="w-full space-y-2">
+              {/* Grid Calendar representation */}
+              <div className="grid grid-cols-7 gap-2 text-center text-[10px] sm:text-xs font-extrabold text-[#64748B] uppercase tracking-wider mb-2">
+                <div>Mon</div>
+                <div>Tue</div>
+                <div>Wed</div>
+                <div>Thu</div>
+                <div>Fri</div>
+                <div>Sat</div>
+                <div>Sun</div>
+              </div>
 
-            <div className="grid grid-cols-7 gap-1 sm:gap-2.5">
-              {/* Padding Offset Cells */}
-              {Array.from({ length: startOffset }).map((_, idx) => (
-                <div key={`empty-${idx}`} className="aspect-square h-auto sm:h-20 bg-slate-50/30 border border-dashed border-slate-100 rounded-xl"></div>
-              ))}
+              <div className="grid grid-cols-7 gap-1 sm:gap-2.5">
+                {/* Padding Offset Cells */}
+                {Array.from({ length: startOffset }).map((_, idx) => (
+                  <div key={`empty-${idx}`} className="aspect-square h-auto sm:aspect-[4/3] sm:h-auto bg-slate-50/30 border border-dashed border-slate-100 rounded-xl"></div>
+                ))}
 
-              {displayDays.map((d, index) => {
-                const isEmpty = d.empty || d.status === null;
-                const isPaid = d.status === 'Paid';
-                const isUnpaid = d.status === 'Unpaid';
-                const isPartial = d.status === 'Partial';
-                const isAdvance = d.status === 'Advance';
-                const isSchedule = d.status === 'Schedule';
-                const isToday = d.dateStr === todayStr;
-                const isStart = d.dateStr === account.start_date;
-                const isEnd = d.dateStr === (isLoan ? account.end_date : account.maturity_date);
-                const isApproved = account.approved_at && d.dateStr === account.approved_at.slice(0, 10);
-                const isClosedDate = account.closed_at && d.dateStr === account.closed_at.slice(0, 10);
+                {displayDays.map((d, index) => {
+                  const isEmpty = d.empty || d.status === null;
+                  const isPaid = d.status === 'Paid';
+                  const isUnpaid = d.status === 'Unpaid';
+                  const isPartial = d.status === 'Partial';
+                  const isAdvance = d.status === 'Advance';
+                  const isSchedule = d.status === 'Schedule';
+                  const isToday = d.dateStr === todayStr;
+                  const isStart = d.dateStr === account.start_date;
+                  const isEnd = d.dateStr === (isLoan ? account.end_date : account.maturity_date);
+                  const isApproved = account.approved_at && d.dateStr === account.approved_at.slice(0, 10);
+                  const isClosedDate = account.closed_at && d.dateStr === account.closed_at.slice(0, 10);
 
-                if (d.empty || d.status === null) {
+                  if (d.empty || d.status === null) {
+                    return (
+                      <div
+                        key={index}
+                        className="aspect-square h-auto sm:aspect-[4/3] sm:h-auto flex flex-col justify-start p-1 sm:p-2.5 lg:p-3 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
+                      >
+                        <span className="text-[10px] sm:text-sm lg:text-lg xl:text-xl font-black text-slate-300">{d.day}</span>
+                      </div>
+                    );
+                  }
+
+                  const isSettled = d.status === 'Settled';
+
                   return (
-                    <div
-                      key={index}
-                      className="aspect-square h-auto sm:h-20 flex flex-col justify-start p-1 sm:p-2 rounded-xl border border-dashed border-slate-100 bg-slate-50/40"
-                    >
-                      <span className="text-[10px] sm:text-sm font-black text-slate-300">{d.day}</span>
-                    </div>
-                  );
-                }
+                      <div
+                        key={index}
+                        onClick={() => handleDayClick(d)}
+                        className={`aspect-square h-auto sm:aspect-[4/3] sm:h-auto flex flex-col justify-between p-1 sm:p-2.5 lg:p-3 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
+                          isClosedDate ? 'ring-2 ring-[#DC2626] border-[#DC2626] shadow-md z-10' : isToday ? 'ring-2 ring-amber-500 border-amber-500 shadow-md z-10' : ''
+                        } ${
+                          isPaid ? 'bg-[#16A34A]/5 border-[#16A34A]/25 text-[#16A34A] hover:bg-[#16A34A]/10' :
+                          isSettled ? 'bg-[#6366F1]/5 border-[#6366F1]/25 text-[#6366F1] hover:bg-[#6366F1]/10' :
+                          isUnpaid ? 'bg-[#E11D48]/5 border-[#E11D48]/25 text-[#E11D48] hover:bg-[#E11D48]/10' :
+                          isPartial ? 'bg-[#FFC107]/5 border-[#FFC107]/25 text-[#D97706] hover:bg-[#FFC107]/10' :
+                          isAdvance ? 'bg-[#7C3AED]/5 border-[#7C3AED]/25 text-[#7C3AED] hover:bg-[#7C3AED]/10' :
+                          'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        {/* Top Row: Date on left, icon indicator on right */}
+                        <div className="flex justify-between items-center w-full min-h-[14px]">
+                          {/* Left: Day Number */}
+                          <span className="text-[10px] sm:text-xs lg:text-lg xl:text-xl font-black text-[#0F172A]">{d.day}</span>
+                          
+                          {/* Right: Badges & Status Icons */}
+                          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                            {isToday && (
+                              <span className="text-[6.5px] sm:text-[8px] lg:text-[10px] xl:text-[11px] bg-amber-500 text-white font-extrabold px-1 lg:px-1.5 py-0.5 rounded select-none leading-none scale-90 lg:scale-100">
+                                <span className="hidden sm:inline">Today</span>
+                                <span className="sm:hidden">T</span>
+                              </span>
+                            )}
+                            {isStart && (
+                              <span className="text-[6.5px] sm:text-[8px] lg:text-[10px] xl:text-[11px] bg-[#16A34A] text-white font-extrabold px-1 lg:px-1.5 py-0.5 rounded select-none leading-none scale-90 lg:scale-100">
+                                <span className="hidden sm:inline">Start</span>
+                                <span className="sm:hidden">S</span>
+                              </span>
+                            )}
+                            {isApproved && (
+                              <span className="text-[6.5px] sm:text-[8px] lg:text-[10px] xl:text-[11px] bg-[#4F46E5] text-white font-extrabold px-1 lg:px-1.5 py-0.5 rounded select-none leading-none scale-90 lg:scale-100">
+                                <span className="hidden sm:inline">Approved</span>
+                                <span className="sm:hidden">A</span>
+                              </span>
+                            )}
+                            {isEnd && (
+                              <span className="text-[6.5px] sm:text-[8px] lg:text-[10px] xl:text-[11px] bg-[#E11D48] text-white font-extrabold px-1 lg:px-1.5 py-0.5 rounded select-none leading-none scale-90 lg:scale-100">
+                                <span className="hidden sm:inline">End</span>
+                                <span className="sm:hidden">E</span>
+                              </span>
+                            )}
+                            {isClosedDate && (
+                              <span className="text-[6.5px] sm:text-[8px] lg:text-[10px] xl:text-[11px] bg-[#DC2626] text-white font-extrabold px-1 lg:px-1.5 py-0.5 rounded select-none leading-none scale-90 lg:scale-100">
+                                <span className="hidden sm:inline">Closed</span>
+                                <span className="sm:hidden">C</span>
+                              </span>
+                            )}
 
-                const isSettled = d.status === 'Settled';
+                            {isPaid && (
+                              <span className="material-symbols-rounded calendar-icon select-none text-[#16A34A] leading-none shrink-0">check_circle</span>
+                            )}
+                            {isSettled && (
+                              <span className="material-symbols-rounded calendar-icon select-none text-[#6366F1] leading-none shrink-0">handshake</span>
+                            )}
+                            {isUnpaid && (
+                              <span className="material-symbols-rounded calendar-icon select-none text-[#E11D48] leading-none shrink-0">cancel</span>
+                            )}
+                            {isPartial && (
+                              <span className="material-symbols-rounded calendar-icon select-none text-[#D97706] leading-none shrink-0">adjust</span>
+                            )}
+                            {isAdvance && (
+                              <span className="material-symbols-rounded calendar-icon select-none text-[#7C3AED] leading-none shrink-0">verified</span>
+                            )}
+                            {isSchedule && d.hasRecord && (
+                              <span className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-[#3B82F6] animate-pulse shrink-0"></span>
+                            )}
+                          </div>
+                        </div>
 
-                return (
-                    <div
-                      key={index}
-                      onClick={() => handleDayClick(d)}
-                      className={`aspect-square h-auto sm:h-20 flex flex-col justify-between p-1 sm:p-2 rounded-xl border relative group transition-all duration-150 shadow-2xs hover:shadow-xs cursor-pointer ${
-                        isClosedDate ? 'ring-2 ring-[#DC2626] border-[#DC2626] shadow-md z-10' : isToday ? 'ring-2 ring-amber-500 border-amber-500 shadow-md z-10' : ''
-                      } ${
-                        isPaid ? 'bg-[#16A34A]/5 border-[#16A34A]/25 text-[#16A34A] hover:bg-[#16A34A]/10' :
-                        isSettled ? 'bg-[#6366F1]/5 border-[#6366F1]/25 text-[#6366F1] hover:bg-[#6366F1]/10' :
-                        isUnpaid ? 'bg-[#E11D48]/5 border-[#E11D48]/25 text-[#E11D48] hover:bg-[#E11D48]/10' :
-                        isPartial ? 'bg-[#FFC107]/5 border-[#FFC107]/25 text-[#D97706] hover:bg-[#FFC107]/10' :
-                        isAdvance ? 'bg-[#7C3AED]/5 border-[#7C3AED]/25 text-[#7C3AED] hover:bg-[#7C3AED]/10' :
-                        'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      {/* Top Row: Date on left, icon indicator on right */}
-                      <div className="flex justify-between items-center w-full min-h-[14px]">
-                        {/* Left: Day Number */}
-                        <span className="text-[10px] sm:text-xs font-black text-[#0F172A]">{d.day}</span>
-                        
-                        {/* Right: Badges & Status Icons */}
-                        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                          {isToday && (
-                            <span className="text-[6.5px] sm:text-[8px] bg-amber-500 text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
-                              <span className="hidden sm:inline">Today</span>
-                              <span className="sm:hidden">T</span>
+                        {/* Middle/Bottom: Display Amount */}
+                        <div className="text-center w-full pb-0.5">
+                          {isSettled ? (
+                            <span className="text-[8px] sm:text-xs lg:text-base xl:text-lg font-black block tracking-wider text-[#6366F1] uppercase">
+                              Settled
                             </span>
-                          )}
-                          {isStart && (
-                            <span className="text-[6.5px] sm:text-[8px] bg-[#16A34A] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
-                              <span className="hidden sm:inline">Start</span>
-                              <span className="sm:hidden">S</span>
+                          ) : isPartial ? (
+                            <span className="text-[7.5px] sm:text-xs lg:text-[16px] xl:text-[18px] font-black block tracking-tight leading-none">
+                              <span className="text-[#D97706]">₹{(d.amt || 0).toLocaleString()}</span>
+                              <span className="text-slate-300 mx-0.5">/</span>
+                              <span className="text-[#E11D48]">₹{Math.max(0, account.emiAmt - (d.amt || 0)).toLocaleString()}</span>
                             </span>
-                          )}
-                          {isApproved && (
-                            <span className="text-[6.5px] sm:text-[8px] bg-[#4F46E5] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
-                              <span className="hidden sm:inline">Approved</span>
-                              <span className="sm:hidden">A</span>
+                          ) : (
+                            <span className={`text-[8.5px] sm:text-xs lg:text-base xl:text-lg font-black block tracking-tight ${
+                              isPaid ? 'text-[#16A34A]' :
+                              isUnpaid ? 'text-[#E11D48]' :
+                              isAdvance ? 'text-[#7C3AED]' :
+                              'text-slate-500'
+                            }`}>
+                              {d.hasRecord ? `₹${(isUnpaid ? account.emiAmt : (d.amt || account.emiAmt)).toLocaleString()}` : ''}
                             </span>
-                          )}
-                          {isEnd && (
-                            <span className="text-[6.5px] sm:text-[8px] bg-[#E11D48] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
-                              <span className="hidden sm:inline">End</span>
-                              <span className="sm:hidden">E</span>
-                            </span>
-                          )}
-                          {isClosedDate && (
-                            <span className="text-[6.5px] sm:text-[8px] bg-[#DC2626] text-white font-extrabold px-1 py-0.5 rounded select-none leading-none scale-90">
-                              <span className="hidden sm:inline">Closed</span>
-                              <span className="sm:hidden">C</span>
-                            </span>
-                          )}
-
-                          {isPaid && (
-                            <span className="material-symbols-rounded calendar-icon select-none text-[#16A34A] leading-none shrink-0">check_circle</span>
-                          )}
-                          {isSettled && (
-                            <span className="material-symbols-rounded calendar-icon select-none text-[#6366F1] leading-none shrink-0">handshake</span>
-                          )}
-                          {isUnpaid && (
-                            <span className="material-symbols-rounded calendar-icon select-none text-[#E11D48] leading-none shrink-0">cancel</span>
-                          )}
-                          {isPartial && (
-                            <span className="material-symbols-rounded calendar-icon select-none text-[#D97706] leading-none shrink-0">adjust</span>
-                          )}
-                          {isAdvance && (
-                            <span className="material-symbols-rounded calendar-icon select-none text-[#7C3AED] leading-none shrink-0">verified</span>
-                          )}
-                          {isSchedule && d.hasRecord && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] animate-pulse shrink-0"></span>
                           )}
                         </div>
                       </div>
-
-                      {/* Middle/Bottom: Display Amount */}
-                      <div className="text-center w-full pb-0.5">
-                        {isSettled ? (
-                          <span className="text-[8px] sm:text-xs font-black block tracking-wider text-[#6366F1] uppercase">
-                            Settled
-                          </span>
-                        ) : isPartial ? (
-                          <span className="text-[7.5px] sm:text-xs font-black block tracking-tight leading-none">
-                            <span className="text-[#D97706]">₹{(d.amt || 0).toLocaleString()}</span>
-                            <span className="text-slate-300 mx-0.5">/</span>
-                            <span className="text-[#E11D48]">₹{Math.max(0, account.emiAmt - (d.amt || 0)).toLocaleString()}</span>
-                          </span>
-                        ) : (
-                          <span className={`text-[8.5px] sm:text-xs font-black block tracking-tight ${
-                            isPaid ? 'text-[#16A34A]' :
-                            isUnpaid ? 'text-[#E11D48]' :
-                            isAdvance ? 'text-[#7C3AED]' :
-                            'text-slate-500'
-                          }`}>
-                            {d.hasRecord ? `₹${(isUnpaid ? account.emiAmt : (d.amt || account.emiAmt)).toLocaleString()}` : ''}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-            </>
             )}
           </div>
         );

@@ -381,6 +381,12 @@ class CustomerController {
             Response::error('Validation error', 422, $errors);
         }
 
+        // Edit form status nahi bhejta — purana status preserve karo, warna
+        // Deactive/Blocked customer edit hote hi wapas Active ho jata tha
+        if (!isset($input['status']) || $input['status'] === '') {
+            $input['status'] = $customer['status'];
+        }
+
         $db->beginTransaction();
         try {
             $input['updated_by'] = $authUser['id'];
@@ -463,29 +469,85 @@ class CustomerController {
         }
     }
 
+    public static function setStatus($db, $authUser, $id, $input) {
+        $customer = Customer::getById($db, $id);
+        if (!$customer) {
+            Response::error('Customer not found.', 404);
+        }
+
+        $status = $input['status'] ?? '';
+        if (!in_array($status, ['Active', 'Blocked', 'Deactive'])) {
+            Response::error('Invalid status. Allowed: Active, Blocked, Deactive.', 422);
+        }
+
+        $stmt = $db->prepare("UPDATE customers SET status = :status, updated_by = :uid WHERE id = :id AND deleted_at IS NULL");
+        $stmt->execute(['status' => $status, 'uid' => $authUser['id'], 'id' => $id]);
+
+        AuditLog::log($db, $authUser['id'], 'set_customer_status', 'customers', $id, ['status' => $customer['status']], ['status' => $status]);
+        Response::success(['status' => $status], "Customer status updated to {$status}.");
+    }
+
     public static function destroy($db, $authUser, $id) {
         $customer = Customer::getById($db, $id);
         if (!$customer) {
             Response::error('Customer not found.', 404);
         }
 
-        // Check if has active loans/savings
-        $stmt = $db->prepare("SELECT COUNT(*) FROM loan_accounts WHERE customer_id = :id AND account_status NOT IN ('Closed','Rejected') AND deleted_at IS NULL");
+        // HARD delete — sirf tab allowed jab customer ke saare accounts
+        // abhi Processing (ya Rejected) me hon, yaani kuch approve nahi hua
+        // aur koi paisa move nahi hua.
+        $stmt = $db->prepare("SELECT COUNT(*) FROM loan_accounts WHERE customer_id = :id AND account_status NOT IN ('Processing','Rejected') AND deleted_at IS NULL");
         $stmt->execute(['id' => $id]);
-        $activeLoans = $stmt->fetchColumn();
+        $approvedLoans = (int)$stmt->fetchColumn();
 
-        $stmt = $db->prepare("SELECT COUNT(*) FROM saving_accounts WHERE customer_id = :id AND account_status NOT IN ('Closed','Rejected') AND deleted_at IS NULL");
+        $stmt = $db->prepare("SELECT COUNT(*) FROM saving_accounts WHERE customer_id = :id AND account_status NOT IN ('Processing','Rejected') AND deleted_at IS NULL");
         $stmt->execute(['id' => $id]);
-        $activeSavings = $stmt->fetchColumn();
+        $approvedSavings = (int)$stmt->fetchColumn();
 
-        if ($activeLoans > 0 || $activeSavings > 0) {
-            Response::error('Cannot delete customer with active loan or saving accounts.', 400);
+        if ($approvedLoans > 0 || $approvedSavings > 0) {
+            Response::error('Profile can only be deleted while all its accounts are still in Processing. This customer has approved/active account(s).', 400);
         }
 
-        Customer::delete($db, $id);
+        // Safety net: koi payment record ho to hard delete block
+        $stmt = $db->prepare("SELECT COUNT(*) FROM loan_collections WHERE customer_id = :id");
+        $stmt->execute(['id' => $id]);
+        $collCount = (int)$stmt->fetchColumn();
 
-        AuditLog::log($db, $authUser['id'], 'delete_customer', 'customers', $id, $customer);
-        Response::success(null, 'Customer deleted successfully.');
+        $stmt = $db->prepare("SELECT COUNT(*) FROM saving_deposits WHERE customer_id = :id");
+        $stmt->execute(['id' => $id]);
+        $depCount = (int)$stmt->fetchColumn();
+
+        if ($collCount > 0 || $depCount > 0) {
+            Response::error('Cannot delete: payment records exist for this customer. Reset the collections first.', 400);
+        }
+
+        $db->beginTransaction();
+        try {
+            // Saving-side children (deposits/maturity par CASCADE nahi hai)
+            $db->prepare("DELETE sm FROM saving_maturity sm JOIN saving_accounts sa ON sm.saving_account_id = sa.id WHERE sa.customer_id = :id")
+               ->execute(['id' => $id]);
+            $db->prepare("DELETE FROM saving_deposits WHERE customer_id = :id")->execute(['id' => $id]);
+            $db->prepare("DELETE FROM loan_collections WHERE customer_id = :id")->execute(['id' => $id]);
+
+            // Accounts — installments FK CASCADE se saath me delete honge
+            $db->prepare("DELETE FROM loan_accounts WHERE customer_id = :id")->execute(['id' => $id]);
+            $db->prepare("DELETE FROM saving_accounts WHERE customer_id = :id")->execute(['id' => $id]);
+
+            // Central receipts + sync trail
+            $db->prepare("DELETE FROM receipts WHERE customer_id = :id")->execute(['id' => $id]);
+            $db->prepare("DELETE FROM sync_events WHERE module = 'customers' AND reference_id = :id")->execute(['id' => $id]);
+
+            // Aakhir me customer row — addresses / kyc / documents / guarantors
+            // FK ON DELETE CASCADE se khud clear ho jayenge
+            $db->prepare("DELETE FROM customers WHERE id = :id")->execute(['id' => $id]);
+
+            $db->commit();
+            AuditLog::log($db, $authUser['id'], 'hard_delete_customer', 'customers', $id, $customer, null);
+            Response::success(null, 'Customer profile and all related records permanently deleted.');
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 500);
+        }
     }
 
     public static function uploadDocuments($db, $authUser, $id) {

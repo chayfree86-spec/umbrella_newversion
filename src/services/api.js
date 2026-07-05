@@ -134,6 +134,7 @@ export const customerApi = {
   delete: (id) => api.delete(`/customers/${id}`),
   search: (q) => api.get(`/customers/search`, { params: { q } }),
   checkMobile: (mobile) => api.get('/customers/check-mobile', { params: { mobile } }),
+  setStatus: (id, status) => api.post(`/customers/${id}/status`, { status }),
   // No manual Content-Type here — the browser must set the multipart
   // boundary itself, otherwise PHP receives an empty $_FILES
   uploadDocs: (id, formData) => api.post(`/customers/${id}/documents`, formData, {
@@ -256,6 +257,16 @@ export const syncApi = {
   notifications: () => api.get('/sync/notifications'),
   markRead: (id) => api.post(`/sync/notifications/${id}/read`),
   markAllRead: () => api.post('/sync/notifications/read-all')
+};
+
+// ============================================================
+// 16. EXPENSE API MODULE
+// ============================================================
+export const expenseApi = {
+  list: (month) => api.get('/expenses', { params: { month } }),
+  create: (data) => api.post('/expenses', data),
+  update: (id, data) => api.put(`/expenses/${id}`, data),
+  delete: (id) => api.delete(`/expenses/${id}`)
 };
 
 export default api;

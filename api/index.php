@@ -43,6 +43,7 @@ require_once __DIR__ . '/models/Fund.php';
 require_once __DIR__ . '/models/Report.php';
 require_once __DIR__ . '/models/SyncEvent.php';
 require_once __DIR__ . '/models/Notification.php';
+require_once __DIR__ . '/models/Expense.php';
 
 // Load Controllers
 require_once __DIR__ . '/controllers/AuthController.php';
@@ -60,6 +61,7 @@ require_once __DIR__ . '/controllers/FundController.php';
 require_once __DIR__ . '/controllers/ReportController.php';
 require_once __DIR__ . '/controllers/DashboardController.php';
 require_once __DIR__ . '/controllers/SyncController.php';
+require_once __DIR__ . '/controllers/ExpenseController.php';
 
 // Apply CORS middleware
 CORS::handle();
@@ -296,6 +298,10 @@ try {
         elseif (preg_match('#^/customers/(\d+)/profile$#', $uri, $m) && $method === 'GET') {
             CustomerController::profile($db, $authUser, $m[1]);
         }
+        elseif (preg_match('#^/customers/(\d+)/status$#', $uri, $m) && $method === 'POST') {
+            RoleGuard::check($authUser, 'customers.edit');
+            CustomerController::setStatus($db, $authUser, $m[1], $input);
+        }
 
         // ----------------------------------------------------------
         // LOAN ACCOUNT ROUTES
@@ -464,6 +470,22 @@ try {
         elseif ($uri === '/funds/cash-balance' && $method === 'GET') {
             RoleGuard::check($authUser, 'funds.view');
             FundController::cashBalance($db, $authUser);
+        }
+
+        // ----------------------------------------------------------
+        // EXPENSE ROUTES
+        // ----------------------------------------------------------
+        elseif ($uri === '/expenses' && $method === 'GET') {
+            ExpenseController::index($db, $authUser);
+        }
+        elseif ($uri === '/expenses' && $method === 'POST') {
+            ExpenseController::store($db, $authUser, $input);
+        }
+        elseif (preg_match('#^/expenses/(\d+)$#', $uri, $m) && $method === 'PUT') {
+            ExpenseController::update($db, $authUser, $m[1], $input);
+        }
+        elseif (preg_match('#^/expenses/(\d+)$#', $uri, $m) && $method === 'DELETE') {
+            ExpenseController::destroy($db, $authUser, $m[1]);
         }
 
         // ----------------------------------------------------------
