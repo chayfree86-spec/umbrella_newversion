@@ -437,6 +437,7 @@ class CollectionController {
                             }
 
                             $allocs[] = [
+                                'installment_id' => (int)$inst['id'],
                                 'due_date' => $inst['due_date'],
                                 'amount' => $allocatedForInst
                             ];
@@ -444,6 +445,7 @@ class CollectionController {
 
                         if ($remainingAmount > 0) {
                             $allocs[] = [
+                                'installment_id' => null,
                                 'due_date' => 'Advance',
                                 'amount' => $remainingAmount
                             ];
@@ -576,6 +578,7 @@ class CollectionController {
                             }
 
                             $allocs[] = [
+                                'installment_id' => (int)$inst['id'],
                                 'due_date' => $inst['due_date'],
                                 'amount' => $allocatedForInst
                             ];
@@ -583,6 +586,7 @@ class CollectionController {
 
                         if ($remainingAmount > 0) {
                             $allocs[] = [
+                                'installment_id' => null,
                                 'due_date' => 'Advance',
                                 'amount' => $remainingAmount
                             ];
@@ -753,6 +757,7 @@ class CollectionController {
                             }
 
                             $allocs[] = [
+                                'installment_id' => (int)$inst['id'],
                                 'due_date' => $inst['due_date'],
                                 'amount' => $allocatedForInst
                             ];
@@ -760,6 +765,7 @@ class CollectionController {
 
                         if ($remainingAmount > 0) {
                             $allocs[] = [
+                                'installment_id' => null,
                                 'due_date' => 'Advance',
                                 'amount' => $remainingAmount
                             ];
@@ -903,6 +909,7 @@ class CollectionController {
                             }
 
                             $allocs[] = [
+                                'installment_id' => (int)$inst['id'],
                                 'due_date' => $inst['due_date'],
                                 'amount' => $allocatedForInst
                             ];
@@ -910,6 +917,7 @@ class CollectionController {
 
                         if ($remainingAmount > 0) {
                             $allocs[] = [
+                                'installment_id' => null,
                                 'due_date' => 'Advance',
                                 'amount' => $remainingAmount
                             ];

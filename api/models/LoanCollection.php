@@ -101,6 +101,7 @@ class LoanCollection {
                 }
 
                 $allocations[] = [
+                    'installment_id' => (int)$instId,
                     'due_date' => $inst['due_date'],
                     'amount' => $allocatedForInst
                 ];
@@ -109,6 +110,7 @@ class LoanCollection {
             if ($remainingAmount > 0) {
                 $isAdvance = 1;
                 $allocations[] = [
+                    'installment_id' => null,
                     'due_date' => 'Advance',
                     'amount' => $remainingAmount
                 ];

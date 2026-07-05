@@ -64,6 +64,7 @@ class SavingDeposit {
                 }
 
                 $allocations[] = [
+                    'installment_id' => (int)$inst['id'],
                     'due_date' => $inst['due_date'],
                     'amount' => $allocatedForInst
                 ];
@@ -72,6 +73,7 @@ class SavingDeposit {
             if ($remaining > 0) {
                 $isAdvance = 1;
                 $allocations[] = [
+                    'installment_id' => null,
                     'due_date' => 'Advance',
                     'amount' => $remaining
                 ];

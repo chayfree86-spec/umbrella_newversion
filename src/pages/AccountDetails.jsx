@@ -810,6 +810,33 @@ export default function AccountDetails() {
       return;
     }
 
+    // Calendar rule: only the LAST (most recent) payment stays editable.
+    // Older paid days are locked — no action can be taken on them here.
+    if (['Paid', 'Advance', 'Settled'].includes(dayObj.status)) {
+      const latest = (account.ledger || [])[0];
+      const latestDateStr = latest && latest.date ? String(latest.date).slice(0, 10) : null;
+      if (dayObj.status !== 'Settled' && latest && latestDateStr === clickedDateStr) {
+        // Agar last payment ki date se pehle ke installments unpaid hain,
+        // to yeh day bhi lock — pehle purane dues clear hone chahiye.
+        const hasEarlierUnpaid = (statementData.installments || []).some(inst => {
+          const dueStr = String(inst.due_date || '').slice(0, 10);
+          return dueStr && dueStr < clickedDateStr && inst.status !== 'Paid';
+        });
+        if (hasEarlierUnpaid) {
+          alert('This day is locked. Installments before this date are still unpaid — please collect the pending dues first. The last payment can be edited from the Detailed Transaction Ledger below.');
+          return;
+        }
+        if (userRole === 'Super Admin' || userRole === 'Admin') {
+          handleOpenUpdateModal(latest);
+        } else {
+          alert('Only an administrator can edit the last payment.');
+        }
+      } else {
+        alert('This day is locked. Only the most recent payment can be edited or reset.');
+      }
+      return;
+    }
+
     const installments = statementData.installments || [];
     const emiAmt = Number(account.emi_amount || account.emiAmt || account.installment_amount || 0);
 
