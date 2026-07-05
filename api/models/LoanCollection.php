@@ -186,6 +186,14 @@ class LoanCollection {
                 'generated_by' => $collectedBy
             ]);
 
+            // Loan fund pool me paisa wapas aaya — history + balance update
+            Fund::applyPoolTxn($db, 'loan_fund', 'credit', 'emi_received', $collectedAmount + $penaltyAmount, [
+                'reference_no' => $receiptNo,
+                'description'  => 'EMI received: ' . $account['loan_account_no'] . ' (' . $receiptNo . ')',
+                'entry_date'   => $collectionDate,
+                'entered_by'   => $collectedBy
+            ]);
+
             // Update loan account balance
             $newPaid = $account['total_paid'] + $collectedAmount;
             $newOutstanding = max(0, $account['outstanding_amount'] - $collectedAmount);
@@ -207,32 +215,6 @@ class LoanCollection {
                 'closed_at' => ($newStatus === 'Closed') ? date('Y-m-d H:i:s') : null,
                 'closed_by' => ($newStatus === 'Closed') ? $collectedBy : null,
                 'id' => $loanAccountId
-            ]);
-
-            // Compute new balance separately
-            $totalIn = $collectedAmount + $penaltyAmount;
-            $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id");
-            $stmtBal->execute(['branch_id' => $account['branch_id']]);
-            $newBal = (float)$stmtBal->fetchColumn() + $totalIn;
-
-            // Write to cash book
-            $stmtCashBook = $db->prepare("
-                INSERT INTO cash_book (
-                    uuid, entry_date, entry_type, category, description, reference_no, reference_type, amount, balance_after, branch_id, entered_by
-                ) VALUES (
-                    :uuid, :entry_date, 'credit', 'Loan Collection', :description, :ref_no, 'loan_collection', :amount,
-                    :balance_after, :branch_id, :entered_by
-                )
-            ");
-            $stmtCashBook->execute([
-                'uuid' => Validator::uuid(),
-                'entry_date' => $collectionDate,
-                'description' => "Received EMI payment for Loan: " . $account['loan_account_no'],
-                'ref_no' => $receiptNo,
-                'amount' => $totalIn,
-                'balance_after' => $newBal,
-                'branch_id' => $account['branch_id'],
-                'entered_by' => $collectedBy
             ]);
 
             // Create Sync Event

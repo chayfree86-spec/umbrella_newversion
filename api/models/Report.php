@@ -142,44 +142,64 @@ class Report {
     }
 
     public static function cashBook($db, $startDate = null, $endDate = null, $branchId = null) {
+        // Cash book ab fund_loan_history + fund_saving_history se banta hai
+        // (fund pools global hain — branch filter yahan lagoo nahi hota).
+        // Internal transfers ki twin credit/debit entries running balance me
+        // net-zero hoti hain — overall cash sahi rehta hai.
+        // Date filter/sort created_at par chalta hai (entry kab BANI) —
+        // entry_date backdated ho sakti hai (jaise purani approved_date wala
+        // loan disbursal), jisse wo month-filter se gayab ho jati thi aur
+        // running-balance ka order bhi bigad jata tha.
         $where = ["1=1"];
         $bind = [];
 
         if ($startDate) {
-            $where[] = "entry_date >= :start_date";
+            $where[] = "DATE(created_at) >= :start_date";
             $bind['start_date'] = $startDate;
         }
         if ($endDate) {
-            $where[] = "entry_date <= :end_date";
+            $where[] = "DATE(created_at) <= :end_date";
             $bind['end_date'] = $endDate;
-        }
-        if ($branchId) {
-            $where[] = "branch_id = :branch_id";
-            $bind['branch_id'] = $branchId;
         }
 
         $whereSql = implode(" AND ", $where);
-        // Recompute a global running balance (ignoring stored balance_after which is per-branch)
-        // so the report shows a coherent running total across the filtered window.
+
         $stmt = $db->prepare("
-            SELECT id, entry_date as Date, entry_type as Type, category as Category,
-            description as Particulars, reference_no as RefNo, amount as Amount, branch_id as BranchId
-            FROM cash_book
+            SELECT * FROM (
+                SELECT h.id, h.entry_date, h.entry_type, h.category, h.description,
+                       COALESCE(h.reference_no, h.transaction_no) AS ref_no, h.amount,
+                       h.balance_before, h.balance_after, h.created_at, 'Loan Fund' AS fund_side
+                FROM fund_loan_history h
+                UNION ALL
+                SELECT h.id, h.entry_date, h.entry_type, h.category, h.description,
+                       COALESCE(h.reference_no, h.transaction_no) AS ref_no, h.amount,
+                       h.balance_before, h.balance_after, h.created_at, 'Saving Fund' AS fund_side
+                FROM fund_saving_history h
+            ) t
             WHERE $whereSql
-            ORDER BY entry_date ASC, id ASC
+            ORDER BY created_at ASC, id ASC
         ");
         $stmt->execute($bind);
-        $rows = $stmt->fetchAll();
+        $raw = $stmt->fetchAll();
 
-        $running = 0;
-        foreach ($rows as &$r) {
-            $amt = (float)$r['Amount'];
-            $running += strtolower($r['Type']) === 'credit' ? $amt : -$amt;
-            $r['Balance'] = number_format($running, 2, '.', '');
+        $rows = [];
+        foreach ($raw as $r) {
+            $rows[] = [
+                'id' => $r['id'],
+                'Date' => substr($r['created_at'], 0, 10),
+                'Type' => $r['entry_type'],
+                'FundType' => $r['fund_side'],
+                'Category' => $r['category'],
+                'Particulars' => $r['description'],
+                'RefNo' => $r['ref_no'],
+                'Amount' => $r['amount'],
+                'BranchId' => null,
+                'BalanceBefore' => number_format((float)$r['balance_before'], 2, '.', ''),
+                'Balance' => number_format((float)$r['balance_after'], 2, '.', '')
+            ];
         }
         // Show latest first
-        $rows = array_reverse($rows);
-        return $rows;
+        return array_reverse($rows);
     }
 
     public static function branchWiseLive($db) {

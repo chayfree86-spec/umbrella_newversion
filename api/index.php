@@ -458,8 +458,9 @@ try {
             RoleGuard::check($authUser, 'funds.view');
             FundController::transactions($db, $authUser);
         }
-        elseif (preg_match('/^\/funds\/transactions\/(\d+)$/', $uri, $matches) && ($method === 'PUT' || $method === 'DELETE')) {
-            $txnId = intval($matches[1]);
+        elseif (preg_match('#^/funds/transactions/([LS]-\d+|\d+)$#', $uri, $matches) && ($method === 'PUT' || $method === 'DELETE')) {
+            // History table ids 'L-12' / 'S-7' format me aati hain
+            $txnId = $matches[1];
             RoleGuard::check($authUser, 'funds.manage');
             if ($method === 'PUT') {
                 FundController::updateTransaction($db, $authUser, $txnId, $input);

@@ -360,6 +360,7 @@ CREATE TABLE `loan_accounts` (
   `loan_account_no` VARCHAR(25) NOT NULL UNIQUE,
   `customer_id` INT UNSIGNED NOT NULL,
   `loan_plan_id` INT UNSIGNED NOT NULL,
+  `plan_name` VARCHAR(200) DEFAULT NULL,
   `branch_id` INT UNSIGNED NOT NULL,
   `area_id` INT UNSIGNED NOT NULL,
   `agent_id` INT UNSIGNED NOT NULL,
@@ -473,6 +474,7 @@ CREATE TABLE `saving_accounts` (
   `saving_account_no` VARCHAR(25) NOT NULL UNIQUE,
   `customer_id` INT UNSIGNED NOT NULL,
   `saving_plan_id` INT UNSIGNED NOT NULL,
+  `plan_name` VARCHAR(200) DEFAULT NULL,
   `branch_id` INT UNSIGNED NOT NULL,
   `area_id` INT UNSIGNED NOT NULL,
   `agent_id` INT UNSIGNED NOT NULL,
@@ -614,15 +616,25 @@ CREATE TABLE `receipts` (
 CREATE TABLE `fund_sources` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid` CHAR(36) NOT NULL UNIQUE,
-  `source_type` ENUM('owner_capital','investor','loan_repayment','interest','savings_collection','other') NOT NULL,
+  `source_type` ENUM('owner_capital','investor','loan_repayment','interest','savings_collection','other','loan_fund','saving_fund') NOT NULL,
   `source_name` VARCHAR(200) NOT NULL,
   `contact_info` VARCHAR(200) DEFAULT NULL,
   `total_invested` DECIMAL(18,2) DEFAULT 0.00,
+  -- Pool tracking columns (used by the 'loan_fund' / 'saving_fund' rows)
+  `available_amount` DECIMAL(18,2) DEFAULT 0.00,
+  `total_received` DECIMAL(18,2) DEFAULT 0.00,
+  `distribute` DECIMAL(18,2) DEFAULT 0.00,
+  `withdraw` DECIMAL(18,2) DEFAULT 0.00,
   `status` ENUM('Active','Inactive') DEFAULT 'Active',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` DATETIME DEFAULT NULL
 ) ENGINE=InnoDB;
+
+-- Fund pool rows (ek loan fund, ek saving fund)
+INSERT INTO `fund_sources` (`uuid`, `source_type`, `source_name`, `status`) VALUES
+(UUID(), 'loan_fund', 'Loan Fund Pool', 'Active'),
+(UUID(), 'saving_fund', 'Saving Fund Pool', 'Active');
 
 -- ============================================================
 -- 22. CAPITAL ENTRIES
@@ -647,27 +659,56 @@ CREATE TABLE `capital_entries` (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 23. CASH BOOK
+-- 22a. FUND LOAN HISTORY (loan fund pool ka transaction ledger)
 -- ============================================================
 
-CREATE TABLE `cash_book` (
+CREATE TABLE `fund_loan_history` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid` CHAR(36) NOT NULL UNIQUE,
-  `entry_date` DATE NOT NULL,
+  `transaction_no` VARCHAR(25) NOT NULL,
+  `fund_source_id` INT UNSIGNED DEFAULT NULL,
   `entry_type` ENUM('credit','debit') NOT NULL,
-  `category` VARCHAR(100) NOT NULL,
-  `description` TEXT DEFAULT NULL,
-  `reference_no` VARCHAR(50) DEFAULT NULL,
-  `reference_type` VARCHAR(50) DEFAULT NULL,
+  `category` VARCHAR(50) NOT NULL,
   `amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
-  `balance_after` DECIMAL(18,2) DEFAULT 0.00,
-  `branch_id` INT UNSIGNED DEFAULT NULL,
+  `balance_before` DECIMAL(18,2) DEFAULT NULL,
+  `balance_after` DECIMAL(18,2) DEFAULT NULL,
+  `reference_no` VARCHAR(50) DEFAULT NULL,
+  `description` TEXT DEFAULT NULL,
+  `entry_date` DATE NOT NULL,
   `entered_by` INT UNSIGNED DEFAULT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  INDEX `idx_cashbook_date` (`entry_date`),
-  INDEX `idx_cashbook_type` (`entry_type`),
-  INDEX `idx_cashbook_branch` (`branch_id`)
+  FOREIGN KEY (`fund_source_id`) REFERENCES `fund_sources`(`id`),
+  INDEX `idx_flh_txn` (`transaction_no`),
+  INDEX `idx_flh_date` (`entry_date`),
+  INDEX `idx_flh_category` (`category`)
 ) ENGINE=InnoDB;
+
+-- ============================================================
+-- 22b. FUND SAVING HISTORY (saving fund pool ka transaction ledger)
+-- ============================================================
+
+CREATE TABLE `fund_saving_history` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `uuid` CHAR(36) NOT NULL UNIQUE,
+  `transaction_no` VARCHAR(25) NOT NULL,
+  `fund_source_id` INT UNSIGNED DEFAULT NULL,
+  `entry_type` ENUM('credit','debit') NOT NULL,
+  `category` VARCHAR(50) NOT NULL,
+  `amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+  `balance_before` DECIMAL(18,2) DEFAULT NULL,
+  `balance_after` DECIMAL(18,2) DEFAULT NULL,
+  `reference_no` VARCHAR(50) DEFAULT NULL,
+  `description` TEXT DEFAULT NULL,
+  `entry_date` DATE NOT NULL,
+  `entered_by` INT UNSIGNED DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`fund_source_id`) REFERENCES `fund_sources`(`id`),
+  INDEX `idx_fsh_txn` (`transaction_no`),
+  INDEX `idx_fsh_date` (`entry_date`),
+  INDEX `idx_fsh_category` (`category`)
+) ENGINE=InnoDB;
+
+-- (cash_book table removed — ledger ab fund_loan_history / fund_saving_history me hai)
 
 -- ============================================================
 -- 24. SETTINGS
@@ -757,8 +798,7 @@ CREATE TABLE `sync_events` (
 CREATE TABLE `number_sequences` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `prefix` VARCHAR(10) NOT NULL,
-  `year` YEAR NOT NULL,
   `last_number` INT UNSIGNED NOT NULL DEFAULT 0,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY `uniq_prefix_year` (`prefix`, `year`)
+  UNIQUE KEY `uniq_prefix` (`prefix`)
 ) ENGINE=InnoDB;

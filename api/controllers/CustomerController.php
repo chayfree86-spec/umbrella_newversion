@@ -204,20 +204,13 @@ class CustomerController {
                         $durationMonths = 0;
                         if ($durUnit === 'Days') {
                             $durationDays = $durVal;
-                            $durationMonths = $durVal / 30.4375;
+                            $durationMonths = $durVal / 30;
                         } elseif ($durUnit === 'Months') {
                             $durationMonths = $durVal;
-                            $startDay = (int)$startDateTime->format('j');
-                            $endDateTime->modify("+$durVal month");
-                            $endDay = (int)$endDateTime->format('j');
-                            if ($startDay !== $endDay && $endDay < 7) {
-                                $endDateTime->modify('last day of last month');
-                            }
-                            $durationDays = $endDateTime->diff($startDateTime)->days;
+                            $durationDays = $durVal * 30;
                         } elseif ($durUnit === 'Years') {
                             $durationMonths = $durVal * 12;
-                            $endDateTime->modify("+$durVal year");
-                            $durationDays = $endDateTime->diff($startDateTime)->days;
+                            $durationDays = $durVal * 360;
                         }
 
                         // Calculate interest component & total payable using live setting

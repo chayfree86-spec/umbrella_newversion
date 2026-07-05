@@ -165,20 +165,31 @@ class DashboardController {
         $qOutRows .= " GROUP BY la.id ORDER BY la.outstanding_amount DESC LIMIT 10";
         $outstandingRows = $db->query($qOutRows)->fetchAll();
 
-        // 18. Cash Book rows (recent ledger entries)
+        // 18. Cash Book rows (fund history tables se recent ledger entries)
         $qCashRows = "
-            SELECT entry_date, entry_type, description, reference_no, amount
-            FROM cash_book
-            ORDER BY id DESC LIMIT 10
+            (SELECT entry_date, entry_type, description,
+                    COALESCE(reference_no, transaction_no) AS reference_no, amount, created_at
+             FROM fund_loan_history)
+            UNION ALL
+            (SELECT entry_date, entry_type, description,
+                    COALESCE(reference_no, transaction_no) AS reference_no, amount, created_at
+             FROM fund_saving_history)
+            ORDER BY created_at DESC LIMIT 10
         ";
         $cashBookRows = $db->query($qCashRows)->fetchAll();
 
-        // 19. Loan Fund / Capital pool entries
+        // 19. Loan Fund / Capital pool entries (fund history tables se)
         $qFundRows = "
-            SELECT ce.entry_date, ce.entry_type, ce.description, ce.transaction_no, ce.amount, fs.source_name
-            FROM capital_entries ce
-            LEFT JOIN fund_sources fs ON ce.fund_source_id = fs.id
-            ORDER BY ce.id DESC LIMIT 10
+            (SELECT h.entry_date, h.entry_type, h.description, h.transaction_no, h.amount,
+                    COALESCE(fs.source_name, 'Loan Fund') as source_name, h.created_at
+             FROM fund_loan_history h
+             LEFT JOIN fund_sources fs ON h.fund_source_id = fs.id)
+            UNION ALL
+            (SELECT h.entry_date, h.entry_type, h.description, h.transaction_no, h.amount,
+                    COALESCE(fs.source_name, 'Saving Fund') as source_name, h.created_at
+             FROM fund_saving_history h
+             LEFT JOIN fund_sources fs ON h.fund_source_id = fs.id)
+            ORDER BY created_at DESC LIMIT 10
         ";
         $fundEntryRows = $db->query($qFundRows)->fetchAll();
 

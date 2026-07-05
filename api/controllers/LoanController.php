@@ -96,20 +96,13 @@ class LoanController {
 
         if ($durUnit === 'Days') {
             $durationDays = $durVal;
-            $durationMonths = $durVal / 30.4375;
+            $durationMonths = $durVal / 30;
         } elseif ($durUnit === 'Months') {
             $durationMonths = $durVal;
-            $startDay = (int)$startDateTime->format('j');
-            $endDateTime->modify("+$durVal month");
-            $endDay = (int)$endDateTime->format('j');
-            if ($startDay !== $endDay && $endDay < 7) {
-                $endDateTime->modify('last day of last month');
-            }
-            $durationDays = $endDateTime->diff($startDateTime)->days;
+            $durationDays = $durVal * 30;
         } elseif ($durUnit === 'Years') {
             $durationMonths = $durVal * 12;
-            $endDateTime->modify("+$durVal year");
-            $durationDays = $endDateTime->diff($startDateTime)->days;
+            $durationDays = $durVal * 360;
         }
 
         $input['duration_days'] = $durationDays;
@@ -364,6 +357,17 @@ class LoanController {
                 'id' => $account['id']
             ]);
 
+            // Fresh approval par loan fund se paisa DISTRIBUTE hua —
+            // pool + fund_loan_history me entry (repair/re-approve par nahi)
+            if ($account['account_status'] === 'Processing') {
+                Fund::applyPoolTxn($db, 'loan_fund', 'debit', 'loan_disbursed', $account['principal_amount'], [
+                    'reference_no' => $account['loan_account_no'],
+                    'description'  => 'Loan disbursed: ' . $account['loan_account_no'],
+                    'entry_date'   => $approvedDate,
+                    'entered_by'   => $authUser['id']
+                ]);
+            }
+
             // Clear existing installments (safety) and generate fresh
             $db->prepare("DELETE FROM loan_installments WHERE loan_account_id = :id")
                ->execute(['id' => $account['id']]);
@@ -412,6 +416,15 @@ class LoanController {
 
         $db->beginTransaction();
         try {
+            // Approved/Active account reject par disbursed paisa loan fund me wapas
+            if (!empty($account['approved_at']) && in_array($account['account_status'], ['Approved', 'Active'])) {
+                Fund::applyPoolTxn($db, 'loan_fund', 'credit', 'disbursal_reversed', $account['principal_amount'], [
+                    'reference_no' => $account['loan_account_no'],
+                    'description'  => 'Disbursal reversed (rejected): ' . $account['loan_account_no'],
+                    'entered_by'   => $authUser['id']
+                ]);
+            }
+
             // Clean up schedule — Rejected/Processing accounts must not carry installments
             $db->prepare("DELETE FROM loan_installments WHERE loan_account_id = :id")
                ->execute(['id' => $account['id']]);
@@ -456,6 +469,15 @@ class LoanController {
 
         $db->beginTransaction();
         try {
+            // Approved/Active se wapas Processing — disbursal reverse hota hai
+            if (!empty($account['approved_at']) && in_array($account['account_status'], ['Approved', 'Active', 'Defaulter', 'NPA'])) {
+                Fund::applyPoolTxn($db, 'loan_fund', 'credit', 'disbursal_reversed', $account['principal_amount'], [
+                    'reference_no' => $account['loan_account_no'],
+                    'description'  => 'Disbursal reversed (reset to processing): ' . $account['loan_account_no'],
+                    'entered_by'   => $authUser['id']
+                ]);
+            }
+
             $db->prepare("DELETE FROM loan_installments WHERE loan_account_id = :id")
                ->execute(['id' => $account['id']]);
 
@@ -518,6 +540,18 @@ class LoanController {
 
         $db->beginTransaction();
         try {
+            // Jo paisa collect hua tha wo loan fund se wapas nikal jata hai
+            $stmtSum = $db->prepare("SELECT COALESCE(SUM(collected_amount + penalty_amount), 0) FROM loan_collections WHERE loan_account_id = :id AND is_reversal = 0");
+            $stmtSum->execute(['id' => $account['id']]);
+            $clearedTotal = (float)$stmtSum->fetchColumn();
+            if ($clearedTotal > 0) {
+                Fund::applyPoolTxn($db, 'loan_fund', 'debit', 'collection_reversed', $clearedTotal, [
+                    'reference_no' => $account['loan_account_no'],
+                    'description'  => 'Ledger cleared — collections reversed: ' . $account['loan_account_no'],
+                    'entered_by'   => $authUser['id']
+                ]);
+            }
+
             // Delete all collections
             $db->prepare("DELETE FROM loan_collections WHERE loan_account_id = :id")->execute(['id' => $account['id']]);
 
@@ -535,55 +569,9 @@ class LoanController {
                 WHERE id = :id
             ")->execute(['id' => $account['id']]);
 
-            // Find minimum cash book ID that will be deleted
-            $stmtMin = $db->prepare("
-                SELECT MIN(id) FROM cash_book 
-                WHERE reference_type = 'loan_collection' 
-                  AND reference_no IN (SELECT receipt_no FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection')
-            ");
-            $stmtMin->execute(['acc_no' => $account['loan_account_no']]);
-            $minId = $stmtMin->fetchColumn();
-
             // Delete central receipts
             $db->prepare("DELETE FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection'")
                ->execute(['acc_no' => $account['loan_account_no']]);
-
-            // Delete from cash book
-            $db->prepare("
-                DELETE FROM cash_book 
-                WHERE reference_type = 'loan_collection' 
-                  AND reference_no IN (SELECT receipt_no FROM receipts WHERE account_no = :acc_no AND receipt_type = 'loan_collection')
-            ")->execute(['acc_no' => $account['loan_account_no']]);
-
-            // Recalculate cash book running balances
-            if ($minId) {
-                $stmtPrev = $db->prepare("
-                    SELECT balance_after FROM cash_book 
-                    WHERE branch_id = :branch_id AND id < :min_id 
-                    ORDER BY id DESC LIMIT 1
-                ");
-                $stmtPrev->execute(['branch_id' => $account['branch_id'], 'min_id' => $minId]);
-                $runningBalance = (float)($stmtPrev->fetchColumn() ?: 0);
-
-                $stmtNext = $db->prepare("
-                    SELECT id, entry_type, amount FROM cash_book 
-                    WHERE branch_id = :branch_id AND id >= :min_id 
-                    ORDER BY id ASC
-                ");
-                $stmtNext->execute(['branch_id' => $account['branch_id'], 'min_id' => $minId]);
-                $nextEntries = $stmtNext->fetchAll();
-
-                $stmtUpdate = $db->prepare("UPDATE cash_book SET balance_after = :bal WHERE id = :id");
-                foreach ($nextEntries as $entry) {
-                    $amt = (float)$entry['amount'];
-                    if ($entry['entry_type'] === 'credit') {
-                        $runningBalance += $amt;
-                    } else {
-                        $runningBalance -= $amt;
-                    }
-                    $stmtUpdate->execute(['bal' => $runningBalance, 'id' => $entry['id']]);
-                }
-            }
 
             $db->commit();
             AuditLog::log($db, $authUser['id'], 'clear_loan_ledger', 'loan_accounts', $account['id']);

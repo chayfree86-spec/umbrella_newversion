@@ -371,6 +371,14 @@ class CollectionController {
                         throw new Exception('Cannot reset this collection. Only the most recent collection can be reset first.');
                     }
 
+                    // Loan fund se paisa wapas nikla — pool + history
+                    Fund::applyPoolTxn($db, 'loan_fund', 'debit', 'collection_reversed',
+                        (float)$loanColl['collected_amount'] + (float)$loanColl['penalty_amount'], [
+                        'reference_no' => $receiptNo,
+                        'description'  => 'Collection reset: ' . $receiptNo,
+                        'entered_by'   => $authUser['id']
+                    ]);
+
                     // Delete the loan collection row
                     $db->prepare("DELETE FROM loan_collections WHERE id = :id")->execute(['id' => $loanColl['id']]);
 
@@ -517,6 +525,14 @@ class CollectionController {
                         throw new Exception('Cannot reset this deposit. Only the most recent deposit can be reset first.');
                     }
 
+                    // Saving fund se paisa wapas nikla — pool + history
+                    Fund::applyPoolTxn($db, 'saving_fund', 'debit', 'deposit_reversed',
+                        (float)$savingDep['deposit_amount'], [
+                        'reference_no' => $receiptNo,
+                        'description'  => 'Deposit reset: ' . $receiptNo,
+                        'entered_by'   => $authUser['id']
+                    ]);
+
                     // Delete the deposit row
                     $db->prepare("DELETE FROM saving_deposits WHERE id = :id")->execute(['id' => $savingDep['id']]);
 
@@ -613,12 +629,6 @@ class CollectionController {
             // 3. Delete from central receipts table
             $db->prepare("DELETE FROM receipts WHERE receipt_no = :receipt_no")->execute(['receipt_no' => $receiptNo]);
 
-            // 4. Delete from cash book
-            $db->prepare("
-                DELETE FROM cash_book 
-                WHERE reference_no = :receipt_no AND reference_type IN ('loan_collection', 'saving_deposit')
-            ")->execute(['receipt_no' => $receiptNo]);
-
             $db->commit();
             Response::success(null, 'Collection reset successfully.');
         } catch (Exception $e) {
@@ -666,6 +676,23 @@ class CollectionController {
                     $stmtNewer->execute(['loan_id' => $loanAccountId, 'id' => $loanColl['id']]);
                     if ($stmtNewer->fetchColumn() > 0) {
                         throw new Exception('Cannot update this collection. Only the most recent collection can be updated first.');
+                    }
+
+                    // Fund pool adjustment — purani vs nayi amount ka difference
+                    $oldTotal = (float)$loanColl['collected_amount'] + (float)$loanColl['penalty_amount'];
+                    $fundDiff = round(($newAmount + $newPenalty) - $oldTotal, 2);
+                    if ($fundDiff > 0) {
+                        Fund::applyPoolTxn($db, 'loan_fund', 'credit', 'emi_received', $fundDiff, [
+                            'reference_no' => $receiptNo,
+                            'description'  => 'Receipt adjusted (increased): ' . $receiptNo,
+                            'entered_by'   => $authUser['id']
+                        ]);
+                    } elseif ($fundDiff < 0) {
+                        Fund::applyPoolTxn($db, 'loan_fund', 'debit', 'collection_reversed', abs($fundDiff), [
+                            'reference_no' => $receiptNo,
+                            'description'  => 'Receipt adjusted (decreased): ' . $receiptNo,
+                            'entered_by'   => $authUser['id']
+                        ]);
                     }
 
                     // Get loan account ratios for split calculation
@@ -837,6 +864,22 @@ class CollectionController {
                         throw new Exception('Cannot update this deposit. Only the most recent deposit can be updated first.');
                     }
 
+                    // Fund pool adjustment — purani vs nayi amount ka difference
+                    $fundDiff = round($newAmount - (float)$savingDep['deposit_amount'], 2);
+                    if ($fundDiff > 0) {
+                        Fund::applyPoolTxn($db, 'saving_fund', 'credit', 'deposit_received', $fundDiff, [
+                            'reference_no' => $receiptNo,
+                            'description'  => 'Receipt adjusted (increased): ' . $receiptNo,
+                            'entered_by'   => $authUser['id']
+                        ]);
+                    } elseif ($fundDiff < 0) {
+                        Fund::applyPoolTxn($db, 'saving_fund', 'debit', 'deposit_reversed', abs($fundDiff), [
+                            'reference_no' => $receiptNo,
+                            'description'  => 'Receipt adjusted (decreased): ' . $receiptNo,
+                            'entered_by'   => $authUser['id']
+                        ]);
+                    }
+
                     // Update saving_deposits row
                     $db->prepare("
                         UPDATE saving_deposits 
@@ -952,30 +995,6 @@ class CollectionController {
                 'date' => $newDate . ' ' . date('H:i:s'),
                 'receipt_no' => $receiptNo
             ]);
-
-            // 4. Update cash book entry
-            $stmtTx = $db->prepare("SELECT id, branch_id FROM cash_book WHERE reference_no = :receipt_no");
-            $stmtTx->execute(['receipt_no' => $receiptNo]);
-            $cbTx = $stmtTx->fetch();
-            if ($cbTx) {
-                $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id AND id < :id");
-                $stmtBal->execute(['branch_id' => $cbTx['branch_id'], 'id' => $cbTx['id']]);
-                $balBefore = (float)$stmtBal->fetchColumn();
-                $newBalAfter = $balBefore + $newAmount + $newPenalty;
-                
-                $db->prepare("
-                    UPDATE cash_book 
-                    SET amount = :amount, entry_date = :date, balance_after = :bal_after,
-                        description = :description
-                    WHERE id = :id
-                ")->execute([
-                    'amount' => $newAmount + $newPenalty,
-                    'date' => $newDate,
-                    'bal_after' => $newBalAfter,
-                    'description' => $receipt['receipt_type'] === 'loan_collection' ? "Received EMI payment for Loan: " . $receipt['account_no'] : "Deposit to Saving: " . $receipt['account_no'],
-                    'id' => $cbTx['id']
-                ]);
-            }
 
             $db->commit();
             Response::success(null, 'Collection updated successfully.');

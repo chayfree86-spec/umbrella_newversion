@@ -80,33 +80,14 @@ class Expense {
             ]);
             $expenseId = $db->lastInsertId();
 
-            // Integrate with cash_book if it is 'Saving Balance' or 'Loan Balance'
+            // Business expense fund pool se paisa nikalta hai (withdraw bucket)
             if (in_array($data['expense_type'], ['Saving Balance', 'Loan Balance'])) {
-                // Compute running balance for branch
-                $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id");
-                $stmtBal->execute(['branch_id' => $data['branch_id']]);
-                $currBal = (float)$stmtBal->fetchColumn();
-                $newBal = $currBal - $data['amount'];
-
-                // Add to cash book
-                $stmtCash = $db->prepare("
-                    INSERT INTO cash_book (
-                        uuid, entry_date, entry_type, category, description, reference_no, reference_type, amount, balance_after, branch_id, entered_by
-                    ) VALUES (
-                        :uuid, :entry_date, 'debit', :category, :description, :ref_no, 'expense', :amount,
-                        :balance_after, :branch_id, :entered_by
-                    )
-                ");
-                $stmtCash->execute([
-                    'uuid' => Validator::uuid(),
-                    'entry_date' => $data['entry_date'],
-                    'category' => 'Expense (' . $data['expense_type'] . ')',
-                    'description' => $data['remarks'] ?? 'Business Expense',
-                    'ref_no' => $expenseNo,
-                    'amount' => $data['amount'],
-                    'balance_after' => $newBal,
-                    'branch_id' => $data['branch_id'] ?? null,
-                    'entered_by' => $data['entered_by']
+                $pool = $data['expense_type'] === 'Loan Balance' ? 'loan_fund' : 'saving_fund';
+                Fund::applyPoolTxn($db, $pool, 'debit', 'expense', $data['amount'], [
+                    'reference_no' => $expenseNo,
+                    'description'  => 'Expense (' . $data['expense_type'] . '): ' . ($data['remarks'] ?? 'Business Expense'),
+                    'entry_date'   => $data['entry_date'],
+                    'entered_by'   => $data['entered_by']
                 ]);
             }
 
@@ -162,78 +143,26 @@ class Expense {
                 'remarks' => $data['remarks'] ?? null
             ]);
 
-            // Sync with cash_book
+            // Fund pool sync: purana business expense reverse karo, naya apply karo
             $isOldBusiness = in_array($oldType, ['Saving Balance', 'Loan Balance']);
             $isNewBusiness = in_array($newType, ['Saving Balance', 'Loan Balance']);
 
-            if ($isOldBusiness && $isNewBusiness) {
-                // Fetch the existing cash book entry using old expense_no
-                $stmtCash = $db->prepare("SELECT id FROM cash_book WHERE reference_no = :ref_no AND reference_type = 'expense' LIMIT 1");
-                $stmtCash->execute(['ref_no' => $oldExpense['expense_no']]);
-                $cashId = $stmtCash->fetchColumn();
-
-                if ($cashId) {
-                    // Update entry and propagate balance after
-                    $stmtUpdate = $db->prepare("
-                        UPDATE cash_book SET 
-                            amount = :amount,
-                            category = :category,
-                            description = :description,
-                            entry_date = :entry_date,
-                            reference_no = :ref_no
-                        WHERE id = :id
-                    ");
-                    $stmtUpdate->execute([
-                        'id' => $cashId,
-                        'amount' => $newAmount,
-                        'category' => 'Expense (' . $newType . ')',
-                        'description' => $data['remarks'] ?? 'Business Expense',
-                        'entry_date' => $data['entry_date'],
-                        'ref_no' => $expenseNo
-                    ]);
-
-                    $diff = $oldAmount - $newAmount; // Since debit, if amount increases, balance decreases
-                    $stmtProp = $db->prepare("UPDATE cash_book SET balance_after = balance_after + :diff WHERE id >= :id");
-                    $stmtProp->execute(['diff' => $diff, 'id' => $cashId]);
-                }
-            } elseif ($isOldBusiness && !$isNewBusiness) {
-                // Changed from Business to Individual: Delete cash book entry using old expense_no
-                $stmtCash = $db->prepare("SELECT id FROM cash_book WHERE reference_no = :ref_no AND reference_type = 'expense' LIMIT 1");
-                $stmtCash->execute(['ref_no' => $oldExpense['expense_no']]);
-                $cashId = $stmtCash->fetchColumn();
-
-                if ($cashId) {
-                    $stmtProp = $db->prepare("UPDATE cash_book SET balance_after = balance_after + :diff WHERE id > :id");
-                    $stmtProp->execute(['diff' => $oldAmount, 'id' => $cashId]);
-
-                    $stmtDel = $db->prepare("DELETE FROM cash_book WHERE id = :id");
-                    $stmtDel->execute(['id' => $cashId]);
-                }
-            } elseif (!$isOldBusiness && $isNewBusiness) {
-                // Changed from Individual to Business: Create cash book entry using new expense_no
-                $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id");
-                $stmtBal->execute(['branch_id' => $oldExpense['branch_id']]);
-                $currBal = (float)$stmtBal->fetchColumn();
-                $newBal = $currBal - $newAmount;
-
-                $stmtCash = $db->prepare("
-                    INSERT INTO cash_book (
-                        uuid, entry_date, entry_type, category, description, reference_no, reference_type, amount, balance_after, branch_id, entered_by
-                    ) VALUES (
-                        :uuid, :entry_date, 'debit', :category, :description, :ref_no, 'expense', :amount,
-                        :balance_after, :branch_id, :entered_by
-                    )
-                ");
-                $stmtCash->execute([
-                    'uuid' => Validator::uuid(),
-                    'entry_date' => $data['entry_date'],
-                    'category' => 'Expense (' . $newType . ')',
-                    'description' => $data['remarks'] ?? 'Business Expense',
-                    'ref_no' => $expenseNo,
-                    'amount' => $newAmount,
-                    'balance_after' => $newBal,
-                    'branch_id' => $oldExpense['branch_id'],
-                    'entered_by' => $oldExpense['entered_by']
+            if ($isOldBusiness) {
+                $oldPool = $oldType === 'Loan Balance' ? 'loan_fund' : 'saving_fund';
+                Fund::applyPoolTxn($db, $oldPool, 'credit', 'expense_reversed', $oldAmount, [
+                    'reference_no' => $oldExpense['expense_no'],
+                    'description'  => 'Expense adjusted (old entry reversed): ' . $oldExpense['expense_no'],
+                    'entry_date'   => $data['entry_date'],
+                    'entered_by'   => $oldExpense['entered_by']
+                ]);
+            }
+            if ($isNewBusiness) {
+                $newPool = $newType === 'Loan Balance' ? 'loan_fund' : 'saving_fund';
+                Fund::applyPoolTxn($db, $newPool, 'debit', 'expense', $newAmount, [
+                    'reference_no' => $expenseNo,
+                    'description'  => 'Expense (' . $newType . '): ' . ($data['remarks'] ?? 'Business Expense'),
+                    'entry_date'   => $data['entry_date'],
+                    'entered_by'   => $oldExpense['entered_by']
                 ]);
             }
 
@@ -257,17 +186,13 @@ class Expense {
             $amount = (float)$expense['amount'];
 
             if ($isBusiness) {
-                $stmtCash = $db->prepare("SELECT id FROM cash_book WHERE reference_no = :ref_no AND reference_type = 'expense' LIMIT 1");
-                $stmtCash->execute(['ref_no' => $expense['expense_no']]);
-                $cashId = $stmtCash->fetchColumn();
-
-                if ($cashId) {
-                    $stmtProp = $db->prepare("UPDATE cash_book SET balance_after = balance_after + :diff WHERE id > :id");
-                    $stmtProp->execute(['diff' => $amount, 'id' => $cashId]);
-
-                    $stmtDel = $db->prepare("DELETE FROM cash_book WHERE id = :id");
-                    $stmtDel->execute(['id' => $cashId]);
-                }
+                // Fund pool me paisa wapas (expense reverse)
+                $pool = $expense['expense_type'] === 'Loan Balance' ? 'loan_fund' : 'saving_fund';
+                Fund::applyPoolTxn($db, $pool, 'credit', 'expense_reversed', $amount, [
+                    'reference_no' => $expense['expense_no'],
+                    'description'  => 'Expense deleted: ' . $expense['expense_no'],
+                    'entered_by'   => $expense['entered_by']
+                ]);
             }
 
             $stmt = $db->prepare("DELETE FROM expenses WHERE id = :id");

@@ -1,0 +1,40 @@
+#!/usr/bin/env php
+<?php
+
+if (PHP_SAPI !== 'cli') {
+    exit("Spark sirf CLI se chal sakta hai.\n");
+}
+
+$args = array_slice($argv, 1);
+$command = $args[0] ?? 'help';
+
+if (in_array($command, ['migrate', 'migrations:migrate'], true)) {
+    $forwardArgs = array_slice($args, 1);
+    $runner = __DIR__ . '/database/migrate.php';
+
+    $argv = array_merge([$runner], $forwardArgs);
+    $_SERVER['argv'] = $argv;
+    $_SERVER['argc'] = count($argv);
+
+    require $runner;
+    exit(0);
+}
+
+if (in_array($command, ['db:seed', 'seed'], true)) {
+    $runner = __DIR__ . '/database/migrate.php';
+
+    $argv = [$runner, '--seed'];
+    $_SERVER['argv'] = $argv;
+    $_SERVER['argc'] = count($argv);
+
+    require $runner;
+    exit(0);
+}
+
+echo "Umbrella Finance CLI\n\n";
+echo "Available commands:\n";
+echo "  php spark migrate           Run pending migrations\n";
+echo "  php spark migrate --seed    Run migrations and seed master data\n";
+echo "  php spark migrate --status  Show migration/seed status\n";
+echo "  php spark db:seed           Run migrations and seed master data\n";
+

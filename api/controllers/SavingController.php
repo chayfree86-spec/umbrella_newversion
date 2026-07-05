@@ -161,9 +161,27 @@ class SavingController {
 
         $db->beginTransaction();
         try {
-            // Process payout
-            $interestEarned = $account['total_deposited'] * ($account['interest_rate'] / 100);
-            $totalPayout = $account['total_deposited'] + $interestEarned;
+            // Payout account ke PROMISED maturity_amount se nikalta hai:
+            //  - poore deposits hue    -> exact promised maturity milti hai
+            //  - adhoore deposits hue  -> promised interest pro-rata milta hai
+            // (Pehle flat deposited*rate% tha jo duration ignore karta tha aur
+            //  registration me dikhaayi maturity se match nahi hota tha.)
+            $deposited = (float)$account['total_deposited'];
+
+            $stmtSched = $db->prepare("SELECT COALESCE(SUM(total_due), 0) FROM saving_installments WHERE saving_account_id = :id");
+            $stmtSched->execute(['id' => $account['id']]);
+            $scheduleTotal = (float)$stmtSched->fetchColumn();
+
+            $promisedMaturity = (float)$account['maturity_amount'];
+            $promisedInterest = max(0, $promisedMaturity - $scheduleTotal);
+
+            if ($scheduleTotal > 0 && $promisedInterest > 0) {
+                $interestEarned = round($promisedInterest * min(1, $deposited / $scheduleTotal), 2);
+            } else {
+                // Fallback (schedule/maturity set nahi) — purana flat formula
+                $interestEarned = round($deposited * ($account['interest_rate'] / 100), 2);
+            }
+            $totalPayout = $deposited + $interestEarned;
 
             $stmt = $db->prepare("
                 INSERT INTO saving_maturity (
@@ -181,31 +199,18 @@ class SavingController {
                 'processed_by' => $authUser['id']
             ]);
 
+            // Saving fund se payout nikla — pool WITHDRAW + history entry
+            Fund::applyPoolTxn($db, 'saving_fund', 'debit', 'maturity_payout', $totalPayout, [
+                'reference_no' => $account['saving_account_no'],
+                'description'  => 'Maturity payout: ' . $account['saving_account_no'],
+                'entered_by'   => $authUser['id']
+            ]);
+
             // Update status
             $stmtUpdate = $db->prepare("UPDATE saving_accounts SET account_status = 'Matured', closed_at = NOW(), closed_by = :closed_by WHERE id = :id");
             $stmtUpdate->execute([
                 'closed_by' => $authUser['id'],
                 'id' => $account['id']
-            ]);
-
-            // Debit from cash book
-            $stmtCashBook = $db->prepare("
-                INSERT INTO cash_book (
-                    uuid, entry_date, entry_type, category, description, reference_no, reference_type, amount, balance_after, branch_id, entered_by
-                ) VALUES (
-                    :uuid, NOW(), 'debit', 'Savings Payout', :description, :ref_no, 'savings_maturity', :amount, 
-                    (SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) - :amount2 FROM cash_book WHERE branch_id = :branch_id),
-                    :branch_id, :entered_by
-                )
-            ");
-            $stmtCashBook->execute([
-                'uuid' => Validator::uuid(),
-                'description' => "Maturity payout processed for Savings Account: " . $account['saving_account_no'],
-                'ref_no' => $account['saving_account_no'],
-                'amount' => $totalPayout,
-                'amount2' => $totalPayout,
-                'branch_id' => $account['branch_id'],
-                'entered_by' => $authUser['id']
             ]);
 
             $db->commit();
@@ -404,6 +409,18 @@ class SavingController {
 
         $db->beginTransaction();
         try {
+            // Jo deposits aaye the wo saving fund se wapas nikal jate hain
+            $stmtSum = $db->prepare("SELECT COALESCE(SUM(deposit_amount), 0) FROM saving_deposits WHERE saving_account_id = :id AND is_reversal = 0");
+            $stmtSum->execute(['id' => $account['id']]);
+            $clearedTotal = (float)$stmtSum->fetchColumn();
+            if ($clearedTotal > 0) {
+                Fund::applyPoolTxn($db, 'saving_fund', 'debit', 'deposit_reversed', $clearedTotal, [
+                    'reference_no' => $account['saving_account_no'],
+                    'description'  => 'Ledger cleared — deposits reversed: ' . $account['saving_account_no'],
+                    'entered_by'   => $authUser['id']
+                ]);
+            }
+
             // Delete all deposits
             $db->prepare("DELETE FROM saving_deposits WHERE saving_account_id = :id")->execute(['id' => $account['id']]);
 
@@ -421,55 +438,9 @@ class SavingController {
                 WHERE id = :id
             ")->execute(['id' => $account['id']]);
 
-            // Find minimum cash book ID that will be deleted
-            $stmtMin = $db->prepare("
-                SELECT MIN(id) FROM cash_book 
-                WHERE reference_type = 'saving_deposit' 
-                  AND reference_no IN (SELECT receipt_no FROM receipts WHERE account_no = :acc_no AND receipt_type = 'saving_deposit')
-            ");
-            $stmtMin->execute(['acc_no' => $account['saving_account_no']]);
-            $minId = $stmtMin->fetchColumn();
-
             // Delete central receipts
             $db->prepare("DELETE FROM receipts WHERE account_no = :acc_no AND receipt_type = 'saving_deposit'")
                ->execute(['acc_no' => $account['saving_account_no']]);
-
-            // Delete from cash book
-            $db->prepare("
-                DELETE FROM cash_book 
-                WHERE reference_type = 'saving_deposit' 
-                  AND reference_no IN (SELECT receipt_no FROM receipts WHERE account_no = :acc_no AND receipt_type = 'saving_deposit')
-            ")->execute(['acc_no' => $account['saving_account_no']]);
-
-            // Recalculate cash book running balances
-            if ($minId) {
-                $stmtPrev = $db->prepare("
-                    SELECT balance_after FROM cash_book 
-                    WHERE branch_id = :branch_id AND id < :min_id 
-                    ORDER BY id DESC LIMIT 1
-                ");
-                $stmtPrev->execute(['branch_id' => $account['branch_id'], 'min_id' => $minId]);
-                $runningBalance = (float)($stmtPrev->fetchColumn() ?: 0);
-
-                $stmtNext = $db->prepare("
-                    SELECT id, entry_type, amount FROM cash_book 
-                    WHERE branch_id = :branch_id AND id >= :min_id 
-                    ORDER BY id ASC
-                ");
-                $stmtNext->execute(['branch_id' => $account['branch_id'], 'min_id' => $minId]);
-                $nextEntries = $stmtNext->fetchAll();
-
-                $stmtUpdate = $db->prepare("UPDATE cash_book SET balance_after = :bal WHERE id = :id");
-                foreach ($nextEntries as $entry) {
-                    $amt = (float)$entry['amount'];
-                    if ($entry['entry_type'] === 'credit') {
-                        $runningBalance += $amt;
-                    } else {
-                        $runningBalance -= $amt;
-                    }
-                    $stmtUpdate->execute(['bal' => $runningBalance, 'id' => $entry['id']]);
-                }
-            }
 
             $db->commit();
             AuditLog::log($db, $authUser['id'], 'clear_saving_ledger', 'saving_accounts', $account['id']);

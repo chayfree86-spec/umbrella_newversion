@@ -43,24 +43,25 @@ const getActualDays = (startDateStr, durationVal, durationUnit) => {
   return diffDays;
 };
 
+const getFinanceDurationDays = (durationVal, durationUnit) => {
+  const dur = Number(durationVal) || 0;
+  if (durationUnit === 'Months') return dur * 30;
+  if (durationUnit === 'Years') return dur * 360;
+  return dur;
+};
+
+const getFinanceDurationMonths = (durationVal, durationUnit) => {
+  return getFinanceDurationDays(durationVal, durationUnit) / 30;
+};
+
 const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, frequency, startDate) => {
   const dAmt = parseFloat(depositAmt) || 0;
   const rVal = parseFloat(rate) || 0;
   const dur = parseFloat(durationVal) || 0;
   if (!dAmt || !dur) return '';
 
-  let totalDays = 0;
-  let totalMonths = 0;
-  if (durationUnit === 'Days') {
-    totalDays = dur;
-    totalMonths = dur / 30.4375;
-  } else if (durationUnit === 'Months') {
-    totalDays = getActualDays(startDate, dur, 'Months');
-    totalMonths = dur;
-  } else if (durationUnit === 'Years') {
-    totalDays = getActualDays(startDate, dur, 'Years');
-    totalMonths = dur * 12;
-  }
+  const totalDays = getFinanceDurationDays(dur, durationUnit);
+  const totalMonths = getFinanceDurationMonths(dur, durationUnit);
 
   let instPerYear = 0;
   if (frequency === 'Daily') {
@@ -115,18 +116,8 @@ const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, fr
 const calculateCustomEmi = (principal, rate, durationVal, durationUnit, frequency, interestType, loanPeriod = 'monthly', startDate) => {
   if (!principal || !rate || !durationVal) return '';
 
-  let totalDays = 0;
-  let totalMonths = 0;
-  if (durationUnit === 'Days') {
-    totalDays = durationVal;
-    totalMonths = durationVal / 30.4375;
-  } else if (durationUnit === 'Months') {
-    totalDays = getActualDays(startDate, durationVal, 'Months');
-    totalMonths = durationVal;
-  } else if (durationUnit === 'Years') {
-    totalDays = getActualDays(startDate, durationVal, 'Years');
-    totalMonths = durationVal * 12;
-  }
+  const totalDays = getFinanceDurationDays(durationVal, durationUnit);
+  const totalMonths = getFinanceDurationMonths(durationVal, durationUnit);
 
   let N = 0;
   if (frequency === 'Daily') {
@@ -166,6 +157,7 @@ export default function CustomerRegistration() {
   const [branches, setBranches] = useState([]);
   const [areas, setAreas] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [areaAgents, setAreaAgents] = useState([]);
   const [dbLoanPlans, setDbLoanPlans] = useState([]);
   const [dbSavingPlans, setDbSavingPlans] = useState([]);
   const [liveSettings, setLiveSettings] = useState({});
@@ -231,6 +223,27 @@ export default function CustomerRegistration() {
 
   const [currentStep, setCurrentStep] = useState(1);
 
+  const getAgentsFor = (branchId, areaId) =>
+    agents.filter(ag =>
+      (!branchId || String(ag.branch_id) === String(branchId)) &&
+      (!areaId || String(ag.area_id) === String(areaId)) &&
+      (!ag.status || ag.status === 'Active')
+    );
+
+  const pickAreaAndAgentForBranch = (branchId) => {
+    const branchAreas = areas.filter(a => String(a.branch_id) === String(branchId));
+    const areaWithAgents = branchAreas.find(area => getAgentsFor(branchId, area.id).length > 0);
+    const selectedArea = areaWithAgents || branchAreas[0];
+    const areaId = selectedArea ? String(selectedArea.id) : '';
+    const areaAgents = areaId ? getAgentsFor(branchId, areaId) : [];
+    const sortedAgents = [...areaAgents].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
+
+    return {
+      area: areaId,
+      agent: sortedAgents[0] ? String(sortedAgents[0].id) : ''
+    };
+  };
+
   // Draft restore from localStorage removed — registrations are live-only.
 
   // Draft auto-save to localStorage (accounts_database_v2) removed —
@@ -273,6 +286,35 @@ export default function CustomerRegistration() {
       .then(res => setAvailableLoanFund(Number(res.data?.available_loan_fund || 0)))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!formData.area) {
+      setAreaAgents([]);
+      return;
+    }
+
+    const fallbackAgents = getAgentsFor(formData.branch, formData.area);
+    setAreaAgents(fallbackAgents);
+
+    let cancelled = false;
+    areaApi.agents(formData.area)
+      .then(res => {
+        if (cancelled) return;
+        const activeAgents = (res.data || []).filter(ag => !ag.status || ag.status === 'Active');
+        const sortedAgents = [...activeAgents].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
+        setAreaAgents(sortedAgents);
+        setFormData(prev => {
+          if (String(prev.area) !== String(formData.area)) return prev;
+          if (prev.agent && sortedAgents.some(ag => String(ag.id) === String(prev.agent))) return prev;
+          return { ...prev, agent: sortedAgents[0] ? String(sortedAgents[0].id) : '' };
+        });
+      })
+      .catch(() => setAreaAgents(fallbackAgents));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.branch, formData.area, agents]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -484,10 +526,7 @@ export default function CustomerRegistration() {
   const loanPlans = dbLoanPlans.map(p => {
     const durVal = Number(p.duration_value);
     const durUnit = p.duration_unit || 'Days';
-    let durationInMonths = 0;
-    if (durUnit === 'Days') durationInMonths = durVal / 30.4375;
-    else if (durUnit === 'Months') durationInMonths = durVal;
-    else if (durUnit === 'Years') durationInMonths = durVal * 12;
+    const durationInMonths = getFinanceDurationMonths(durVal, durUnit);
 
     const principal = Number(p.min_amount);
     const rate = Number(p.interest_rate);
@@ -503,11 +542,11 @@ export default function CustomerRegistration() {
     let N = 0;
     const freq = p.collection_frequency;
     if (freq === 'Daily') {
-      N = durUnit === 'Days' ? durVal : getActualDays(formData.startDate, durVal, durUnit);
+      N = getFinanceDurationDays(durVal, durUnit);
     } else if (freq === 'Weekly') {
-      N = durUnit === 'Days' ? Math.round(durVal / 7) : Math.round(getActualDays(formData.startDate, durVal, durUnit) / 7);
+      N = Math.round(getFinanceDurationDays(durVal, durUnit) / 7);
     } else if (freq === 'Monthly') {
-      N = durUnit === 'Days' ? Math.round(durVal / 30.4375) : (durUnit === 'Months' ? durVal : durVal * 12);
+      N = Math.round(getFinanceDurationMonths(durVal, durUnit));
     }
     if (N <= 0) N = 1;
 
@@ -564,7 +603,22 @@ export default function CustomerRegistration() {
           maturity: Number(formData.customMaturity) || 0
         })
     : (formData.accountType === 'Loan' 
-      ? loanPlans.find(p => p.value === formData.planId)
+      ? (() => {
+          const plan = loanPlans.find(p => p.value === formData.planId);
+          if (!plan) return null;
+          return {
+            ...plan,
+            amount: formData.customAmount !== '' ? Number(formData.customAmount) : plan.amount,
+            rate: formData.customRate !== '' ? Number(formData.customRate) : plan.rate,
+            duration: formData.customDuration !== '' ? Number(formData.customDuration) : plan.duration,
+            durationUnit: formData.customDurationUnit !== '' ? formData.customDurationUnit : plan.durationUnit,
+            frequency: formData.customFrequency !== '' ? formData.customFrequency : plan.frequency,
+            type: formData.customType !== '' ? formData.customType : plan.type,
+            emi: formData.customEmi !== '' ? Number(formData.customEmi) : plan.emi,
+            processingFee: formData.customProcessingFee !== '' ? Number(formData.customProcessingFee) : plan.processingFee,
+            penalty: formData.customPenalty !== '' ? Number(formData.customPenalty) : plan.penalty
+          };
+        })()
       : formData.accountType === 'Saving'
       ? (() => {
           const plan = savingPlans.find(p => p.value === formData.planId);
@@ -588,13 +642,9 @@ export default function CustomerRegistration() {
       if (durationUnit === 'Days') {
         date.setDate(date.getDate() + duration);
       } else if (durationUnit === 'Months') {
-        const expectedMonth = (date.getMonth() + duration) % 12;
-        date.setMonth(date.getMonth() + duration);
-        if (date.getMonth() !== expectedMonth) {
-          date.setDate(0);
-        }
+        date.setDate(date.getDate() + (duration * 30));
       } else if (durationUnit === 'Years') {
-        date.setFullYear(date.getFullYear() + duration);
+        date.setDate(date.getDate() + (duration * 360));
       }
       return date.toLocaleDateString('sv-SE');
     }
@@ -622,7 +672,7 @@ export default function CustomerRegistration() {
     : '';
 
   useEffect(() => {
-    if (formData.planId === 'custom' && formData.accountType === 'Loan') {
+    if (formData.accountType === 'Loan' && formData.planId) {
       const calculatedEmi = calculateCustomEmi(
         Number(formData.customAmount) || 0,
         Number(formData.customRate) || 0,
@@ -634,6 +684,7 @@ export default function CustomerRegistration() {
         formData.startDate
       );
       setFormData(prev => {
+        if (calculatedEmi === '') return prev;
         if (prev.customEmi !== String(calculatedEmi)) {
           return { ...prev, customEmi: String(calculatedEmi) };
         }
@@ -706,10 +757,7 @@ export default function CustomerRegistration() {
     if (!selectedPlan) return 0;
     const durVal = selectedPlan.duration;
     const durUnit = selectedPlan.durationUnit || (formData.planId === 'custom' ? formData.customDurationUnit : 'Days');
-    if (durUnit === 'Days') return durVal / 30.4375;
-    if (durUnit === 'Months') return durVal;
-    if (durUnit === 'Years') return durVal * 12;
-    return 0;
+    return getFinanceDurationMonths(durVal, durUnit);
   })();
 
   const loanPeriod = liveSettings.interest_calculation_period_loan || 'monthly';
@@ -1069,7 +1117,7 @@ export default function CustomerRegistration() {
       start_date: formData.startDate,
       principal_amount: parseFloat(formData.customAmount) || (selectedPlan?.amount ?? 0),
       interest_rate: parseFloat(formData.customRate) || (selectedPlan?.rate ?? 0),
-      interest_type: formData.accountType === 'Saving' ? 'Flat' : (formData.planId === 'custom' ? formData.customType : (selectedPlan?.interestType ?? 'Flat')),
+      interest_type: formData.accountType === 'Saving' ? 'Flat' : (formData.planId === 'custom' ? formData.customType : (selectedPlan?.type ?? 'Flat')),
       duration_value: formData.planId === 'custom'
         ? (parseInt(formData.customDuration) || 0)
         : (selectedPlan?.duration ?? 0),
@@ -1389,7 +1437,7 @@ export default function CustomerRegistration() {
                               customDurationUnit: plan ? (plan.durationUnit || 'Days') : 'Days',
                               customFrequency: plan ? plan.frequency : 'Daily',
                               customType: plan ? plan.type : 'Flat',
-                              customEmi: '', 
+                              customEmi: plan ? String(plan.emi) : '', 
                               customProcessingFee: plan ? String(plan.processingFee) : '0',
                               customPenalty: plan ? String(plan.penalty) : '0',
                               customDailyDeposit: '',
@@ -1904,27 +1952,14 @@ export default function CustomerRegistration() {
                     options={branches.map(b => ({ value: String(b.id), label: `${b.name} (${b.code})` }))}
                     value={formData.branch}
                     onChange={(val) => {
-                      const filteredAreas = areas.filter(a => String(a.branch_id) === String(val));
-                      let bestAreaId = '';
-                      if (filteredAreas.length > 0) {
-                        const sortedAreas = [...filteredAreas].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
-                        bestAreaId = String(sortedAreas[0].id);
-                      }
-
-                      let bestAgentId = '';
-                      if (bestAreaId) {
-                        const filteredAgents = agents.filter(ag => String(ag.branch_id) === String(val) && String(ag.area_id) === String(bestAreaId));
-                        if (filteredAgents.length > 0) {
-                          const sortedAgents = [...filteredAgents].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
-                          bestAgentId = String(sortedAgents[0].id);
-                        }
-                      }
+                      const nextAssignment = pickAreaAndAgentForBranch(val);
+                      setAreaAgents(nextAssignment.area ? getAgentsFor(val, nextAssignment.area) : []);
 
                       setFormData(prev => ({
                         ...prev,
                         branch: val,
-                        area: bestAreaId,
-                        agent: bestAgentId
+                        area: nextAssignment.area,
+                        agent: nextAssignment.agent
                       }));
                     }}
                   />
@@ -1949,7 +1984,8 @@ export default function CustomerRegistration() {
                     .map(a => ({ value: String(a.id), label: `${a.name} (${a.code})` }))}
                   value={formData.area}
                   onChange={(val) => {
-                    const filteredAgents = agents.filter(ag => String(ag.branch_id) === String(formData.branch) && String(ag.area_id) === String(val));
+                    const filteredAgents = getAgentsFor(formData.branch, val);
+                    setAreaAgents(filteredAgents);
                     let bestAgentId = '';
                     if (filteredAgents.length > 0) {
                       const sortedAgents = [...filteredAgents].sort((a, b) => (Number(b.customers_count) || 0) - (Number(a.customers_count) || 0));
@@ -1967,13 +2003,13 @@ export default function CustomerRegistration() {
                 <Select
                   label="Assigned Agent"
                   required={true}
-                  options={agents
-                    .filter(ag => (!formData.branch || String(ag.branch_id) === String(formData.branch)) && (!formData.area || String(ag.area_id) === String(formData.area)))
+                  options={areaAgents
                     .map(ag => ({ value: String(ag.id), label: `${ag.name} (${ag.code})` }))}
                   value={formData.agent}
                   onChange={(val) => {
                     setFormData(prev => ({ ...prev, agent: val }));
                   }}
+                  emptyMessage={formData.area ? 'No active agents assigned to this area' : 'Select area first'}
                 />
               </div>
             </div>

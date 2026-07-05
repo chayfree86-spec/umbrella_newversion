@@ -130,6 +130,14 @@ class SavingDeposit {
                 'generated_by' => $collectedBy
             ]);
 
+            // Saving fund pool me paisa aaya — history + balance update
+            Fund::applyPoolTxn($db, 'saving_fund', 'credit', 'deposit_received', $depositAmount, [
+                'reference_no' => $receiptNo,
+                'description'  => 'Deposit received: ' . $account['saving_account_no'] . ' (' . $receiptNo . ')',
+                'entry_date'   => $depositDate,
+                'entered_by'   => $collectedBy
+            ]);
+
             // Update saving account deposited amount
             $newDeposited = $account['total_deposited'] + $depositAmount;
 
@@ -141,31 +149,6 @@ class SavingDeposit {
             $stmtUpdateAccount->execute([
                 'total_deposited' => $newDeposited,
                 'id' => $savingAccountId
-            ]);
-
-            // Compute new balance separately
-            $stmtBal = $db->prepare("SELECT COALESCE(SUM(CASE WHEN entry_type='credit' THEN amount ELSE -amount END), 0) FROM cash_book WHERE branch_id = :branch_id");
-            $stmtBal->execute(['branch_id' => $account['branch_id']]);
-            $newBal = (float)$stmtBal->fetchColumn() + $depositAmount;
-
-            // Write to cash book
-            $stmtCashBook = $db->prepare("
-                INSERT INTO cash_book (
-                    uuid, entry_date, entry_type, category, description, reference_no, reference_type, amount, balance_after, branch_id, entered_by
-                ) VALUES (
-                    :uuid, :entry_date, 'credit', 'Savings Deposit', :description, :ref_no, 'saving_deposit', :amount,
-                    :balance_after, :branch_id, :entered_by
-                )
-            ");
-            $stmtCashBook->execute([
-                'uuid' => Validator::uuid(),
-                'entry_date' => $depositDate,
-                'description' => "Received deposit for Savings Account: " . $account['saving_account_no'],
-                'ref_no' => $receiptNo,
-                'amount' => $depositAmount,
-                'balance_after' => $newBal,
-                'branch_id' => $account['branch_id'],
-                'entered_by' => $collectedBy
             ]);
 
             // Create Sync Event

@@ -33,6 +33,7 @@ export default function Reports() {
   const [detailStartDate, setDetailStartDate] = useState('');
   const [detailEndDate, setDetailEndDate] = useState('');
   const [detailStatus, setDetailStatus] = useState('all');
+  const [detailFundType, setDetailFundType] = useState('all');
   const [selectedMetricLabel, setSelectedMetricLabel] = useState(null);
   const [todayCollections, setTodayCollections] = useState([]);
 
@@ -42,7 +43,7 @@ export default function Reports() {
 
   useEffect(() => {
     setDetailPage(1);
-  }, [activeReport, detailMonth, detailStartDate, detailEndDate, detailStatus, searchQuery]);
+  }, [activeReport, detailMonth, detailStartDate, detailEndDate, detailStatus, detailFundType, searchQuery]);
 
   useEffect(() => {
     branchApi.list().then(res => setBranches(res.data || [])).catch(() => {});
@@ -95,19 +96,17 @@ export default function Reports() {
             row.PerformanceRate || '0%'
           ];
         case 'cashbook': {
-          const balAfter = Number(row.Balance || 0);
-          const amt = Number(row.Amount || 0);
           const isCredit = (row.Type || '').toLowerCase() === 'credit';
-          const balBefore = isCredit ? (balAfter - amt) : (balAfter + amt);
           return [
             row.Date || 'N/A',
             row.RefNo || 'N/A',
+            row.FundType || 'N/A',
             row.Particulars || row.Category || 'N/A',
             isCredit ? 'Credit' : 'Debit',
-            inr(balBefore),
+            inr(row.BalanceBefore),
             isCredit ? '-' : inr(row.Amount),
             isCredit ? inr(row.Amount) : '-',
-            inr(balAfter)
+            inr(row.Balance)
           ];
         }
         case 'maturity':
@@ -167,10 +166,10 @@ export default function Reports() {
         ];
       }
       case 'cashbook': {
-        const inflows = rows.filter(r => r[3] === 'Credit').reduce((sum, r) => sum + parseAmt(r[5]), 0);
-        const outflows = rows.filter(r => r[4] !== '-').reduce((sum, r) => sum + parseAmt(r[4]), 0);
+        const inflows = rows.filter(r => r[4] === 'Credit').reduce((sum, r) => sum + parseAmt(r[7]), 0);
+        const outflows = rows.filter(r => r[4] === 'Debit').reduce((sum, r) => sum + parseAmt(r[6]), 0);
         return [
-          { label: "Opening Cash Bal", value: inr(inflows - outflows), sub: "Carry forward balance", type: "primary", filterVal: "all" },
+          { label: "Net Cash Balance", value: inr(inflows - outflows), sub: "Credit minus debit", type: "primary", filterVal: "all" },
           { label: "Total Cash Inflows", value: inr(inflows), sub: "EMI + Savings Deposit", type: "success", filterVal: "Credit" },
           { label: "Total Cash Outflows", value: inr(outflows), sub: "Withdrawals + Disbursal", type: "danger", filterVal: "Debit" }
         ];
@@ -319,7 +318,7 @@ export default function Reports() {
         { value: 'Credit', label: 'Credit Only' },
         { value: 'Debit', label: 'Debit Only' }
       ],
-      columns: ['Transaction Date', 'Txn Ref ID', 'Particulars/Account', 'Ledger Type', 'Before Balance', 'Debit Amount', 'Credit Amount', 'After Balance']
+      columns: ['Transaction Date', 'Txn Ref ID', 'Fund Type', 'Particulars/Account', 'Ledger Type', 'Before Balance', 'Debit Amount', 'Credit Amount', 'After Balance']
     },
     maturity: {
       title: 'Maturity & Payout Logs',
@@ -386,12 +385,14 @@ export default function Reports() {
         const agentName = selectedAgent === 'all' ? 'All Agents' : (agents.find(a => String(a.id) === String(selectedAgent))?.name || 'Selected Agent');
         const dateRange = (startDate || endDate) ? `${startDate || 'Start'} to ${endDate || 'End'}` : 'All Dates';
         const monthName = detailMonth === 'all' ? 'All Months' : new Date(2000, parseInt(detailMonth)-1, 1).toLocaleString('en-IN', {month: 'long'});
+        const fundTypeFilter = activeReport === 'cashbook' ? `<div><strong>Fund Type:</strong> ${detailFundType === 'all' ? 'All Funds' : detailFundType}</div>` : '';
         
         activeFiltersHtml = `
           <div><strong>Branch:</strong> ${branchName}</div>
           <div><strong>Agent:</strong> ${agentName}</div>
           <div><strong>Date Range:</strong> ${dateRange}</div>
           <div><strong>Filtered Month:</strong> ${monthName}</div>
+          ${fundTypeFilter}
         `;
       }
 
@@ -702,7 +703,7 @@ export default function Reports() {
     return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
   };
 
-  const getFilteredRows = (rows) => {
+  const getFilteredRows = (rows, includeMetricFilter = true) => {
     let filtered = rows;
 
     if (detailMonth !== 'all') {
@@ -756,7 +757,7 @@ export default function Reports() {
       } else if (activeReport === 'saving') {
         filtered = filtered.filter(row => (row[3] || '').includes(detailStatus));
       } else if (activeReport === 'cashbook') {
-        filtered = filtered.filter(row => row[3] === detailStatus);
+        filtered = filtered.filter(row => row[4] === detailStatus);
       } else if (activeReport === 'maturity') {
         filtered = filtered.filter(row => {
           if (detailStatus === 'Pending Pay Out') return row[5] === 'Pending Pay Out';
@@ -766,7 +767,11 @@ export default function Reports() {
       }
     }
 
-    if (selectedMetricLabel) {
+    if (activeReport === 'cashbook' && detailFundType !== 'all') {
+      filtered = filtered.filter(row => row[2] === detailFundType);
+    }
+
+    if (includeMetricFilter && selectedMetricLabel) {
       const parseAmt = (val) => typeof val === 'string' ? Number(val.replace(/[^\d.]/g, '')) : Number(val || 0);
 
       if (activeReport === 'loan') {
@@ -827,6 +832,7 @@ export default function Reports() {
     setDetailMonth('all');
     setDetailStartDate('');
     setDetailEndDate('');
+    setDetailFundType('all');
 
     if (selectedMetricLabel === label) {
       setSelectedMetricLabel(null);
@@ -845,6 +851,7 @@ export default function Reports() {
     setDetailStartDate('');
     setDetailEndDate('');
     setDetailStatus('all');
+    setDetailFundType('all');
     setSelectedMetricLabel(null);
   };
 
@@ -1125,7 +1132,7 @@ export default function Reports() {
           </div>
 
           <section className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-            {getReportMetrics(activeReport, reportRows).map((met, idx) => (
+            {getReportMetrics(activeReport, getFilteredRows(reportRows, false)).map((met, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -1273,7 +1280,7 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 p-4 bg-background-fin/50 rounded-2xl border border-border-fin">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${activeReport === 'cashbook' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 p-4 bg-background-fin/50 rounded-2xl border border-border-fin`}>
                   <Select
                     label="Filter by Month"
                     options={[
@@ -1303,6 +1310,21 @@ export default function Reports() {
                       setSelectedMetricLabel(null);
                     }}
                   />
+                  {activeReport === 'cashbook' && (
+                    <Select
+                      label="Fund Type"
+                      options={[
+                        { value: 'all', label: 'All' },
+                        { value: 'Loan Fund', label: 'Loan Fund' },
+                        { value: 'Saving Fund', label: 'Saving Fund' }
+                      ]}
+                      value={detailFundType}
+                      onChange={(val) => {
+                        setDetailFundType(val);
+                        setSelectedMetricLabel(null);
+                      }}
+                    />
+                  )}
                   <DatePicker
                     label="Start Date"
                     value={detailStartDate}
@@ -1323,6 +1345,7 @@ export default function Reports() {
                         setDetailStartDate('');
                         setDetailEndDate('');
                         setDetailStatus('all');
+                        setDetailFundType('all');
                         setSelectedMetricLabel(null);
                         setSearchQuery('');
                       }}

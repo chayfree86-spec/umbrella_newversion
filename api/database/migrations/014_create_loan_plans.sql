@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS `loan_plans` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `uuid` CHAR(36) NOT NULL UNIQUE,
+  `name` VARCHAR(200) NOT NULL,
+  `min_amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+  `max_amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+  `interest_rate` DECIMAL(6,2) NOT NULL DEFAULT 0.00,
+  `interest_type` ENUM('Flat','Reducing') DEFAULT 'Flat',
+  `duration_value` INT NOT NULL DEFAULT 100,
+  `duration_unit` ENUM('Days','Months','Years') DEFAULT 'Days',
+  `collection_frequency` ENUM('Daily','Weekly','Monthly') DEFAULT 'Daily',
+  `processing_fee` DECIMAL(18,2) DEFAULT 0.00,
+  `penalty_per_day` DECIMAL(18,2) DEFAULT 0.00,
+  `penalty_per_month` DECIMAL(18,2) DEFAULT 0.00,
+  `status` ENUM('Active','Inactive') DEFAULT 'Active',
+  `created_by` INT UNSIGNED DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` DATETIME DEFAULT NULL,
+  INDEX `idx_loan_plans_status` (`status`)
+) ENGINE=InnoDB;

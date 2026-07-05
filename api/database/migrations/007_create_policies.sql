@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `policies` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `uuid` CHAR(36) NOT NULL UNIQUE,
+  `name` VARCHAR(200) NOT NULL,
+  `role` VARCHAR(100) NOT NULL,
+  `description` TEXT DEFAULT NULL,
+  `allow_login` TINYINT(1) DEFAULT 1,
+  `allow_disbursement` TINYINT(1) DEFAULT 0,
+  `allow_agent_assignment` TINYINT(1) DEFAULT 0,
+  `allow_out_area` TINYINT(1) DEFAULT 0,
+  `max_limit` DECIMAL(18,2) DEFAULT 10000.00,
+  `allow_online_apply` TINYINT(1) DEFAULT 0,
+  `allow_backdated` TINYINT(1) DEFAULT 0,
+  `session_timeout` INT DEFAULT 30,
+  `is_system` TINYINT(1) DEFAULT 0,
+  `created_by` INT UNSIGNED DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` DATETIME DEFAULT NULL
+) ENGINE=InnoDB;

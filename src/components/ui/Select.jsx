@@ -8,7 +8,8 @@ export function Select({
   label = '',
   searchable = true,
   required = false,
-  compact = false
+  compact = false,
+  emptyMessage = 'No options found'
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -126,7 +127,7 @@ export function Select({
               ))
             ) : (
               <div className="px-4 py-3 text-xs text-secondary-text text-center font-bold">
-                No options found
+                {emptyMessage}
               </div>
             )}
           </div>

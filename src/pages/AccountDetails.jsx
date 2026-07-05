@@ -789,8 +789,14 @@ export default function AccountDetails() {
       setCloseDiscountCharges(0); // Waiver / Discount
     } else {
       const deposited = Number(account.total_deposited || 0);
-      // Same interest formula the backend uses on maturity payout
-      const expectedInterest = Math.round(deposited * (Number(account.interest_rate || 0) / 100));
+      // Backend mature() jaisa hi calc: promised maturity ka interest,
+      // adhoore deposits par pro-rata
+      const instList = statementData.installments || [];
+      const scheduleTotal = instList.reduce((s, i) => s + Number(i.total_due || 0), 0);
+      const promisedInterest = Math.max(0, Number(account.maturity_amount || 0) - scheduleTotal);
+      const expectedInterest = (scheduleTotal > 0 && promisedInterest > 0)
+        ? Math.round(promisedInterest * Math.min(1, deposited / scheduleTotal))
+        : Math.round(deposited * (Number(account.interest_rate || 0) / 100));
       setClosePrincipal(deposited);
       setCloseInterestFine(expectedInterest);
       setCloseDiscountCharges(0); // Penalty / Charges
@@ -2985,7 +2991,9 @@ export default function AccountDetails() {
           {/* Collected vs Remaining Dues Donut Chart */}
           {(() => {
             const collected = account.totalPaid;
-            const remaining = account.type === 'Loan' ? account.outstanding : Math.max(0, 36500 - account.totalPaid);
+            // Savings target = account ka apna maturity_amount (har account alag hota hai)
+            const savingsTarget = Number(account.maturity_amount || 0);
+            const remaining = account.type === 'Loan' ? account.outstanding : Math.max(0, savingsTarget - account.totalPaid);
             const total = collected + remaining;
             
             const chartSeries = [collected, remaining];
@@ -3948,7 +3956,7 @@ export default function AccountDetails() {
                   <div>Deposit Frequency: <span className="text-[#0F172A] font-extrabold">{account.deposit_frequency || 'Daily'}</span></div>
                   <div>Interest Rate: <span className="text-[#0F172A] font-extrabold">{account.interestRate || '6%'}</span></div>
                   <div>EMI / Regular Deposit: <span className="text-[#0F172A] font-extrabold">₹{account.emiAmt?.toLocaleString('en-IN') || 0}</span></div>
-                  <div>Maturity Amount: <span className="text-green-600 font-extrabold">₹{(account.maturity_amount || 36500).toLocaleString('en-IN')}</span></div>
+                  <div>Maturity Amount: <span className="text-green-600 font-extrabold">₹{Number(account.maturity_amount || 0).toLocaleString('en-IN')}</span></div>
                   <div>Start Date: <span className="text-[#0F172A] font-extrabold">{account.disbursalDate}</span></div>
                   <div>Maturity Date: <span className="text-[#0F172A] font-extrabold">{account.maturity_date ? new Date(account.maturity_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span></div>
                   <div className="col-span-2">Nominee Details: <span className="text-[#0F172A] font-extrabold">{account.nominee?.name || 'N/A'} ({account.nominee?.relation || 'N/A'})</span></div>

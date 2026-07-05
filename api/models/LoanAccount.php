@@ -203,10 +203,7 @@ class LoanAccount {
         // Calculate count of EMIs
         $totalDays = $durationDays;
         if ((!$totalDays || $totalDays <= 0) && $durationMonths > 0) {
-            $startDateTime = new DateTime($startDateStr);
-            $endDateTime = clone $startDateTime;
-            $endDateTime->modify("+$durationMonths month");
-            $totalDays = $endDateTime->diff($startDateTime)->days;
+            $totalDays = round($durationMonths * 30);
         }
 
         $installmentsCount = 0;
@@ -218,7 +215,7 @@ class LoanAccount {
             $installmentsCount = round($totalDays / 7);
             $intervalSpec = 'P7D';
         } elseif ($frequency === 'Monthly') {
-            $installmentsCount = $durationMonths ?: round($totalDays / 30.4375);
+            $installmentsCount = $durationMonths ?: round($totalDays / 30);
             $intervalSpec = 'P1M';
         }
 
