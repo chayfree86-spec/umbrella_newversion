@@ -14,6 +14,23 @@ class AgentController {
         if (!$agent) {
             Response::error('Agent profile not found.', 404);
         }
+        
+        // Find linked system user
+        $stmt = $db->prepare("
+            SELECT id, name, email, mobile, status, last_login_at 
+            FROM users 
+            WHERE (id = :user_id OR agent_id = :agent_id OR (mobile = :mobile AND role_id = 4)) 
+              AND deleted_at IS NULL 
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'user_id' => !empty($agent['user_id']) ? $agent['user_id'] : 0,
+            'agent_id' => $id,
+            'mobile' => $agent['mobile']
+        ]);
+        $user = $stmt->fetch();
+        $agent['linked_user'] = $user ? $user : null;
+
         Response::success($agent);
     }
 
@@ -86,7 +103,42 @@ class AgentController {
         }
 
         Agent::update($db, $id, $input);
+        
+        // Sync linked user details if exists
+        $stmtUser = $db->prepare("
+            UPDATE users SET 
+                name = :name,
+                email = :email,
+                mobile = :mobile
+            WHERE (id = :user_id OR agent_id = :agent_id OR (mobile = :old_mobile AND role_id = 4))
+              AND deleted_at IS NULL
+        ");
+        $stmtUser->execute([
+            'name' => $input['name'],
+            'email' => !empty($input['email']) ? $input['email'] : null,
+            'mobile' => $input['mobile'],
+            'user_id' => !empty($agent['user_id']) ? $agent['user_id'] : 0,
+            'agent_id' => $id,
+            'old_mobile' => $agent['mobile']
+        ]);
+
         $updated = Agent::getById($db, $id);
+        
+        // Fetch linked user for response
+        $stmt = $db->prepare("
+            SELECT id, name, email, mobile, status, last_login_at 
+            FROM users 
+            WHERE (id = :user_id OR agent_id = :agent_id OR (mobile = :mobile AND role_id = 4)) 
+              AND deleted_at IS NULL 
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'user_id' => !empty($updated['user_id']) ? $updated['user_id'] : 0,
+            'agent_id' => $id,
+            'mobile' => $updated['mobile']
+        ]);
+        $user = $stmt->fetch();
+        $updated['linked_user'] = $user ? $user : null;
 
         AuditLog::log($db, $authUser['id'], 'update_agent', 'agents', $id, $agent, $updated);
         Response::success($updated, 'Agent profile updated successfully.');

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SettingsNavigation } from './General';
 import { Select } from '../../components/ui/Select';
 import { agentApi, branchApi, areaApi, settingsApi } from '../../services/api';
 import { Pagination } from '../../components/ui/Pagination';
 
 export default function Agents() {
+  const navigate = useNavigate();
   const [agents, setAgents] = useState([]);
   const [policies, setPolicies] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -121,7 +122,7 @@ export default function Agents() {
                 const paginatedAgents = sortedAgents.slice((currentPage - 1) * 20, currentPage * 20);
 
                 return paginatedAgents.map((ag) => (
-                  <tr key={ag.id} className="hover:bg-slate-50/50">
+                  <tr key={ag.id} onClick={() => navigate(`/settings/agent/${ag.id}`)} className="hover:bg-slate-50/50 cursor-pointer">
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">{ag.code}</td>
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{ag.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -140,14 +141,14 @@ export default function Agents() {
                         {ag.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                      <Link
-                        to={`/settings/agent/${ag.id}`}
+                    <td className="px-6 py-4 whitespace-nowrap flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => navigate(`/settings/agent/${ag.id}`)}
                         className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
                         title="Edit Agent"
                       >
                         <span className="material-symbols-rounded text-sm select-none">edit</span>
-                      </Link>
+                      </button>
                       <button
                         onClick={() => handleDeleteAgent(ag.id)}
                         className="p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95]"
@@ -178,7 +179,7 @@ export default function Agents() {
             }
 
             return paginatedAgents.map((ag) => (
-              <div key={ag.id} className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5">
+              <div key={ag.id} onClick={() => navigate(`/settings/agent/${ag.id}`)} className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5 cursor-pointer hover:bg-slate-50/50">
                 {/* Title & Code */}
                 <div className="flex justify-between items-start">
                   <div>
@@ -211,15 +212,15 @@ export default function Agents() {
                 </div>
 
                 {/* Actions Row */}
-                <div className="flex justify-end items-center">
+                <div className="flex justify-end items-center" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1.5">
-                    <Link
-                      to={`/settings/agent/${ag.id}`}
+                    <button
+                      onClick={() => navigate(`/settings/agent/${ag.id}`)}
                       className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"
                       title="Edit Agent"
                     >
                       <span className="material-symbols-rounded text-sm select-none">edit</span>
-                    </Link>
+                    </button>
                     <button
                       onClick={() => handleDeleteAgent(ag.id)}
                       className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin cursor-pointer active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center animate-none"

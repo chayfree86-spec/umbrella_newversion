@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { customerApi, branchApi, areaApi, agentApi, loanApi, savingApi, planApi, settingsApi, fundApi } from '../services/api';
 import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -159,6 +159,8 @@ const calculateCustomMaturity = (depositAmt, rate, durationVal, durationUnit, fr
 
 export default function CustomerProfile() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [customer, setCustomer] = useState(null);
   const [activeTab, setActiveTab] = useState('kyc');
@@ -246,7 +248,11 @@ export default function CustomerProfile() {
         }
         data.tabs = tabs;
         setCustomer(data);
-        if (!activeTab || activeTab === 'kyc') {
+        const searchParams = new URLSearchParams(location.search);
+        const urlTab = searchParams.get('tab');
+        if (urlTab) {
+          setActiveTab(urlTab);
+        } else if (!activeTab || activeTab === 'kyc') {
           setActiveTab(tabs[0]?.id || 'kyc');
         }
         setLoading(false);
@@ -542,10 +548,18 @@ export default function CustomerProfile() {
 
   return (
     <div className="space-y-6">
-      {/* Customer Hero summary */}
       <div className="bg-white p-6 rounded-2xl border border-[#E2E8F0] shadow-sm flex flex-col md:flex-row gap-6 items-center">
-        <div className="w-20 h-20 rounded-full bg-[#0A3598] text-white flex items-center justify-center font-bold text-2xl">
-          {initials(customer.full_name)}
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="w-11 h-11 bg-slate-50 hover:bg-slate-100 text-secondary-text rounded-xl border border-border-fin cursor-pointer transition-all active:scale-90 flex items-center justify-center shrink-0"
+            title="Back"
+          >
+            <span className="material-symbols-rounded text-base font-black select-none">arrow_back</span>
+          </button>
+          <div className="w-20 h-20 rounded-full bg-[#0A3598] text-white flex items-center justify-center font-bold text-2xl shrink-0">
+            {initials(customer.full_name)}
+          </div>
         </div>
         <div className="flex-1 text-center md:text-left space-y-1 w-full">
           <div className="flex flex-col md:flex-row md:items-center gap-2 w-full">

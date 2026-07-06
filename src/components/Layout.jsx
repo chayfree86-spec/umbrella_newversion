@@ -466,10 +466,10 @@ export function Layout({ children }) {
             {/* Create Account Link/Button */}
             <Link
               to="/register"
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0A3598] hover:bg-[#0A3598]/90 text-white font-bold text-xs transition-all active:scale-[0.95] shadow-sm cursor-pointer"
+              className="hidden lg:flex items-center justify-center w-10 h-10 rounded-xl bg-[#0A3598] hover:bg-[#0A3598]/90 text-white transition-all active:scale-[0.95] shadow-sm cursor-pointer"
+              title="Create Account"
             >
-              <span className="material-symbols-rounded text-base select-none">person_add</span>
-              <span className="hidden sm:inline">Create Account</span>
+              <span className="material-symbols-rounded text-lg select-none">person_add</span>
             </Link>
 
             {/* Notifications Button */}

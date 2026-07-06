@@ -38,7 +38,9 @@ class Customer {
 
         // Data list
         $stmt = $db->prepare("
-            SELECT c.*, b.name as branch_name, ar.name as area_name, ag.name as agent_name 
+            SELECT c.*, b.name as branch_name, ar.name as area_name, ag.name as agent_name,
+            (SELECT loan_account_no FROM loan_accounts WHERE customer_id = c.id AND deleted_at IS NULL ORDER BY id DESC LIMIT 1) as loan_account_no,
+            (SELECT saving_account_no FROM saving_accounts WHERE customer_id = c.id AND deleted_at IS NULL ORDER BY id DESC LIMIT 1) as saving_account_no
             FROM customers c
             JOIN branches b ON c.branch_id = b.id
             JOIN areas ar ON c.area_id = ar.id

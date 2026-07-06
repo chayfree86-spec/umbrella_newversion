@@ -152,16 +152,10 @@ export default function Users() {
                   <tr
                     key={u.id}
                     className="hover:bg-slate-50/50 cursor-pointer"
-                    onClick={() => navigate(`/settings/user/${u.id}`)}
+                    onClick={() => navigate(u.agent_id ? `/settings/agent/${u.agent_id}` : `/settings/user/${u.id}`)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-primary-text">
-                      <Link
-                        to={`/settings/user/${u.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="hover:underline hover:text-primary"
-                      >
-                        {u.name}
-                      </Link>
+                      {u.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">{u.role_name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{u.mobile}</td>
@@ -222,7 +216,7 @@ export default function Users() {
             return paginatedUsers.map((u) => (
               <div 
                 key={u.id} 
-                onClick={() => navigate(`/settings/user/${u.id}`)}
+                onClick={() => navigate(u.agent_id ? `/settings/agent/${u.agent_id}` : `/settings/user/${u.id}`)}
                 className="bg-surface border border-border-fin rounded-2xl p-4 shadow-sm space-y-3.5 cursor-pointer"
               >
                 {/* Title & Code */}
