@@ -114,9 +114,11 @@ export default function App() {
             <Route path="/register" element={<CustomerRegistration />} />
             <Route path="/collection" element={<DailyCollection />} />
             <Route path="/daily-collection" element={<Collection />} />
-            <Route path="/funds" element={<FundManagement />} />
+            {/* Funds Management sirf Super Admin — direct URL se bhi block */}
+            <Route path="/funds" element={localStorage.getItem('userRole') === 'Super Admin' ? <FundManagement /> : <Navigate to="/" replace />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/expense" element={<Expense />} />
+            {/* Expense sirf Super Admin — direct URL se bhi block */}
+            <Route path="/expense" element={localStorage.getItem('userRole') === 'Super Admin' ? <Expense /> : <Navigate to="/" replace />} />
             <Route path="/customer/:id" element={<CustomerProfile />} />
             <Route path="/account/:accNo" element={<AccountDetails />} />
             

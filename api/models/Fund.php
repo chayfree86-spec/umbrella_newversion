@@ -361,7 +361,8 @@ class Fund {
     public static function getTransactions($db) {
         $stmt = $db->prepare("
             (SELECT CONCAT('L-', h.id) AS id, h.created_at,
-                    h.entry_date AS transaction_date,
+                    DATE(h.created_at) AS transaction_date,
+                    h.entry_date,
                     h.transaction_no AS reference_no,
                     h.category, h.description, h.amount, h.entry_type,
                     COALESCE(fs.source_name, 'Loan Fund') AS source_name,
@@ -371,7 +372,8 @@ class Fund {
              LEFT JOIN users u ON h.entered_by = u.id)
             UNION ALL
             (SELECT CONCAT('S-', h.id) AS id, h.created_at,
-                    h.entry_date AS transaction_date,
+                    DATE(h.created_at) AS transaction_date,
+                    h.entry_date,
                     h.transaction_no AS reference_no,
                     h.category, h.description, h.amount, h.entry_type,
                     COALESCE(fs.source_name, 'Saving Fund') AS source_name,

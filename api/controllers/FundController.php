@@ -55,9 +55,12 @@ class FundController {
         foreach ($transactions as $ce) {
             $list[] = [
                 'id' => $ce['id'],
+                // Display/filter date = entry kab BANI (created_at) — backdated
+                // entry_date wali entries bhi apne asli month me dikhengi
                 'transaction_date' => $ce['transaction_date'],
                 'date' => date('d-m-Y', strtotime($ce['transaction_date'])),
-                'entry_date' => $ce['transaction_date'],
+                // Edit modal ke liye business date wahi rehti hai jo user ne chuni thi
+                'entry_date' => $ce['entry_date'],
                 'transaction_type' => $ce['transaction_type'],
                 'type' => $ce['transaction_type'],
                 'description' => $ce['description'],

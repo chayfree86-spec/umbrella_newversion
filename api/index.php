@@ -438,30 +438,43 @@ try {
         // ----------------------------------------------------------
         // FUND MANAGEMENT ROUTES
         // ----------------------------------------------------------
+        // Funds Management sirf Super Admin use kar sakta hai.
+        // (summary/cash-balance par funds.view hi hai — Registration/Profile
+        // pages "Available Loan Fund" dikhane ke liye inhe call karte hain)
         elseif ($uri === '/funds/summary' && $method === 'GET') {
             RoleGuard::check($authUser, 'funds.view');
             FundController::summary($db, $authUser);
         }
         elseif ($uri === '/funds/capital' && $method === 'POST') {
-            RoleGuard::check($authUser, 'funds.manage');
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Funds Management is accessible to Super Admin only.', 403);
+            }
             FundController::addCapital($db, $authUser, $input);
         }
         elseif ($uri === '/funds/investor-funding' && $method === 'POST') {
-            RoleGuard::check($authUser, 'funds.manage');
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Funds Management is accessible to Super Admin only.', 403);
+            }
             FundController::addInvestorFunding($db, $authUser, $input);
         }
         elseif ($uri === '/funds/transfer' && $method === 'POST') {
-            RoleGuard::check($authUser, 'funds.manage');
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Funds Management is accessible to Super Admin only.', 403);
+            }
             FundController::executeTransfer($db, $authUser, $input);
         }
         elseif ($uri === '/funds/transactions' && $method === 'GET') {
-            RoleGuard::check($authUser, 'funds.view');
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Funds Management is accessible to Super Admin only.', 403);
+            }
             FundController::transactions($db, $authUser);
         }
         elseif (preg_match('#^/funds/transactions/([LS]-\d+|\d+)$#', $uri, $matches) && ($method === 'PUT' || $method === 'DELETE')) {
             // History table ids 'L-12' / 'S-7' format me aati hain
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Funds Management is accessible to Super Admin only.', 403);
+            }
             $txnId = $matches[1];
-            RoleGuard::check($authUser, 'funds.manage');
             if ($method === 'PUT') {
                 FundController::updateTransaction($db, $authUser, $txnId, $input);
             } elseif ($method === 'DELETE') {
@@ -476,16 +489,29 @@ try {
         // ----------------------------------------------------------
         // EXPENSE ROUTES
         // ----------------------------------------------------------
+        // Expenses sirf Super Admin ke liye hain
         elseif ($uri === '/expenses' && $method === 'GET') {
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Expenses are accessible to Super Admin only.', 403);
+            }
             ExpenseController::index($db, $authUser);
         }
         elseif ($uri === '/expenses' && $method === 'POST') {
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Expenses are accessible to Super Admin only.', 403);
+            }
             ExpenseController::store($db, $authUser, $input);
         }
         elseif (preg_match('#^/expenses/(\d+)$#', $uri, $m) && $method === 'PUT') {
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Expenses are accessible to Super Admin only.', 403);
+            }
             ExpenseController::update($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/expenses/(\d+)$#', $uri, $m) && $method === 'DELETE') {
+            if ($authUser['role_slug'] !== 'super_admin') {
+                Response::error('Expenses are accessible to Super Admin only.', 403);
+            }
             ExpenseController::destroy($db, $authUser, $m[1]);
         }
 
