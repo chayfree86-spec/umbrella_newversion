@@ -941,9 +941,9 @@ export default function Reports() {
                 </button>
                 <button
                   onClick={() => handleExport('Print')}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-[#FFD54A] to-[#E67E00] hover:brightness-105 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-md"
+                  className="flex items-center gap-1.5 px-3.5 py-2 border border-border-fin hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs"
                 >
-                  <span className="material-symbols-rounded text-sm select-none">print</span>
+                  <span className="material-symbols-rounded text-sm select-none text-blue-500">print</span>
                   Print
                 </button>
               </div>
@@ -972,9 +972,9 @@ export default function Reports() {
                 </button>
                 <button
                   onClick={() => handleExport('Print')}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-[#FFD54A] to-[#E67E00] text-slate-950 rounded-xl text-xs font-black cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 border border-border-fin text-secondary-text rounded-xl text-xs font-bold bg-surface cursor-pointer"
                 >
-                  <span className="material-symbols-rounded text-sm select-none">print</span>
+                  <span className="material-symbols-rounded text-sm select-none text-blue-500">print</span>
                   Print
                 </button>
               </div>
@@ -1116,16 +1116,16 @@ export default function Reports() {
               </button>
               <button
                 onClick={() => handleExport('Excel')}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-border-fin hover:border-emerald-200 hover:text-emerald-600 hover:bg-emerald-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs flex-1 sm:flex-initial"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-[#E2E8F0] hover:border-emerald-200 hover:text-emerald-600 hover:bg-emerald-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs flex-1 sm:flex-initial"
               >
                 <span className="material-symbols-rounded text-sm select-none text-emerald-500">table_chart</span>
                 Excel
               </button>
               <button
                 onClick={() => handleExport('Print')}
-                className="flex items-center justify-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-[#FFD54A] to-[#E67E00] hover:brightness-105 text-slate-950 rounded-xl text-xs font-black shadow-xs transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-md flex-1 sm:flex-initial"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-[#E2E8F0] hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50 text-secondary-text rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer active:scale-[0.98] hover:-translate-y-[1px] hover:shadow-xs flex-1 sm:flex-initial"
               >
-                <span className="material-symbols-rounded text-sm select-none">print</span>
+                <span className="material-symbols-rounded text-sm select-none text-blue-500">print</span>
                 Print
               </button>
             </div>

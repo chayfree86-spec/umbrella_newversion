@@ -262,10 +262,10 @@ export function Layout({ children }) {
     { name: 'Registration', path: '/register', icon: 'person_add' },
     { name: 'Accounts', path: '/collection', icon: 'assignment_ind' },
     { name: 'Daily Collection', path: '/daily-collection', icon: 'payments' },
+    { name: 'Reports', path: '/reports', icon: 'description' },
     // Expense + Funds Management sirf Super Admin ko dikhte hain
     // (backend routes bhi guarded hain)
     ...(loggedInRole === 'Super Admin' ? [{ name: 'Expense', path: '/expense', icon: 'receipt_long' }] : []),
-    { name: 'Reports', path: '/reports', icon: 'description' },
     ...(loggedInRole === 'Super Admin' ? [{ name: 'Funds Management', path: '/funds', icon: 'account_balance_wallet' }] : [])
   ];
 
