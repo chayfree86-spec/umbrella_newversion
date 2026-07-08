@@ -63,11 +63,78 @@ class AgentController {
             $input['photo_path'] = FileUpload::upload($_FILES['photo'], 'photos');
         }
 
-        $id = Agent::create($db, $input);
-        $agent = Agent::getById($db, $id);
+        // Mobile must be valid 10-digit for the login user
+        if (!preg_match('/^[6-9]\d{9}$/', $input['mobile'])) {
+            Response::error('A valid 10-digit mobile number is required (used for agent login).', 422);
+        }
 
-        AuditLog::log($db, $authUser['id'], 'create_agent', 'agents', $id, null, $agent);
-        Response::success($agent, 'Agent profile created successfully.', 201);
+        $db->beginTransaction();
+        try {
+            // 1. Create agent record
+            $id = Agent::create($db, $input);
+
+            // 2. Login user — mobile pe pehle se user ho to link, warna naya banao
+            $defaultPin = substr(preg_replace('/\D/', '', $input['mobile']), -4);   // last 4 digits
+            $defaultPassword = $input['mobile'];                                     // full mobile
+
+            $stmtU = $db->prepare("SELECT id, role_id, agent_id FROM users WHERE mobile = :m AND deleted_at IS NULL LIMIT 1");
+            $stmtU->execute(['m' => $input['mobile']]);
+            $existingUser = $stmtU->fetch();
+
+            $createdLogin = false;
+            if ($existingUser) {
+                if ((int)$existingUser['role_id'] !== 4) {
+                    throw new Exception('This mobile number already belongs to a non-agent user. Use a different mobile.');
+                }
+                // Existing agent-user ko is agent se link karo
+                $userId = $existingUser['id'];
+                $db->prepare("UPDATE users SET agent_id = :aid, branch_id = :bid, area_id = :arid, policy_id = :pid, name = :name, email = :email WHERE id = :uid")
+                   ->execute([
+                       'aid' => $id, 'bid' => $input['branch_id'], 'arid' => $input['area_id'],
+                       'pid' => !empty($input['policy_id']) ? $input['policy_id'] : null,
+                       'name' => $input['name'],
+                       'email' => !empty($input['email']) ? $input['email'] : null,
+                       'uid' => $userId
+                   ]);
+            } else {
+                // Naya agent login-user
+                $stmtIns = $db->prepare("
+                    INSERT INTO users (uuid, name, email, mobile, password_hash, pin_hash, role_id, branch_id, area_id, agent_id, policy_id, status)
+                    VALUES (:uuid, :name, :email, :mobile, :pw, :pin, 4, :bid, :arid, :aid, :pid, 'Active')
+                ");
+                $stmtIns->execute([
+                    'uuid' => Validator::uuid(),
+                    'name' => $input['name'],
+                    'email' => !empty($input['email']) ? $input['email'] : null,
+                    'mobile' => $input['mobile'],
+                    'pw' => password_hash($defaultPassword, PASSWORD_BCRYPT),
+                    'pin' => password_hash($defaultPin, PASSWORD_BCRYPT),
+                    'bid' => $input['branch_id'],
+                    'arid' => $input['area_id'],
+                    'aid' => $id,
+                    'pid' => !empty($input['policy_id']) ? $input['policy_id'] : null
+                ]);
+                $userId = $db->lastInsertId();
+                $createdLogin = true;
+            }
+
+            // 3. Agent -> user link
+            $db->prepare("UPDATE agents SET user_id = :uid WHERE id = :id")
+               ->execute(['uid' => $userId, 'id' => $id]);
+
+            $db->commit();
+
+            $agent = Agent::getById($db, $id);
+            AuditLog::log($db, $authUser['id'], 'create_agent', 'agents', $id, null, $agent);
+
+            $msg = $createdLogin
+                ? "Agent created. Login — Mobile: {$input['mobile']}, PIN: {$defaultPin} (default; ask agent to change it)."
+                : 'Agent created and linked to the existing user for this mobile.';
+            Response::success($agent, $msg, 201);
+        } catch (Exception $e) {
+            $db->rollBack();
+            Response::error($e->getMessage(), 400);
+        }
     }
 
     public static function update($db, $authUser, $id, $input) {
@@ -158,6 +225,10 @@ class AgentController {
         }
 
         Agent::delete($db, $id);
+
+        // Linked login-user ko bhi deactivate karo taaki wo login na kar sake
+        $db->prepare("UPDATE users SET status = 'Inactive' WHERE (id = :uid OR agent_id = :aid) AND role_id = 4 AND deleted_at IS NULL")
+           ->execute(['uid' => !empty($agent['user_id']) ? $agent['user_id'] : 0, 'aid' => $id]);
 
         AuditLog::log($db, $authUser['id'], 'delete_agent', 'agents', $id, $agent);
         Response::success(null, 'Agent profile deleted successfully.');

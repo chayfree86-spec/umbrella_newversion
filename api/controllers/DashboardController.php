@@ -10,28 +10,41 @@ class DashboardController {
             $branchId = $authUser['branch_id'];
         }
 
+        // Agent role: sab kuch sirf uske apne agent_id tak scoped
+        $isAgent = ($authUser['role_slug'] === 'agent');
+        $agentId = $isAgent ? (int)$authUser['agent_id'] : null;
+        // Helper: table alias ke liye agent clause (agent na ho to khali)
+        $ag = function($col) use ($agentId) {
+            return $agentId ? " AND {$col} = " . $agentId : "";
+        };
+
         // 1. Total Customers
         $q = "SELECT COUNT(*) FROM customers WHERE deleted_at IS NULL";
         if ($branchId) $q .= " AND branch_id = " . (int)$branchId;
+        $q .= $ag('agent_id');
         $totalCustomers = $db->query($q)->fetchColumn();
 
         // 2. Active Loans
         $q = "SELECT COUNT(*), COALESCE(SUM(principal_amount), 0) FROM loan_accounts WHERE account_status IN ('Approved', 'Active', 'Defaulter') AND deleted_at IS NULL";
         if ($branchId) $q .= " AND branch_id = " . (int)$branchId;
+        $q .= $ag('agent_id');
         [$activeLoans, $loanValue] = $db->query($q)->fetch(PDO::FETCH_NUM);
 
         // 3. Active Savings
         $q = "SELECT COUNT(*), COALESCE(SUM(total_deposited), 0) FROM saving_accounts WHERE account_status IN ('Approved', 'Active') AND deleted_at IS NULL";
         if ($branchId) $q .= " AND branch_id = " . (int)$branchId;
+        $q .= $ag('agent_id');
         [$activeSavings, $savingValue] = $db->query($q)->fetch(PDO::FETCH_NUM);
 
         // 4. Today's Collections
         $qLoan = "SELECT COALESCE(SUM(collected_amount), 0) FROM loan_collections WHERE collection_date = CURRENT_DATE() AND is_reversal = 0";
         if ($branchId) $qLoan .= " AND branch_id = " . (int)$branchId;
+        $qLoan .= $ag('agent_id');
         $todayLoan = $db->query($qLoan)->fetchColumn();
 
         $qSaving = "SELECT COALESCE(SUM(deposit_amount), 0) FROM saving_deposits WHERE deposit_date = CURRENT_DATE() AND is_reversal = 0";
         if ($branchId) $qSaving .= " AND branch_id = " . (int)$branchId;
+        $qSaving .= $ag('agent_id');
         $todaySaving = $db->query($qSaving)->fetchColumn();
 
         $todayCollection = $todayLoan + $todaySaving;
@@ -39,29 +52,34 @@ class DashboardController {
         // 5. Monthly Collections
         $qLoanMon = "SELECT COALESCE(SUM(collected_amount), 0) FROM loan_collections WHERE MONTH(collection_date) = MONTH(CURRENT_DATE()) AND YEAR(collection_date) = YEAR(CURRENT_DATE()) AND is_reversal = 0";
         if ($branchId) $qLoanMon .= " AND branch_id = " . (int)$branchId;
+        $qLoanMon .= $ag('agent_id');
         $monLoan = $db->query($qLoanMon)->fetchColumn();
 
         $qSavingMon = "SELECT COALESCE(SUM(deposit_amount), 0) FROM saving_deposits WHERE MONTH(deposit_date) = MONTH(CURRENT_DATE()) AND YEAR(deposit_date) = YEAR(CURRENT_DATE()) AND is_reversal = 0";
         if ($branchId) $qSavingMon .= " AND branch_id = " . (int)$branchId;
+        $qSavingMon .= $ag('agent_id');
         $monSaving = $db->query($qSavingMon)->fetchColumn();
 
         $monthlyCollection = $monLoan + $monSaving;
 
         // 6. Today's Due
-        $qDue = "SELECT COALESCE(SUM(total_due - paid_amount), 0) FROM loan_installments li 
+        $qDue = "SELECT COALESCE(SUM(total_due - paid_amount), 0) FROM loan_installments li
                  JOIN loan_accounts la ON li.loan_account_id = la.id
                  WHERE li.due_date = CURRENT_DATE() AND li.status != 'Paid' AND la.account_status IN ('Approved', 'Active', 'Defaulter') AND la.deleted_at IS NULL";
         if ($branchId) $qDue .= " AND la.branch_id = " . (int)$branchId;
+        $qDue .= $ag('la.agent_id');
         $todayDue = $db->query($qDue)->fetchColumn();
 
         // 7. Today's Maturity
         $qMat = "SELECT COUNT(*) FROM saving_accounts WHERE maturity_date = CURRENT_DATE() AND account_status IN ('Approved', 'Active') AND deleted_at IS NULL";
         if ($branchId) $qMat .= " AND branch_id = " . (int)$branchId;
+        $qMat .= $ag('agent_id');
         $todayMaturity = $db->query($qMat)->fetchColumn();
 
         // 8. Outstanding amount
         $qOut = "SELECT COALESCE(SUM(outstanding_amount), 0) FROM loan_accounts WHERE account_status IN ('Approved', 'Active', 'Defaulter') AND deleted_at IS NULL";
         if ($branchId) $qOut .= " AND branch_id = " . (int)$branchId;
+        $qOut .= $ag('agent_id');
         $outstandingAmount = $db->query($qOut)->fetchColumn();
 
         // 9. Hand Cash Balance
@@ -79,17 +97,17 @@ class DashboardController {
             JOIN loan_accounts la ON lc.loan_account_id = la.id
             JOIN customers c ON lc.customer_id = c.id
             JOIN agents ag ON lc.agent_id = ag.id
-            WHERE lc.is_reversal = 0
-            
+            WHERE lc.is_reversal = 0" . $ag('lc.agent_id') . "
+
             UNION ALL
-            
+
             SELECT 'Saving' as type, sd.receipt_no, sd.deposit_amount as amount, c.full_name as customer_name, ag.name as agent_name, sd.created_at, sa.saving_account_no as account_no
             FROM saving_deposits sd
             JOIN saving_accounts sa ON sd.saving_account_id = sa.id
             JOIN customers c ON sd.customer_id = c.id
             JOIN agents ag ON sd.agent_id = ag.id
-            WHERE sd.is_reversal = 0
-            
+            WHERE sd.is_reversal = 0" . $ag('sd.agent_id') . "
+
             ORDER BY created_at DESC LIMIT 5
         ";
         $recentCollections = $db->query($qRec)->fetchAll();
@@ -99,7 +117,7 @@ class DashboardController {
             SELECT c.id, c.customer_code, c.full_name, c.mobile, c.created_at, b.name as branch_name
             FROM customers c
             JOIN branches b ON c.branch_id = b.id
-            WHERE c.deleted_at IS NULL
+            WHERE c.deleted_at IS NULL" . $ag('c.agent_id') . "
             ORDER BY c.id DESC LIMIT 5
         ";
         $recentRegistrations = $db->query($qReg)->fetchAll();
@@ -112,6 +130,7 @@ class DashboardController {
             WHERE la.account_status IN ('Approved','Active','Defaulter') AND la.deleted_at IS NULL
         ";
         if ($branchId) $qActiveLoans .= " AND la.branch_id = " . (int)$branchId;
+        $qActiveLoans .= $ag('la.agent_id');
         $qActiveLoans .= " ORDER BY la.id DESC LIMIT 10";
         $activeLoanRows = $db->query($qActiveLoans)->fetchAll();
 
@@ -124,6 +143,7 @@ class DashboardController {
             WHERE sa.account_status IN ('Approved','Active') AND sa.deleted_at IS NULL
         ";
         if ($branchId) $qActiveSavings .= " AND sa.branch_id = " . (int)$branchId;
+        $qActiveSavings .= $ag('sa.agent_id');
         $qActiveSavings .= " ORDER BY sa.id DESC LIMIT 10";
         $activeSavingRows = $db->query($qActiveSavings)->fetchAll();
 
@@ -137,6 +157,7 @@ class DashboardController {
             WHERE li.due_date = CURRENT_DATE() AND li.status != 'Paid' AND la.account_status IN ('Approved','Active','Defaulter') AND la.deleted_at IS NULL
         ";
         if ($branchId) $qDueRows .= " AND la.branch_id = " . (int)$branchId;
+        $qDueRows .= $ag('la.agent_id');
         $qDueRows .= " ORDER BY due_amount DESC LIMIT 10";
         $todayDueRows = $db->query($qDueRows)->fetchAll();
 
@@ -149,6 +170,7 @@ class DashboardController {
             WHERE sa.maturity_date = CURRENT_DATE() AND sa.account_status IN ('Approved','Active') AND sa.deleted_at IS NULL
         ";
         if ($branchId) $qMatRows .= " AND sa.branch_id = " . (int)$branchId;
+        $qMatRows .= $ag('sa.agent_id');
         $qMatRows .= " LIMIT 10";
         $todayMaturityRows = $db->query($qMatRows)->fetchAll();
 
@@ -162,6 +184,7 @@ class DashboardController {
             WHERE la.account_status IN ('Approved','Active','Defaulter','NPA') AND la.deleted_at IS NULL AND la.outstanding_amount > 0
         ";
         if ($branchId) $qOutRows .= " AND la.branch_id = " . (int)$branchId;
+        $qOutRows .= $ag('la.agent_id');
         $qOutRows .= " GROUP BY la.id ORDER BY la.outstanding_amount DESC LIMIT 10";
         $outstandingRows = $db->query($qOutRows)->fetchAll();
 
@@ -201,9 +224,9 @@ class DashboardController {
                 FROM (SELECT 0 AS n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6) days
             ) d
             LEFT JOIN (
-                SELECT collection_date as cd, collected_amount as amt FROM loan_collections WHERE is_reversal = 0
+                SELECT collection_date as cd, collected_amount as amt FROM loan_collections WHERE is_reversal = 0" . $ag('agent_id') . "
                 UNION ALL
-                SELECT deposit_date as cd, deposit_amount as amt FROM saving_deposits WHERE is_reversal = 0
+                SELECT deposit_date as cd, deposit_amount as amt FROM saving_deposits WHERE is_reversal = 0" . $ag('agent_id') . "
             ) c ON c.cd = d.day
             GROUP BY d.day
             ORDER BY d.day ASC
@@ -211,20 +234,24 @@ class DashboardController {
         $collectionTrend = $db->query($qTrend)->fetchAll();
 
         // 21. Portfolio split (Loan vs Saving outstanding)
-        $totalLoanPortfolio = (float)$db->query("SELECT COALESCE(SUM(outstanding_amount), 0) FROM loan_accounts WHERE account_status IN ('Approved','Active','Defaulter','NPA') AND deleted_at IS NULL")->fetchColumn();
-        $totalSavingPortfolio = (float)$db->query("SELECT COALESCE(SUM(total_deposited), 0) FROM saving_accounts WHERE account_status IN ('Approved','Active') AND deleted_at IS NULL")->fetchColumn();
+        $qLoanPf = "SELECT COALESCE(SUM(outstanding_amount), 0) FROM loan_accounts WHERE account_status IN ('Approved','Active','Defaulter','NPA') AND deleted_at IS NULL" . $ag('agent_id');
+        $totalLoanPortfolio = (float)$db->query($qLoanPf)->fetchColumn();
+        $qSavPf = "SELECT COALESCE(SUM(total_deposited), 0) FROM saving_accounts WHERE account_status IN ('Approved','Active') AND deleted_at IS NULL" . $ag('agent_id');
+        $totalSavingPortfolio = (float)$db->query($qSavPf)->fetchColumn();
 
         // 22. Earned Interest Calculation
         $qEarnedInterest = "SELECT COALESCE(SUM(interest_amount), 0) FROM loan_collections WHERE is_reversal = 0";
         if ($branchId) $qEarnedInterest .= " AND branch_id = " . (int)$branchId;
+        $qEarnedInterest .= $ag('agent_id');
         $earnedInterest = (float)$db->query($qEarnedInterest)->fetchColumn();
 
         // 23. Pending Interest Calculation
-        $qPendingInterest = "SELECT COALESCE(SUM(li.interest_component * (1 - li.paid_amount / li.total_due)), 0) 
-                             FROM loan_installments li 
-                             JOIN loan_accounts la ON li.loan_account_id = la.id 
+        $qPendingInterest = "SELECT COALESCE(SUM(li.interest_component * (1 - li.paid_amount / li.total_due)), 0)
+                             FROM loan_installments li
+                             JOIN loan_accounts la ON li.loan_account_id = la.id
                              WHERE li.due_date <= CURRENT_DATE() AND li.status != 'Paid' AND la.account_status IN ('Approved', 'Active', 'Defaulter') AND la.deleted_at IS NULL";
         if ($branchId) $qPendingInterest .= " AND la.branch_id = " . (int)$branchId;
+        $qPendingInterest .= $ag('la.agent_id');
         $pendingInterest = (float)$db->query($qPendingInterest)->fetchColumn();
 
         // 24. Earned Interest Rows
@@ -236,6 +263,7 @@ class DashboardController {
             WHERE lc.is_reversal = 0 AND lc.interest_amount > 0
         ";
         if ($branchId) $qEarnedRows .= " AND lc.branch_id = " . (int)$branchId;
+        $qEarnedRows .= $ag('lc.agent_id');
         $qEarnedRows .= " ORDER BY lc.id DESC LIMIT 10";
         $earnedInterestRows = $db->query($qEarnedRows)->fetchAll();
 
@@ -249,10 +277,23 @@ class DashboardController {
             WHERE li.due_date <= CURRENT_DATE() AND li.status != 'Paid' AND la.account_status IN ('Approved', 'Active', 'Defaulter') AND la.deleted_at IS NULL
         ";
         if ($branchId) $qPendingRows .= " AND la.branch_id = " . (int)$branchId;
+        $qPendingRows .= $ag('la.agent_id');
         $qPendingRows .= " ORDER BY li.due_date ASC, pending_interest DESC LIMIT 10";
         $pendingInterestRows = $db->query($qPendingRows)->fetchAll();
 
+        // Agent ke liye business-wide fund/cash figures hide — ye pool-level
+        // numbers hain jo sirf management ke liye hain
+        if ($isAgent) {
+            $overallCash = 0;
+            $availableLoanFund = 0;
+            $cashBookRows = [];
+            $fundEntryRows = [];
+            $totalBranches = 0;
+            $totalAgents = 0;
+        }
+
         Response::success([
+            'is_agent' => $isAgent,
             'total_customers' => (int)$totalCustomers,
             'active_loans' => (int)$activeLoans,
             'loan_value' => (float)$loanValue,

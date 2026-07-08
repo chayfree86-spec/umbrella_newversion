@@ -115,6 +115,10 @@ class SavingController {
             }
         }
 
+        if ($authUser['role_slug'] === 'agent' && $account['agent_id'] != $authUser['agent_id']) {
+            Response::error('Access denied to this savings account.', 403);
+        }
+
         $statement = SavingAccount::getStatement($db, $account['id']);
         $installments = SavingAccount::getInstallments($db, $account['id']);
 

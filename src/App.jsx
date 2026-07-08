@@ -18,6 +18,7 @@ import Areas from './pages/settings/Areas';
 import Agents from './pages/settings/Agents';
 import Plans from './pages/settings/Plans';
 import UserProfile from './pages/settings/UserProfile';
+import MyProfile from './pages/settings/MyProfile';
 import AgentProfile from './pages/settings/AgentProfile';
 import Login from './pages/Login';
 import { PremiumLoader } from './components/ui/PremiumLoader';
@@ -122,16 +123,26 @@ export default function App() {
             <Route path="/customer/:id" element={<CustomerProfile />} />
             <Route path="/account/:accNo" element={<AccountDetails />} />
             
-            {/* Settings Sub-routes */}
-            <Route path="/settings" element={<General />} />
-            <Route path="/settings/users" element={<Users />} />
-            <Route path="/settings/user/:id" element={<UserProfile />} />
-            <Route path="/settings/policies" element={<Policies />} />
-            <Route path="/settings/branches" element={<Branches />} />
-            <Route path="/settings/areas" element={<Areas />} />
-            <Route path="/settings/agents" element={<Agents />} />
-            <Route path="/settings/agent/:id" element={<AgentProfile />} />
-            <Route path="/settings/plans" element={<Plans />} />
+            {/* Settings Sub-routes.
+                Agent ke liye /settings = read-only My Profile.
+                Baaki admin settings agent se blocked (redirect /settings). */}
+            {(() => {
+              const isAgent = localStorage.getItem('userRole') === 'Agent / Collection Executive';
+              const adminOnly = (el) => isAgent ? <Navigate to="/settings" replace /> : el;
+              return (
+                <>
+                  <Route path="/settings" element={isAgent ? <MyProfile /> : <General />} />
+                  <Route path="/settings/users" element={adminOnly(<Users />)} />
+                  <Route path="/settings/user/:id" element={adminOnly(<UserProfile />)} />
+                  <Route path="/settings/policies" element={adminOnly(<Policies />)} />
+                  <Route path="/settings/branches" element={adminOnly(<Branches />)} />
+                  <Route path="/settings/areas" element={adminOnly(<Areas />)} />
+                  <Route path="/settings/agents" element={adminOnly(<Agents />)} />
+                  <Route path="/settings/agent/:id" element={adminOnly(<AgentProfile />)} />
+                  <Route path="/settings/plans" element={adminOnly(<Plans />)} />
+                </>
+              );
+            })()}
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

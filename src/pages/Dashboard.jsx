@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const username = localStorage.getItem('username') || localStorage.getItem('active_user_name') || 'User';
+  const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
+  const isAgent = userRole === 'Agent / Collection Executive';
 
   useEffect(() => {
     setCurrentPage(1);
@@ -83,6 +85,8 @@ export default function Dashboard() {
   const placeholder = loading ? '...' : '—';
 
   // Statistics Data — purely backend-driven
+  // Agent ko business-wide fund/interest cards nahi dikhte, sirf apne accounts
+  const agentHiddenCards = ['Available Loan Fund', 'Earned Interest', 'Pending Interest'];
   const stats = [
     { name: 'Total Customers',     value: d ? num(d.total_customers) : placeholder, icon: 'groups',                 change: 'Registered active',         type: 'primary' },
     { name: 'Active Loans',        value: d ? `${num(d.active_loans)} (${inr(d.loan_value)})` : placeholder,         icon: 'credit_score',           change: 'Loan accounts active',      type: 'primary' },
@@ -94,7 +98,7 @@ export default function Dashboard() {
     { name: 'Available Loan Fund', value: d ? inr(d.available_loan_fund) : placeholder,                              icon: 'account_balance_wallet', change: 'Ready for disbursal',       type: 'primary' },
     { name: 'Earned Interest',     value: d ? inr(d.earned_interest) : placeholder,                                  icon: 'trending_up',            change: 'Collected interest income', type: 'success' },
     { name: 'Pending Interest',    value: d ? inr(d.pending_interest) : placeholder,                                 icon: 'hourglass_empty',        change: 'Overdue & due interest',    type: 'warning' }
-  ];
+  ].filter(s => !(isAgent && agentHiddenCards.includes(s.name)));
 
   // Drill-down table data — all rows come from API
   const filterData = {
@@ -322,22 +326,24 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Highlighted Cash Balance */}
-        <div 
-          onClick={() => setActiveFilter('Overall Cash Balance')}
-          className={`relative z-10 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-5 min-w-[240px] shadow-inner flex flex-col items-start md:items-end self-stretch md:self-auto cursor-pointer select-none transition-all active:scale-[0.98] ${
-            activeFilter === 'Overall Cash Balance' ? 'ring-2 ring-accent bg-white/20' : ''
-          }`}
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <span className="material-symbols-rounded text-accent text-lg">wallet</span>
-            <span className="text-xs font-bold uppercase tracking-wider text-white/80">Overall Cash Balance</span>
+        {/* Highlighted Cash Balance — agent ko business-wide cash nahi dikhta */}
+        {!isAgent && (
+          <div
+            onClick={() => setActiveFilter('Overall Cash Balance')}
+            className={`relative z-10 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-5 min-w-[240px] shadow-inner flex flex-col items-start md:items-end self-stretch md:self-auto cursor-pointer select-none transition-all active:scale-[0.98] ${
+              activeFilter === 'Overall Cash Balance' ? 'ring-2 ring-accent bg-white/20' : ''
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="material-symbols-rounded text-accent text-lg">wallet</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-white/80">Overall Cash Balance</span>
+            </div>
+            <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+              {d ? inr(d.overall_cash_balance) : placeholder}
+            </h3>
+            <span className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">Cash in hand balance</span>
           </div>
-          <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-            {d ? inr(d.overall_cash_balance) : placeholder}
-          </h3>
-          <span className="text-[10px] font-bold text-accent uppercase tracking-widest mt-1">Cash in hand balance</span>
-        </div>
+        )}
       </div>
 
       {/* Stats Grid - Clickable Filters (Bento Layout Style) */}

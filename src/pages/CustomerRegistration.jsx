@@ -774,7 +774,10 @@ export default function CustomerRegistration() {
     : 0;
 
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
-  const isKycFieldRequired = userRole !== 'Super Admin' && liveSettings.mandatory_kyc !== false;
+  const isAgentUser = userRole === 'Agent / Collection Executive';
+  // Agent ke liye KYC hamesha mandatory — setting off ho tab bhi.
+  const kycMandatory = isAgentUser || liveSettings.mandatory_kyc !== false;
+  const isKycFieldRequired = userRole !== 'Super Admin' && kycMandatory;
 
   const isStep1Valid = () => {
     if (!formData.accountType || !formData.planId || !formData.startDate) return false;
@@ -799,17 +802,20 @@ export default function CustomerRegistration() {
   };
 
   const isStep4Valid = () => {
-    const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
     if (userRole === 'Super Admin') return true;
-    const isKycMandatory = liveSettings.mandatory_kyc !== false;
-    if (!isKycMandatory) return true;
+    if (!kycMandatory) return true;
     return formData.aadhaarNumber && formData.panNumber && formData.bankName && formData.bankAccountNo && formData.bankIfsc;
   };
 
   const isStep5Valid = () => {
-    const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
     if (userRole === 'Super Admin') return true;
-    if (formData.accountType === 'Saving') return true;
+    // Agent ke liye guarantor (loan) / nominee (saving) hamesha mandatory
+    if (formData.accountType === 'Saving') {
+      if (isAgentUser) {
+        return formData.guarantorName && formData.guarantorMobile && formData.guarantorRelation && formData.guarantorAadhaar;
+      }
+      return true;
+    }
     return formData.guarantorName && formData.guarantorMobile && formData.guarantorRelation && formData.guarantorAadhaar;
   };
 
@@ -957,9 +963,8 @@ export default function CustomerRegistration() {
       else if (!formData.state) { missingField = 'state'; missingLabel = 'State'; }
       else if (!formData.pinCode) { missingField = 'pinCode'; missingLabel = 'PIN Code'; }
     } else if (currentStep === 4) {
-      const isKycMandatory = liveSettings.mandatory_kyc !== false;
-      const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
-      if (userRole !== 'Super Admin' && isKycMandatory) {
+      // Agent ke liye KYC hamesha mandatory (setting bypass nahi)
+      if (userRole !== 'Super Admin' && kycMandatory) {
         if (!formData.aadhaarNumber) { missingField = 'aadhaarNumber'; missingLabel = 'Aadhaar Number'; }
         else if (!formData.panNumber) { missingField = 'panNumber'; missingLabel = 'PAN Number'; }
         else if (!formData.bankName) { missingField = 'bankName'; missingLabel = 'Bank Name'; }
@@ -967,12 +972,15 @@ export default function CustomerRegistration() {
         else if (!formData.bankIfsc) { missingField = 'bankIfsc'; missingLabel = 'Bank IFSC Code'; }
       }
     } else if (currentStep === 5) {
-      const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
-      if (userRole !== 'Super Admin' && formData.accountType === 'Loan') {
-        if (!formData.guarantorName) { missingField = 'guarantorName'; missingLabel = 'Guarantor Name'; }
-        else if (!formData.guarantorMobile) { missingField = 'guarantorMobile'; missingLabel = 'Guarantor Mobile'; }
-        else if (!formData.guarantorRelation) { missingField = 'guarantorRelation'; missingLabel = 'Guarantor Relation'; }
-        else if (!formData.guarantorAadhaar) { missingField = 'guarantorAadhaar'; missingLabel = 'Guarantor Aadhaar'; }
+      // Loan par guarantor; Saving par nominee — agent ke liye dono mandatory
+      const needGuarantor = userRole !== 'Super Admin' &&
+        (formData.accountType === 'Loan' || isAgentUser);
+      if (needGuarantor) {
+        const label = formData.accountType === 'Saving' ? 'Nominee' : 'Guarantor';
+        if (!formData.guarantorName) { missingField = 'guarantorName'; missingLabel = `${label} Name`; }
+        else if (!formData.guarantorMobile) { missingField = 'guarantorMobile'; missingLabel = `${label} Mobile`; }
+        else if (!formData.guarantorRelation) { missingField = 'guarantorRelation'; missingLabel = `${label} Relation`; }
+        else if (!formData.guarantorAadhaar) { missingField = 'guarantorAadhaar'; missingLabel = `${label} Aadhaar`; }
       }
     }
 

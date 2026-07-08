@@ -647,17 +647,21 @@ export function Layout({ children }) {
                 <span className="material-symbols-rounded text-lg select-none">person_add</span>
                 <span>Customer Registration</span>
               </Link>
-              <Link
-                to="/funds"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors duration-200 cursor-pointer ${
-                  isActive('/funds') ? 'bg-[#0A3598]/10 text-[#0A3598] font-bold' : 'text-[#64748B] hover:text-[#0F172A] hover:bg-slate-50'
-                }`}
-              >
-                <span className="material-symbols-rounded text-lg select-none">account_balance_wallet</span>
-                <span>Funds Management</span>
-              </Link>
+              {loggedInRole === 'Super Admin' && (
+                <Link
+                  to="/funds"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors duration-200 cursor-pointer ${
+                    isActive('/funds') ? 'bg-[#0A3598]/10 text-[#0A3598] font-bold' : 'text-[#64748B] hover:text-[#0F172A] hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="material-symbols-rounded text-lg select-none">account_balance_wallet</span>
+                  <span>Funds Management</span>
+                </Link>
+              )}
 
+              {/* Administration section — agent ko nahi dikhta */}
+              {loggedInRole !== 'Agent / Collection Executive' && (<>
               <span className="text-[9px] font-bold text-secondary-text uppercase tracking-wider block px-3 mt-4 mb-2">Administration</span>
               <Link
                 to="/settings/branches"
@@ -721,6 +725,7 @@ export function Layout({ children }) {
                 <span className="material-symbols-rounded text-lg select-none">gavel</span>
                 <span>Policies & Security</span>
               </Link>
+              </>)}
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
@@ -744,7 +749,7 @@ export function Layout({ children }) {
                 }`}
               >
                 <span className="material-symbols-rounded text-lg select-none">settings</span>
-                <span>Settings</span>
+                <span>{loggedInRole === 'Agent / Collection Executive' ? 'My Profile' : 'Settings'}</span>
               </Link>
             </nav>
 

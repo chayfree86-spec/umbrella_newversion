@@ -159,6 +159,10 @@ class LoanController {
             }
         }
 
+        if ($authUser['role_slug'] === 'agent' && $account['agent_id'] != $authUser['agent_id']) {
+            Response::error('Access denied to this loan account.', 403);
+        }
+
         $transactions = LoanAccount::getStatement($db, $account['id']);
         $installments = LoanAccount::getInstallments($db, $account['id']);
         Response::success([
@@ -174,6 +178,10 @@ class LoanController {
             if (!$account) {
                 Response::error('Loan account not found.', 404);
             }
+        }
+
+        if ($authUser['role_slug'] === 'agent' && $account['agent_id'] != $authUser['agent_id']) {
+            Response::error('Access denied to this loan account.', 403);
         }
 
         $installments = LoanAccount::getInstallments($db, $account['id']);

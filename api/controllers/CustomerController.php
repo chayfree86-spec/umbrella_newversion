@@ -85,6 +85,19 @@ class CustomerController {
             Response::error('Validation error', 422, $errors);
         }
 
+        // Agent role: KYC + guarantor/nominee hamesha mandatory (API bypass rok)
+        if ($authUser['role_slug'] === 'agent') {
+            $kycErrors = Validator::required($input, ['aadhaar_no', 'pan_no', 'bank_name', 'bank_account_no', 'bank_ifsc']);
+            if (!empty($kycErrors)) {
+                Response::error('KYC details are mandatory for agent registrations.', 422, $kycErrors);
+            }
+            $guarErrors = Validator::required($input, ['guarantor_name', 'guarantor_mobile', 'guarantor_relation', 'guarantor_aadhaar']);
+            if (!empty($guarErrors)) {
+                $who = (($input['plan_type'] ?? 'Loan') === 'Saving') ? 'Nominee' : 'Guarantor';
+                Response::error("{$who} details are mandatory for agent registrations.", 422, $guarErrors);
+            }
+        }
+
         // Validate branch, area, agent
         if (!Branch::getById($db, $input['branch_id'])) {
             Response::error('Invalid branch selected.', 422);
