@@ -163,8 +163,23 @@ export default function CustomerRegistration() {
   const [liveSettings, setLiveSettings] = useState({});
   const [availableLoanFund, setAvailableLoanFund] = useState(0);
 
-  // Fresh form state — nothing persists in localStorage, everything stays live
+  // Sirf CURRENT form-in-progress ka draft localStorage me rakhte hain
+  // (accidental refresh se half-filled registration na kho jaye). Ye
+  // koi fake/mock customer data NAHI hai — sirf abhi typed values ka
+  // local backup, submit hote hi hamesha clear ho jata hai.
+  const DRAFT_KEY = 'customer_registration_draft_v2';
+  const STEP_KEY = 'customer_registration_draft_step_v2';
+
   const getInitialFormData = () => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {
+      // corrupt draft — ignore, fall through to blank form
+    }
     return {
       accountType: 'Loan',
       planId: '',
@@ -221,7 +236,19 @@ export default function CustomerRegistration() {
 
   const [formData, setFormData] = useState(getInitialFormData);
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() => {
+    const saved = Number(localStorage.getItem(STEP_KEY));
+    return saved >= 1 && saved <= 6 ? saved : 1;
+  });
+
+  // Har change par draft ko localStorage me save karo (refresh-safe)
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+  }, [formData]);
+
+  useEffect(() => {
+    localStorage.setItem(STEP_KEY, String(currentStep));
+  }, [currentStep]);
 
   const getAgentsFor = (branchId, areaId) =>
     agents.filter(ag =>
@@ -519,6 +546,8 @@ export default function CustomerRegistration() {
           guarantorPhoto: null, guarantorName: '', guarantorMobile: '', guarantorRelation: '', guarantorAddress: '', guarantorAadhaar: '', guarantorAadhaarFront: null, guarantorAadhaarBack: null
         });
         setCurrentStep(1);
+        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(STEP_KEY);
       }
     );
   };
@@ -1183,6 +1212,9 @@ export default function CustomerRegistration() {
           guarantorPhoto: null, guarantorName: '', guarantorMobile: '', guarantorRelation: '', guarantorAddress: '',
           guarantorAadhaar: '', guarantorAadhaarFront: null, guarantorAadhaarBack: null
         });
+        // Registration ho gaya — purana draft ab stale hai, clear karo
+        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(STEP_KEY);
       })
       .catch(err => {
         showWarning('Registration Failed', err.message || 'Server error occurred during customer onboarding.');

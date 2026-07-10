@@ -229,6 +229,23 @@ class CollectionController {
 
         try {
             $receiptNo = LoanCollection::collect($db, $input);
+
+            if ($authUser['role_slug'] === 'agent') {
+                try {
+                    Notification::notifyAdmins($db, [
+                        'branch_id' => $account['branch_id'],
+                        'area_id' => $account['area_id'],
+                        'title' => 'Loan Payment Collected',
+                        'message' => "{$authUser['name']} collected ₹{$input['collected_amount']} from {$account['customer_name']} for {$account['loan_account_no']} (Receipt: {$receiptNo}).",
+                        'type' => 'info',
+                        'module' => 'loan_collections',
+                        'exclude_user_id' => $authUser['id']
+                    ]);
+                } catch (Exception $notifyEx) {
+                    error_log('notifyAdmins (loan collection) failed: ' . $notifyEx->getMessage());
+                }
+            }
+
             Response::success(['receipt_no' => $receiptNo], 'Loan payment collected successfully.');
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);
@@ -251,6 +268,23 @@ class CollectionController {
 
         try {
             $receiptNo = SavingDeposit::deposit($db, $input);
+
+            if ($authUser['role_slug'] === 'agent') {
+                try {
+                    Notification::notifyAdmins($db, [
+                        'branch_id' => $account['branch_id'],
+                        'area_id' => $account['area_id'],
+                        'title' => 'Savings Deposit Collected',
+                        'message' => "{$authUser['name']} collected ₹{$input['deposit_amount']} from {$account['customer_name']} for {$account['saving_account_no']} (Receipt: {$receiptNo}).",
+                        'type' => 'info',
+                        'module' => 'saving_deposits',
+                        'exclude_user_id' => $authUser['id']
+                    ]);
+                } catch (Exception $notifyEx) {
+                    error_log('notifyAdmins (saving deposit) failed: ' . $notifyEx->getMessage());
+                }
+            }
+
             Response::success(['receipt_no' => $receiptNo], 'Savings deposit recorded successfully.');
         } catch (Exception $e) {
             Response::error($e->getMessage(), 400);

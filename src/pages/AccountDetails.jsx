@@ -4,6 +4,8 @@ import { Select } from '../components/ui/Select';
 import { DatePicker } from '../components/ui/DatePicker';
 import Chart from 'react-apexcharts';
 import { loanApi, savingApi, customerApi, collectionApi, planApi, settingsApi, fundApi } from '../services/api';
+import html2canvas from 'html2canvas-pro';
+import { jsPDF } from 'jspdf';
 
 const getDaysInYear = (dateStr) => {
   const d = dateStr ? new Date(dateStr) : new Date();
@@ -1041,6 +1043,160 @@ export default function AccountDetails() {
     window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
   };
 
+  const handleNocWhatsAppShare = async () => {
+    const fileName = `NOC-${account.accNo || 'certificate'}.pdf`;
+    const message = `Hello, I am sharing the Loan No Objection Certificate (NOC) for Account No: ${account.accNo} issued by ${companyName}. Status: Fully Settled & Closed.`;
+    const openWhatsAppFallback = () => {
+      window.open(
+        `https://api.whatsapp.com/send?text=${encodeURIComponent(`${message}\n\nPDF file has been downloaded. Please attach ${fileName} in WhatsApp.`)}`,
+        '_blank'
+      );
+    };
+    const downloadPdf = (blob) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    let blob;
+    let file;
+    try {
+      const certificateEl = document.getElementById('noc-pdf-capture-area');
+      if (!certificateEl) {
+        throw new Error('NOC certificate design is not available for PDF export.');
+      }
+      await document.fonts?.ready;
+
+      const canvas = await html2canvas(certificateEl, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Convert canvas to compressed JPEG with 0.7 quality
+      const imgData = canvas.toDataURL('image/jpeg', 0.7);
+      
+      // Fit the high-quality A4 aspect-ratio canvas exactly on A4 page
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+
+      blob = pdf.output('blob');
+      file = new File([blob], fileName, { type: 'application/pdf' });
+    } catch (err) {
+      console.error(err);
+      alert('Unable to create the NOC PDF. Please open the NOC preview and print/download it manually.');
+      return;
+    }
+
+    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${companyName} NOC Certificate`,
+          text: message,
+          files: [file]
+        });
+        return;
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return;
+      }
+    }
+
+    downloadPdf(blob);
+    openWhatsAppFallback();
+  };
+
+  const handlePassbookWhatsAppShare = async () => {
+    const fileName = `Passbook-${account.accNo || 'statement'}.pdf`;
+    const message = `Hello, I am sharing the Account Passbook & Statement for Account No: ${account.accNo} issued by ${companyName}.`;
+    const openWhatsAppFallback = () => {
+      window.open(
+        `https://api.whatsapp.com/send?text=${encodeURIComponent(`${message}\n\nPDF file has been downloaded. Please attach ${fileName} in WhatsApp.`)}`,
+        '_blank'
+      );
+    };
+    const downloadPdf = (blob) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    let blob;
+    let file;
+    try {
+      const certificateEl = document.getElementById('passbook-pdf-capture-area');
+      if (!certificateEl) {
+        throw new Error('Passbook design is not available for PDF export.');
+      }
+      await document.fonts?.ready;
+
+      const canvas = await html2canvas(certificateEl, {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // Convert canvas to compressed JPEG with 0.7 quality
+      const imgData = canvas.toDataURL('image/jpeg', 0.7);
+      
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+      
+      // Use threshold > 10 to prevent adding an extra blank page for floating-point issues
+      while (heightLeft > 10) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pageHeight;
+      }
+
+      blob = pdf.output('blob');
+      file = new File([blob], fileName, { type: 'application/pdf' });
+    } catch (err) {
+      console.error(err);
+      alert('Unable to create the Passbook PDF. Please open the Passbook preview and print/download it manually.');
+      return;
+    }
+
+    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${companyName} Passbook`,
+          text: message,
+          files: [file]
+        });
+        return;
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return;
+      }
+    }
+
+    downloadPdf(blob);
+    openWhatsAppFallback();
+  };
+
   const handleExcelExport = () => {
     const txList = account.ledger || [];
     const customerName = account.customer?.name || 'N/A';
@@ -1411,9 +1567,242 @@ export default function AccountDetails() {
   const remainingInterestForClose = Math.max(0, totalInterestForClose - paidInterestForClose);
 
   const accStatus = account.status;
+  const nocIssueDate = account.closed_at
+    ? new Date(account.closed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const NocCertificate = ({ id, isPdf = false }) => (
+    <div 
+      id={id}
+      className={`bg-white relative overflow-hidden flex flex-col justify-between text-slate-700 leading-relaxed ${
+        isPdf ? 'w-[794px] h-[1123px] p-16' : 'p-10 rounded-xl border border-slate-200 shadow-sm'
+      }`}
+      style={{ 
+        minHeight: isPdf ? '1123px' : '600px', 
+        height: isPdf ? '1123px' : 'auto',
+        backgroundImage: 'radial-gradient(#0A359802 1.5px, transparent 1.5px)', 
+        backgroundSize: '20px 20px' 
+      }}
+    >
+      <div className={`absolute pointer-events-none ${isPdf ? 'inset-4 border-2 border-double border-slate-300' : 'inset-2 border-2 border-double border-slate-200 rounded-lg'}`}></div>
+      
+      <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 gap-4 relative z-10 w-full">
+        <div className="flex items-center gap-4">
+          <img src="/logo.png" className={`${isPdf ? 'w-16 h-16' : 'w-12 h-12'} object-contain shrink-0`} alt="Logo" />
+          <div>
+            <h2 className={`${isPdf ? 'text-2xl' : 'text-lg'} font-black tracking-tight text-[#0F172A] uppercase`}>{companyName}</h2>
+            <p className={`${isPdf ? 'text-[11px]' : 'text-[9px]'} text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-1`}>{companyTagline}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <h3 className={`${isPdf ? 'text-sm' : 'text-xs'} font-black text-slate-800 tracking-wider`}>NO OBJECTION CERTIFICATE</h3>
+          <p className={`${isPdf ? 'text-xs' : 'text-[10px]'} text-slate-400 font-bold uppercase mt-1.5`}>Ref: NOC/{account.accNo}</p>
+          <p className={`${isPdf ? 'text-xs' : 'text-[10px]'} text-slate-400 font-bold uppercase`}>Date: {nocIssueDate}</p>
+        </div>
+      </div>
+
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+        <img src="/logo.png" className={`${isPdf ? 'w-96 h-96 opacity-[0.05]' : 'w-64 h-64 opacity-[0.04]'} object-contain`} alt="Watermark" />
+      </div>
+
+      <div className={`space-y-8 text-slate-700 leading-relaxed relative z-10 my-auto w-full ${isPdf ? 'text-sm px-4' : 'text-xs py-8'}`}>
+        <p className="font-bold text-slate-900">TO WHOM IT MAY CONCERN</p>
+        
+        <p className="text-justify font-medium">
+          This is to certify that the borrower <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has availed a Loan under Account Number <strong className="font-extrabold text-[#0A3598]">{account.accNo}</strong> from {companyName}.
+        </p>
+
+        <p className="text-justify font-medium">
+          We hereby confirm that the borrower has fully paid all due installments, principal, interest, and any applicable charges under this loan account. As of <strong className="font-bold text-slate-800">{nocIssueDate}</strong>, the outstanding dues under the said loan account stand at <strong className="text-green-600 font-extrabold">NIL (₹0.00)</strong>.
+        </p>
+
+        <p className="text-justify font-medium">
+          {companyName} has received the complete settlement amount and has **No Objection** whatsoever against the borrower. We declare that the said loan account has been **Fully Closed & Settled** in our books of accounts, and there are no liabilities, claims, or dues outstanding against the borrower under this account.
+        </p>
+      </div>
+
+      <div className={`flex justify-between items-end border-t border-slate-200 mt-auto relative z-10 w-full ${isPdf ? 'pt-10' : 'pt-8'}`}>
+        <div className="space-y-3">
+          <div className={`${isPdf ? 'w-20 h-20 text-[8px]' : 'w-16 h-16 text-[7px]'} bg-[#0A3598]/5 border border-dashed border-[#0A3598]/20 rounded-full flex flex-col items-center justify-center font-bold text-[#0A3598]/60 select-none uppercase tracking-widest text-center leading-tight`}>
+            <span>OFFICIAL</span>
+            <span>SEAL</span>
+          </div>
+          <p className={`${isPdf ? 'text-xs' : 'text-[9px]'} text-slate-400 font-extrabold uppercase tracking-wider`}>{companyName} Seal</p>
+        </div>
+        <div className="text-right space-y-2">
+          <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
+            <span className={`font-serif text-[#0A3598] border-b border-slate-300 pb-1.5 text-center tracking-widest ${isPdf ? 'w-44 text-sm' : 'w-36 text-xs'}`}>Sandeep Kumar</span>
+          </div>
+          <p className={`${isPdf ? 'text-xs' : 'text-[9px]'} text-slate-500 font-extrabold uppercase tracking-wider`}>Authorized Signatory</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PassbookBoard = ({ id, isPdf = false }) => (
+    <div 
+      id={id}
+      className={`bg-white relative overflow-hidden flex flex-col gap-6 text-slate-700 leading-relaxed ${
+        isPdf ? 'w-[794px] p-16' : 'p-10 rounded-xl border border-slate-200 shadow-sm'
+      }`}
+      style={{ 
+        minHeight: isPdf ? '1123px' : '100%', 
+        backgroundImage: 'radial-gradient(#0A359802 1.5px, transparent 1.5px)', 
+        backgroundSize: '20px 20px' 
+      }}
+    >
+      <div className={`absolute pointer-events-none ${isPdf ? 'inset-4 border-2 border-double border-slate-300' : 'inset-2 border-2 border-double border-slate-200 rounded-lg'}`}></div>
+
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+        <img src="/logo.png" className={`${isPdf ? 'w-96 h-96 opacity-[0.05]' : 'w-64 h-64 opacity-[0.04]'} object-contain`} alt="Watermark" />
+      </div>
+      
+      <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 gap-4 relative z-10 w-full">
+        <div className="flex items-center gap-4">
+          <img src="/logo.png" className={`${isPdf ? 'w-16 h-16' : 'w-12 h-12'} object-contain shrink-0`} alt="Logo" />
+          <div>
+            <h2 className={`${isPdf ? 'text-2xl' : 'text-lg'} font-black tracking-tight text-[#0F172A] uppercase`}>{companyName}</h2>
+            <p className={`${isPdf ? 'text-[11px]' : 'text-[9px]'} text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-1`}>{companyTagline}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <h3 className={`${isPdf ? 'text-sm' : 'text-xs'} font-black text-slate-800 tracking-wider`}>ACCOUNT PASSBOOK STATEMENT</h3>
+          <p className={`${isPdf ? 'text-xs' : 'text-[10px]'} text-slate-400 font-bold uppercase mt-1.5`}>Acc No: {account.accNo}</p>
+          <p className={`${isPdf ? 'text-xs' : 'text-[10px]'} text-slate-400 font-bold uppercase`}>Statement Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+        </div>
+      </div>
+
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-xl border border-slate-200/60 relative z-10 w-full text-[11px] ${isPdf ? 'text-xs' : ''}`}>
+        <div className="space-y-2">
+          <h4 className="font-extrabold text-slate-800 uppercase tracking-wide border-b border-slate-200 pb-1 text-[10px]">Customer Information</h4>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Name:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.name}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Aadhaar:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.aadhaar}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">PAN:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.pan || 'N/A'}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Phone:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.customer?.phone}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Address:</span>
+            <span className="col-span-2 text-slate-800 font-medium leading-tight">{account.customer?.address}</span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="font-extrabold text-slate-800 uppercase tracking-wide border-b border-slate-200 pb-1 text-[10px]">Account Summary</h4>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Account Type:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold uppercase">{account.type} Account</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Approved Amt:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">₹{(account.approvedAmt || 0).toLocaleString()}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">ROI Rate:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.roi}% p.a.</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Tenure Days:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.tenure} Days</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Start Date:</span>
+            <span className="col-span-2 text-slate-800 font-extrabold">{account.start_date}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            <span className="text-slate-400 font-bold">Status:</span>
+            <span className={`col-span-2 font-extrabold uppercase ${account.account_status === 'Closed' ? 'text-rose-600' : 'text-[#16A34A]'}`}>
+              {account.account_status || account.status}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative z-10 overflow-x-auto w-full">
+        <table className={`min-w-full divide-y divide-slate-200 text-left ${isPdf ? 'text-xs' : 'text-[10px]'}`}>
+          <thead>
+            <tr className="bg-slate-50 font-bold text-slate-500 border-b border-slate-200">
+              <th className="px-3 py-2">Date</th>
+              <th className="px-3 py-2">Reference No</th>
+              <th className="px-3 py-2">Type</th>
+              <th className="px-3 py-2">Mode</th>
+              <th className="px-3 py-2 text-right">Penalty</th>
+              <th className="px-3 py-2 text-right">Amount Paid</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+            {(statementData.transactions || []).length === 0 ? (
+              <tr>
+                <td colSpan="6" className="px-3 py-4 text-center text-slate-400 font-bold">No transactions logged on this account.</td>
+              </tr>
+            ) : (
+              (statementData.transactions || []).map((t, idx) => (
+                <tr key={idx} className="hover:bg-slate-50/50">
+                  <td className="px-3 py-2.5 whitespace-nowrap">{t.date}</td>
+                  <td className="px-3 py-2.5 font-bold whitespace-nowrap">{t.refNo}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">{t.type}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">{t.paymentMode || 'Cash'}</td>
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap text-rose-500">₹{Number(t.fine || 0).toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right font-extrabold whitespace-nowrap text-[#16A34A]">₹{Number(t.amt || 0).toLocaleString()}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {((account.type === 'Loan' ? termsLoan : termsSavings)) && ((account.type === 'Loan' ? termsLoan : termsSavings)).length > 0 && (
+        <div className={`border-t border-slate-200 pt-3.5 pb-2 mt-auto relative z-10 font-semibold text-slate-500 w-full ${isPdf ? 'text-xs' : 'text-[9px]'}`}>
+          <h4 className="font-black text-slate-800 uppercase tracking-wider mb-1">Terms & Conditions</h4>
+          <ul className="list-disc pl-4 space-y-0.5 leading-relaxed text-justify">
+            {(account.type === 'Loan' ? termsLoan : termsSavings).map((term, idx) => (
+              <li key={idx}>{term}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex justify-between items-end pt-8 border-t border-slate-200 mt-4 relative z-10 w-full">
+        <div className="space-y-2">
+          <div className={`${isPdf ? 'w-20 h-20 text-[8px]' : 'w-16 h-16 text-[7px]'} bg-[#0A3598]/5 border border-dashed border-[#0A3598]/20 rounded-full flex flex-col items-center justify-center font-bold text-[#0A3598]/60 select-none uppercase tracking-widest text-center leading-tight`}>
+            <span>OFFICIAL</span>
+            <span>SEAL</span>
+          </div>
+          <p className={`${isPdf ? 'text-xs' : 'text-[9px]'} text-slate-400 font-extrabold uppercase tracking-wider`}>{companyName} Seal</p>
+        </div>
+        <div className="text-right space-y-1.5">
+          <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
+            <span className={`font-serif text-[#0A3598] border-b border-slate-300 pb-1.5 text-center tracking-widest ${isPdf ? 'w-44 text-sm' : 'w-36 text-xs'}`}>Sandeep Kumar</span>
+          </div>
+          <p className={`${isPdf ? 'text-xs' : 'text-[9px]'} text-slate-500 font-extrabold uppercase tracking-wider`}>Authorized Signatory</p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
+      {account.type === 'Loan' && (
+        <div className="fixed -left-[10000px] top-0 w-[794px] pointer-events-none opacity-100">
+          <NocCertificate id="noc-pdf-capture-area" isPdf={true} />
+        </div>
+      )}
+
+      {/* Off-screen Passbook Capture Area */}
+      <div className="fixed -left-[10000px] top-0 w-[794px] pointer-events-none opacity-100">
+        <PassbookBoard id="passbook-pdf-capture-area" isPdf={true} />
+      </div>
+
       {/* Top Breadcrumb & Actions Row */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -2540,7 +2929,7 @@ export default function AccountDetails() {
                 Print
               </button>
               <button 
-                onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, sharing my Passbook for Account ${account.accNo}`)}`)}
+                onClick={handlePassbookWhatsAppShare}
                 className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
               >
                 <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
@@ -2586,7 +2975,7 @@ export default function AccountDetails() {
                     Print
                   </button>
                   <button 
-                    onClick={() => window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`Hello, I am sharing my Loan No Objection Certificate (NOC) for Account No: ${account.accNo} issued by ${companyName}. Status: Fully Settled & Closed.`)}`)}
+                    onClick={handleNocWhatsAppShare}
                     className="flex-1 py-1.5 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
                   >
                     <svg className="w-3 h-3 fill-white shrink-0" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
@@ -3777,70 +4166,7 @@ export default function AccountDetails() {
 
           {/* Modal Body: Scrollable certificate container */}
           <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-slate-50">
-            {/* Printable Certificate Board */}
-            <div 
-              id="noc-print-area"
-              className="bg-white p-10 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between"
-              style={{ minHeight: '600px', backgroundImage: 'radial-gradient(#0A359803 1px, transparent 1px)', backgroundSize: '16px 16px' }}
-            >
-              {/* Border decoration */}
-              <div className="absolute inset-2 border-2 border-double border-slate-200 rounded-lg pointer-events-none"></div>
-              
-              {/* Letterhead Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-5 gap-4 relative z-10">
-                <div className="flex items-center gap-3">
-                  <img src="/logo.png" className="w-12 h-12 object-contain shrink-0" alt="Logo" />
-                  <div>
-                    <h2 className="text-lg font-black tracking-tight text-[#0F172A] uppercase">{companyName}</h2>
-                    <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-widest leading-none mt-0.5">{companyTagline}</p>
-                  </div>
-                </div>
-                <div className="text-left sm:text-right">
-                  <h3 className="text-xs font-black text-slate-800 tracking-wider">NO OBJECTION CERTIFICATE</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Ref: NOC/{account.accNo}</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Date: {account.closed_at ? new Date(account.closed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                </div>
-              </div>
-
-              {/* Certificate Watermark Logo */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
-                <img src="/logo.png" className="w-64 h-64 object-contain opacity-[0.04]" alt="Watermark" />
-              </div>
-
-              {/* Certificate Contents */}
-              <div className="py-8 space-y-6 text-xs text-slate-700 leading-relaxed relative z-10">
-                <p className="font-bold text-slate-900">TO WHOM IT MAY CONCERN</p>
-                
-                <p className="text-justify font-medium">
-                  This is to certify that the borrower <strong className="font-extrabold text-[#0F172A]">{account.customer?.name}</strong>, residing at <strong className="font-bold text-slate-800">{account.customer?.address}</strong>, having Registered Mobile No: <strong className="font-bold text-slate-800">{account.customer?.phone}</strong> and Aadhaar No: <strong className="font-bold text-slate-800">{account.customer?.aadhaar}</strong>, has availed a Loan under Account Number <strong className="font-extrabold text-[#0A3598]">{account.accNo}</strong> from {companyName}.
-                </p>
-
-                <p className="text-justify font-medium">
-                  We hereby confirm that the borrower has fully paid all due installments, principal, interest, and any applicable charges under this loan account. As of <strong className="font-bold text-slate-800">{account.closed_at ? new Date(account.closed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>, the outstanding dues under the said loan account stand at <strong className="text-green-600 font-extrabold">NIL (₹0.00)</strong>.
-                </p>
-
-                <p className="text-justify font-medium">
-                  {companyName} has received the complete settlement amount and has **No Objection** whatsoever against the borrower. We declare that the said loan account has been **Fully Closed & Settled** in our books of accounts, and there are no liabilities, claims, or dues outstanding against the borrower under this account.
-                </p>
-              </div>
-
-              {/* Letterhead Signatures */}
-              <div className="flex justify-between items-end pt-8 border-t border-slate-200 mt-auto relative z-10">
-                <div className="space-y-2">
-                  <div className="w-16 h-16 bg-[#0A3598]/5 border border-dashed border-[#0A3598]/20 rounded-full flex flex-col items-center justify-center text-[7px] font-bold text-[#0A3598]/60 select-none uppercase tracking-widest text-center leading-tight">
-                    <span>OFFICIAL</span>
-                    <span>SEAL</span>
-                  </div>
-                  <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">{companyName} Seal</p>
-                </div>
-                <div className="text-right space-y-1.5">
-                  <div className="italic text-xs font-black text-slate-800 h-8 flex items-end justify-end select-none">
-                    <span className="font-serif text-[#0A3598] border-b border-slate-300 pb-1.5 w-36 text-center tracking-widest">Sandeep Kumar</span>
-                  </div>
-                  <p className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider">Authorized Signatory</p>
-                </div>
-              </div>
-            </div>
+            <NocCertificate id="noc-print-area" />
           </div>
 
           {/* Modal Footer */}

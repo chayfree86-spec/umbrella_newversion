@@ -21,12 +21,19 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Auth endpoints jinka 401 "galat credentials" hai, "session expired" nahi —
+// inpar auto-logout/reload nahi chalana (warna login form ka error message
+// dikhne se pehle hi page reload ho jata hai aur user ko lagta hai "kuch hua hi nahi")
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/reset-credentials'];
+
 // Response Interceptor: Handle Global Errors (like 401 Unauthorized)
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response) {
-      if (error.response.status === 401) {
+      const url = error.config?.url || '';
+      const isAuthEndpoint = AUTH_ENDPOINTS.some(ep => url.includes(ep));
+      if (error.response.status === 401 && !isAuthEndpoint) {
         // Token expired or invalid, auto logout
         localStorage.removeItem('auth_token');
         localStorage.removeItem('isLoggedIn');

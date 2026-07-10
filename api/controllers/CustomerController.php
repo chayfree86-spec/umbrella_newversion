@@ -364,6 +364,26 @@ class CustomerController {
 
             $db->commit();
 
+            // Agent ne registration kiya to Super Admin + us branch/area ke
+            // managers ko notify karo (notification bell abhi tak khaali
+            // rehta tha kyuki koi bhi jagah Notification::create nahi hota tha)
+            if ($authUser['role_slug'] === 'agent') {
+                try {
+                    Notification::notifyAdmins($db, [
+                        'branch_id' => $input['branch_id'],
+                        'area_id' => $input['area_id'],
+                        'title' => 'New Customer Registered',
+                        'message' => "{$authUser['name']} registered a new customer \"{$input['full_name']}\" — {$createdAccountType} account {$createdAccountNo}.",
+                        'type' => 'success',
+                        'module' => 'customers',
+                        'ref_id' => $customerId,
+                        'exclude_user_id' => $authUser['id']
+                    ]);
+                } catch (Exception $notifyEx) {
+                    error_log('notifyAdmins (registration) failed: ' . $notifyEx->getMessage());
+                }
+            }
+
             Response::success([
                 'customer_id' => $customerId,
                 'account_no' => $createdAccountNo,

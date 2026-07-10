@@ -173,14 +173,19 @@ INSERT INTO `users` (`id`, `uuid`, `name`, `email`, `mobile`, `password_hash`, `
 (1, 'c0dd2c9f-73a2-11f1-9bd3-00155df136a0', 'Sandeep Kumar', 'sandeep@umbrellafinance.in', '9628717175', '$2y$10$mts0HSTksjGK2D5sA3rA.OXXxX7iMJJ1dpSxbGOEtcQNbCZAEqRlm', '$2y$10$Jhx5pmZj2j1K3sTIUZ/5tuIGWxjAHk9vj/ygl8zy9.7ax8LAS8xGO', 1, NULL, NULL, NULL, 1, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-07-04 20:00:23', NULL),
 (3, 'c0ddafc0-73a2-11f1-9bd3-00155df136a0', 'Abhishek Rai', 'aditya@umbrellafinance.in', '9876543226', '$2y$10$47I6xZRVjrjRoFFJPrp7iOqgUqSHMbqtfb7JQEGiw66tlxT8uMdrG', '$2y$10$ex/39LcyNbh35L9GSC3LY.iEYfT4aHGS9IPBHnPD7tReEj8GcEIuC', 2, 1, NULL, NULL, 2, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-06-29 17:22:07', NULL),
 (4, 'c0ddb064-73a2-11f1-9bd3-00155df136a0', 'Amit Verma', 'amit@umbrellafinance.in', '9876543221', '$2y$10$47I6xZRVjrjRoFFJPrp7iOqgUqSHMbqtfb7JQEGiw66tlxT8uMdrG', '$2y$10$ex/39LcyNbh35L9GSC3LY.iEYfT4aHGS9IPBHnPD7tReEj8GcEIuC', 3, 1, 2, 1, 2, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-07-05 12:40:49', NULL),
-(5, 'c0ddb0f9-73a2-11f1-9bd3-00155df136a0', 'Shashank Rai', 'rahul@umbrellafinance.in', '9876543220', '$2y$10$/ITj5xEdYXZMP1.dR7UKoOn4Dw6/Fmjb/8UgdhVmbvsFmElg67F8y', '$2y$10$zIqpsonnrsxTKaitKGlNdO/TiHbhUQZ1qEJvj3vFWpOidg72eUAlW', 4, NULL, NULL, NULL, 3, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-06-29 17:39:52', NULL)
-ON DUPLICATE KEY UPDATE `uuid` = VALUES(`uuid`), `name` = VALUES(`name`), `email` = VALUES(`email`), `mobile` = VALUES(`mobile`), `password_hash` = VALUES(`password_hash`), `pin_hash` = VALUES(`pin_hash`), `role_id` = VALUES(`role_id`), `branch_id` = VALUES(`branch_id`), `area_id` = VALUES(`area_id`), `agent_id` = VALUES(`agent_id`), `policy_id` = VALUES(`policy_id`), `photo_path` = VALUES(`photo_path`), `status` = VALUES(`status`), `last_login_at` = VALUES(`last_login_at`), `auth_token` = VALUES(`auth_token`), `token_expires_at` = VALUES(`token_expires_at`), `created_at` = VALUES(`created_at`), `updated_at` = VALUES(`updated_at`), `deleted_at` = VALUES(`deleted_at`);
+(5, 'c0ddb0f9-73a2-11f1-9bd3-00155df136a0', 'Shashank Rai', 'rahul@umbrellafinance.in', '9876543220', '$2y$10$/ITj5xEdYXZMP1.dR7UKoOn4Dw6/Fmjb/8UgdhVmbvsFmElg67F8y', '$2y$10$zIqpsonnrsxTKaitKGlNdO/TiHbhUQZ1qEJvj3vFWpOidg72eUAlW', 4, 1, 1, 1, 3, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-06-29 17:39:52', NULL)
+-- Users live/mutable data hai (agent ka profile admin UI se edit hota rehta
+-- hai) — reseed sirf missing row banaye, kisi existing user ko purani seed
+-- snapshot par wapas overwrite kabhi na kare.
+ON DUPLICATE KEY UPDATE `id` = `id`;
 
 
 -- AGENTS
 INSERT INTO `agents` (`id`, `uuid`, `code`, `name`, `mobile`, `email`, `user_id`, `branch_id`, `area_id`, `policy_id`, `photo_path`, `father_name`, `dob`, `address`, `aadhaar_no`, `pan_no`, `bank_name`, `bank_account_no`, `bank_ifsc`, `joining_date`, `status`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'c0df361f-73a2-11f1-9bd3-00155df136a0', 'AG-01', 'Sashank Rai', '9876543220', 'shashank@umbrellafinance.in', NULL, 1, 1, 3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-29', 'Active', '2026-06-29 15:40:28', '2026-06-29 17:52:48', NULL)
-ON DUPLICATE KEY UPDATE `uuid` = VALUES(`uuid`), `code` = VALUES(`code`), `name` = VALUES(`name`), `mobile` = VALUES(`mobile`), `email` = VALUES(`email`), `user_id` = VALUES(`user_id`), `branch_id` = VALUES(`branch_id`), `area_id` = VALUES(`area_id`), `policy_id` = VALUES(`policy_id`), `photo_path` = VALUES(`photo_path`), `father_name` = VALUES(`father_name`), `dob` = VALUES(`dob`), `address` = VALUES(`address`), `aadhaar_no` = VALUES(`aadhaar_no`), `pan_no` = VALUES(`pan_no`), `bank_name` = VALUES(`bank_name`), `bank_account_no` = VALUES(`bank_account_no`), `bank_ifsc` = VALUES(`bank_ifsc`), `joining_date` = VALUES(`joining_date`), `status` = VALUES(`status`), `created_at` = VALUES(`created_at`), `updated_at` = VALUES(`updated_at`), `deleted_at` = VALUES(`deleted_at`);
+(1, 'c0df361f-73a2-11f1-9bd3-00155df136a0', 'AG-01', 'Sashank Rai', '9876543220', 'shashank@umbrellafinance.in', 5, 1, 1, 3, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-29', 'Active', '2026-06-29 15:40:28', '2026-06-29 17:52:48', NULL)
+-- Agent bhi live/mutable hai (Agent Management UI se edit hota hai) — same
+-- reason, reseed par overwrite nahi hona chahiye.
+ON DUPLICATE KEY UPDATE `id` = `id`;
 
 
 -- LOAN PLANS
