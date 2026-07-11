@@ -40,9 +40,9 @@ class SettingsController {
         if (!$policy) {
             Response::error('Policy not found.', 404);
         }
-        if ($policy['is_system']) {
-            Response::error('System policy profiles cannot be modified.', 403);
-        }
+        // System policies (default role profiles) ab edit allowed hain —
+        // sirf delete block hai (destroyPolicy me), taaki core role kabhi
+        // policy-less na ho jaaye.
 
         $errors = Validator::required($input, ['name', 'role']);
         if (!empty($errors)) {

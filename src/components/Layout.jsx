@@ -402,7 +402,7 @@ export function Layout({ children }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Sticky Header */}
-        <header className="sticky top-0 bg-surface border-b border-border-fin h-16 flex items-center justify-between px-4 sm:px-6 z-10 flex-shrink-0">
+        <header className="sticky top-0 bg-surface border-b border-border-fin h-16 flex items-center justify-between px-4 sm:px-6 z-30 flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Mobile Logo next to menu button */}
             <div className="lg:hidden flex items-center gap-2 overflow-hidden h-10 select-none">
@@ -476,11 +476,23 @@ export function Layout({ children }) {
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="p-2 rounded-xl bg-background-fin hover:bg-border-fin/50 text-secondary-text relative cursor-pointer active:scale-[0.95]"
+                style={unreadCount > 0 ? { backgroundColor: 'rgba(255,193,7,0.18)', boxShadow: 'inset 0 0 0 1px rgba(255,193,7,0.55)' } : undefined}
+                className={`p-2 rounded-xl relative cursor-pointer active:scale-[0.95] transition-colors ${
+                  unreadCount > 0
+                    ? 'text-accent'
+                    : 'bg-background-fin hover:bg-border-fin/50 text-secondary-text'
+                }`}
               >
-                <span className="material-symbols-rounded select-none">notifications</span>
+                <span
+                  className="material-symbols-rounded select-none"
+                  style={unreadCount > 0 ? { color: '#F59E0B', fontVariationSettings: "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24" } : undefined}
+                >
+                  notifications
+                </span>
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full border border-surface"></span>
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger-fin text-white text-[10px] font-black leading-none border-2 border-surface shadow-sm">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
               </button>
 

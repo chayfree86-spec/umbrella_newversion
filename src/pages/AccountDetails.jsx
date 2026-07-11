@@ -276,6 +276,9 @@ export default function AccountDetails() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   
   const userRole = localStorage.getItem('userRole') || localStorage.getItem('active_user_role') || '';
+  // Account Approval ab role se nahi, user ki assigned Policy Profile
+  // (Settings > System Policies > Disbursement) se decide hoti hai.
+  const canApproveAccounts = localStorage.getItem('user_can_approve_accounts') === 'true';
 
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   const [closePayMode, setClosePayMode] = useState('Cash');
@@ -2018,37 +2021,50 @@ export default function AccountDetails() {
 
       {/* Account Status Workflow Controls (Approve/Reject / Reset) */}
       {accStatus === 'Processing' && (
-        <div className="bg-[#2563EB]/5 border border-[#2563EB]/25 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="space-y-1">
-            <span className="bg-[#2563EB]/15 text-[#2563EB] px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide inline-block">
-              Awaiting Approval
-            </span>
-            <h4 className="text-sm font-bold text-[#0F172A]">This account is pending review and approval.</h4>
-            <p className="text-xs text-[#64748B]">Please review the customer details, documents, and click Approve to select start date or Reject.</p>
+        canApproveAccounts ? (
+          <div className="bg-[#2563EB]/5 border border-[#2563EB]/25 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-1">
+              <span className="bg-[#2563EB]/15 text-[#2563EB] px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide inline-block">
+                Awaiting Approval
+              </span>
+              <h4 className="text-sm font-bold text-[#0F172A]">This account is pending review and approval.</h4>
+              <p className="text-xs text-[#64748B]">Please review the customer details, documents, and click Approve to select start date or Reject.</p>
+            </div>
+            <div className="flex gap-2 w-full md:w-auto">
+              <button
+                onClick={() => {
+                  const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+                  const initialDate = account.start_date || today;
+                  setApprovalStartDate(initialDate);
+                  setApprovalDate(initialDate);
+                  setIsApproveModalOpen(true);
+                }}
+                className="flex-1 md:flex-none px-4 py-2 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-rounded text-sm">check_circle</span>
+                Approve Account
+              </button>
+              <button
+                onClick={() => handleRejectAccount()}
+                className="flex-1 md:flex-none px-4 py-2 bg-[#DC2626] hover:bg-[#DC2626]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-rounded text-sm">cancel</span>
+                Reject Account
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <button
-              onClick={() => {
-                const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
-                const initialDate = account.start_date || today;
-                setApprovalStartDate(initialDate);
-                setApprovalDate(initialDate);
-                setIsApproveModalOpen(true);
-              }}
-              className="flex-1 md:flex-none px-4 py-2 bg-[#16A34A] hover:bg-[#16A34A]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
-            >
-              <span className="material-symbols-rounded text-sm">check_circle</span>
-              Approve Account
-            </button>
-            <button
-              onClick={() => handleRejectAccount()}
-              className="flex-1 md:flex-none px-4 py-2 bg-[#DC2626] hover:bg-[#DC2626]/90 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
-            >
-              <span className="material-symbols-rounded text-sm">cancel</span>
-              Reject Account
-            </button>
+        ) : (
+          <div className="bg-[#2563EB]/5 border border-[#2563EB]/25 rounded-2xl p-5 flex items-center gap-4">
+            <span className="material-symbols-rounded text-2xl text-[#2563EB]">hourglass_top</span>
+            <div className="space-y-1">
+              <span className="bg-[#2563EB]/15 text-[#2563EB] px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide inline-block">
+                Awaiting Approval
+              </span>
+              <h4 className="text-sm font-bold text-[#0F172A]">This account is pending review and approval.</h4>
+              <p className="text-xs text-[#64748B]">Your policy profile does not allow account approval. Once approved by an authorized admin, the Collection option will become available here.</p>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {/* Admin Reset Control Panel */}

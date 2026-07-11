@@ -102,10 +102,8 @@ export default function Policies() {
   };
 
   const handleOpenEdit = (prof) => {
-    if (prof.is_system) {
-      alert('System policy profiles cannot be modified.');
-      return;
-    }
+    // System policies (default role profiles) ab edit ho sakti hain —
+    // sirf delete abhi bhi block hai, taaki koi core role kabhi policy-less na ho jaaye.
     setEditingProfile(prof);
     setFormData({
       name: prof.name,
@@ -335,10 +333,7 @@ export default function Policies() {
                     <td className="px-6 py-4 whitespace-nowrap flex gap-2">
                       <button
                         onClick={() => handleOpenEdit(p)}
-                        disabled={p.is_system}
-                        className={`p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95] ${
-                          p.is_system ? 'opacity-40 cursor-not-allowed' : ''
-                        }`}
+                        className="p-1 rounded text-primary hover:bg-primary/10 cursor-pointer transition-all active:scale-[0.95]"
                         title="Edit Policy"
                       >
                         <span className="material-symbols-rounded text-sm select-none">edit</span>
@@ -346,10 +341,10 @@ export default function Policies() {
                       <button
                         onClick={() => handleDeleteProfile(p.id)}
                         disabled={p.is_system}
+                        title={p.is_system ? 'System policy profiles cannot be deleted' : 'Delete Policy'}
                         className={`p-1 rounded text-danger-fin hover:bg-danger-fin/10 cursor-pointer transition-all active:scale-[0.95] ${
                           p.is_system ? 'opacity-40 cursor-not-allowed' : ''
                         }`}
-                        title="Delete Policy"
                       >
                         <span className="material-symbols-rounded text-sm select-none">delete</span>
                       </button>
@@ -417,10 +412,7 @@ export default function Policies() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleOpenEdit(p)}
-                        disabled={p.is_system}
-                        className={`p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center ${
-                          p.is_system ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                        }`}
+                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-primary active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center cursor-pointer"
                         title="Edit Policy"
                       >
                         <span className="material-symbols-rounded text-sm select-none">edit</span>
@@ -431,7 +423,7 @@ export default function Policies() {
                         className={`p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-danger-fin active:scale-90 transition-all border border-[#E2E8F0] flex items-center justify-center ${
                           p.is_system ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
                         }`}
-                        title="Delete Policy"
+                        title={p.is_system ? 'System policy profiles cannot be deleted' : 'Delete Policy'}
                       >
                         <span className="material-symbols-rounded text-sm select-none">delete</span>
                       </button>

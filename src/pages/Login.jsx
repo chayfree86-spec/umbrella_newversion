@@ -194,6 +194,7 @@ export default function Login({ onLogin }) {
         localStorage.setItem('user_area_id', user.area_id || '');
         localStorage.setItem('user_agent_id', user.agent_id || '');
         localStorage.setItem('user_permissions', JSON.stringify(user.permissions || []));
+        localStorage.setItem('user_can_approve_accounts', String(!!user.can_approve_accounts));
         onLogin();
       })
       .catch((err) => {

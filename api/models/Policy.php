@@ -60,7 +60,7 @@ class Policy {
                 allow_online_apply = :allow_online_apply,
                 allow_backdated = :allow_backdated,
                 session_timeout = :session_timeout
-            WHERE id = :id AND is_system = 0 AND deleted_at IS NULL
+            WHERE id = :id AND deleted_at IS NULL
         ");
         return $stmt->execute([
             'id' => $id,
@@ -81,5 +81,15 @@ class Policy {
     public static function delete($db, $id) {
         $stmt = $db->prepare("UPDATE policies SET deleted_at = NOW() WHERE id = :id AND is_system = 0");
         return $stmt->execute(['id' => $id]);
+    }
+
+    // Account Approval (loan/saving disbursement) ab role se nahi, user ki
+    // assigned Policy Profile ke 'allow_disbursement' flag se decide hoti
+    // hai — koi bhi role (Super Admin bhi) ho, policy hi final word hai.
+    public static function canApprove($db, $policyId) {
+        if (empty($policyId)) return false;
+        $policy = self::getById($db, $policyId);
+        if (!$policy) return false;
+        return $policy['allow_disbursement'] == 1;
     }
 }

@@ -306,6 +306,20 @@ class SavingController {
 
             $db->commit();
             AuditLog::log($db, $authUser['id'], 'approve_saving_account', 'saving_accounts', $account['id']);
+
+            if (!$isRepair) {
+                try {
+                    $agentUserId = Agent::getLinkedUserId($db, $account['agent_id']);
+                    if ($agentUserId && $agentUserId != $authUser['id']) {
+                        Notification::create($db, $agentUserId, 'Savings Account Approved',
+                            "Your registered savings account {$account['saving_account_no']} for \"{$account['customer_name']}\" has been approved by {$authUser['name']}.",
+                            'success', 'saving_accounts', $account['id']);
+                    }
+                } catch (Exception $notifyEx) {
+                    error_log('notify agent (saving approve) failed: ' . $notifyEx->getMessage());
+                }
+            }
+
             $updated = SavingAccount::getById($db, $account['id']);
             Response::success($updated, 'Savings account approved and deposit schedule generated.');
         } catch (Exception $e) {
@@ -328,6 +342,18 @@ class SavingController {
         $db->prepare("UPDATE saving_accounts SET account_status = 'Rejected' WHERE id = :id")
             ->execute(['id' => $account['id']]);
         AuditLog::log($db, $authUser['id'], 'reject_saving_account', 'saving_accounts', $account['id']);
+
+        try {
+            $agentUserId = Agent::getLinkedUserId($db, $account['agent_id']);
+            if ($agentUserId && $agentUserId != $authUser['id']) {
+                Notification::create($db, $agentUserId, 'Savings Account Rejected',
+                    "Your registered savings account {$account['saving_account_no']} for \"{$account['customer_name']}\" has been rejected by {$authUser['name']}.",
+                    'danger', 'saving_accounts', $account['id']);
+            }
+        } catch (Exception $notifyEx) {
+            error_log('notify agent (saving reject) failed: ' . $notifyEx->getMessage());
+        }
+
         Response::success(null, 'Savings account rejected.');
     }
 

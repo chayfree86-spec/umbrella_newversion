@@ -131,6 +131,21 @@ export default function UserProfile() {
       {/* Profile Header Card */}
       <div className="bg-surface rounded-2xl border border-border-fin p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              // Agent-linked user hai to seedhe uske agent profile par wapas
+              // jao (reload/direct-load par bhi sahi jagah), warna history back.
+              if (user.agent_id && user.role_slug === 'agent') {
+                navigate(`/settings/agent/${user.agent_id}`);
+              } else {
+                navigate(-1);
+              }
+            }}
+            className="w-11 h-11 bg-slate-50 hover:bg-slate-100 text-secondary-text rounded-xl border border-border-fin cursor-pointer transition-all active:scale-90 flex items-center justify-center"
+            title="Back"
+          >
+            <span className="material-symbols-rounded text-base font-black select-none">arrow_back</span>
+          </button>
           <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
             <span className="material-symbols-rounded text-2xl select-none">person</span>
           </div>

@@ -15,16 +15,24 @@ class AgentController {
             Response::error('Agent profile not found.', 404);
         }
         
-        // Find linked system user
+        // Find linked system user.
+        // Priority: agents.user_id ka explicit link sabse pehle. Uske baad
+        // fallback SIRF agent-role (role_id = 4) users tak — warna area/branch
+        // manager (jinka galti se agent_id set ho) yahan aa jata tha.
         $stmt = $db->prepare("
-            SELECT id, name, email, mobile, status, last_login_at 
-            FROM users 
-            WHERE (id = :user_id OR agent_id = :agent_id OR (mobile = :mobile AND role_id = 4)) 
-              AND deleted_at IS NULL 
+            SELECT id, name, email, mobile, status, last_login_at
+            FROM users
+            WHERE deleted_at IS NULL
+              AND (
+                    id = :user_id
+                 OR (role_id = 4 AND (agent_id = :agent_id OR mobile = :mobile))
+              )
+            ORDER BY (id = :user_id2) DESC, (role_id = 4) DESC, id ASC
             LIMIT 1
         ");
         $stmt->execute([
             'user_id' => !empty($agent['user_id']) ? $agent['user_id'] : 0,
+            'user_id2' => !empty($agent['user_id']) ? $agent['user_id'] : 0,
             'agent_id' => $id,
             'mobile' => $agent['mobile']
         ]);
@@ -191,16 +199,22 @@ class AgentController {
 
         $updated = Agent::getById($db, $id);
         
-        // Fetch linked user for response
+        // Fetch linked user for response (same priority + agent-role-only
+        // fallback as show(), taaki manager kabhi na aaye)
         $stmt = $db->prepare("
-            SELECT id, name, email, mobile, status, last_login_at 
-            FROM users 
-            WHERE (id = :user_id OR agent_id = :agent_id OR (mobile = :mobile AND role_id = 4)) 
-              AND deleted_at IS NULL 
+            SELECT id, name, email, mobile, status, last_login_at
+            FROM users
+            WHERE deleted_at IS NULL
+              AND (
+                    id = :user_id
+                 OR (role_id = 4 AND (agent_id = :agent_id OR mobile = :mobile))
+              )
+            ORDER BY (id = :user_id2) DESC, (role_id = 4) DESC, id ASC
             LIMIT 1
         ");
         $stmt->execute([
             'user_id' => !empty($updated['user_id']) ? $updated['user_id'] : 0,
+            'user_id2' => !empty($updated['user_id']) ? $updated['user_id'] : 0,
             'agent_id' => $id,
             'mobile' => $updated['mobile']
         ]);

@@ -172,7 +172,7 @@ ON DUPLICATE KEY UPDATE `uuid` = VALUES(`uuid`), `code` = VALUES(`code`), `name`
 INSERT INTO `users` (`id`, `uuid`, `name`, `email`, `mobile`, `password_hash`, `pin_hash`, `role_id`, `branch_id`, `area_id`, `agent_id`, `policy_id`, `photo_path`, `status`, `last_login_at`, `auth_token`, `token_expires_at`, `created_at`, `updated_at`, `deleted_at`) VALUES
 (1, 'c0dd2c9f-73a2-11f1-9bd3-00155df136a0', 'Sandeep Kumar', 'sandeep@umbrellafinance.in', '9628717175', '$2y$10$mts0HSTksjGK2D5sA3rA.OXXxX7iMJJ1dpSxbGOEtcQNbCZAEqRlm', '$2y$10$Jhx5pmZj2j1K3sTIUZ/5tuIGWxjAHk9vj/ygl8zy9.7ax8LAS8xGO', 1, NULL, NULL, NULL, 1, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-07-04 20:00:23', NULL),
 (3, 'c0ddafc0-73a2-11f1-9bd3-00155df136a0', 'Abhishek Rai', 'aditya@umbrellafinance.in', '9876543226', '$2y$10$47I6xZRVjrjRoFFJPrp7iOqgUqSHMbqtfb7JQEGiw66tlxT8uMdrG', '$2y$10$ex/39LcyNbh35L9GSC3LY.iEYfT4aHGS9IPBHnPD7tReEj8GcEIuC', 2, 1, NULL, NULL, 2, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-06-29 17:22:07', NULL),
-(4, 'c0ddb064-73a2-11f1-9bd3-00155df136a0', 'Amit Verma', 'amit@umbrellafinance.in', '9876543221', '$2y$10$47I6xZRVjrjRoFFJPrp7iOqgUqSHMbqtfb7JQEGiw66tlxT8uMdrG', '$2y$10$ex/39LcyNbh35L9GSC3LY.iEYfT4aHGS9IPBHnPD7tReEj8GcEIuC', 3, 1, 2, 1, 2, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-07-05 12:40:49', NULL),
+(4, 'c0ddb064-73a2-11f1-9bd3-00155df136a0', 'Amit Verma', 'amit@umbrellafinance.in', '9876543221', '$2y$10$47I6xZRVjrjRoFFJPrp7iOqgUqSHMbqtfb7JQEGiw66tlxT8uMdrG', '$2y$10$ex/39LcyNbh35L9GSC3LY.iEYfT4aHGS9IPBHnPD7tReEj8GcEIuC', 3, 1, 2, NULL, 2, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-07-05 12:40:49', NULL),
 (5, 'c0ddb0f9-73a2-11f1-9bd3-00155df136a0', 'Shashank Rai', 'rahul@umbrellafinance.in', '9876543220', '$2y$10$/ITj5xEdYXZMP1.dR7UKoOn4Dw6/Fmjb/8UgdhVmbvsFmElg67F8y', '$2y$10$zIqpsonnrsxTKaitKGlNdO/TiHbhUQZ1qEJvj3vFWpOidg72eUAlW', 4, 1, 1, 1, 3, NULL, 'Active', NULL, NULL, NULL, '2026-06-29 15:40:28', '2026-06-29 17:39:52', NULL)
 -- Users live/mutable data hai (agent ka profile admin UI se edit hota rehta
 -- hai) — reseed sirf missing row banaye, kisi existing user ko purani seed
@@ -239,15 +239,19 @@ INSERT INTO `number_sequences` (`id`, `prefix`, `last_number`, `updated_at`) VAL
 (108, 'EX', 0, CURRENT_TIMESTAMP),
 (109, 'EX-LN', 0, CURRENT_TIMESTAMP),
 (111, 'EX-IND', 0, CURRENT_TIMESTAMP)
-ON DUPLICATE KEY UPDATE `prefix` = VALUES(`prefix`), `last_number` = 0, `updated_at` = CURRENT_TIMESTAMP;
+-- Counter bhi live/mutable hai — reseed isko 0 par reset kabhi na kare,
+-- warna already-issued codes (customer/loan/saving/receipt) se collide karke
+-- "Duplicate entry" error aayega. Actual reset sirf flush_transactional_data.sql
+-- (jo saath me customers/loan_accounts/etc bhi TRUNCATE karta hai) me hona chahiye.
+ON DUPLICATE KEY UPDATE `id` = `id`;
 
 
--- FUND SOURCES (default pools only)
-UPDATE `fund_sources` SET `uuid` = '95766b2e-7849-11f1-9d60-00155df136a0', `source_name` = 'Loan Fund Pool', `contact_info` = NULL, `total_invested` = '0.00', `available_amount` = '0.00', `total_received` = '0.00', `distribute` = '0.00', `withdraw` = '0.00', `status` = 'Active', `updated_at` = CURRENT_TIMESTAMP, `deleted_at` = NULL WHERE `source_type` = 'loan_fund';
+-- FUND SOURCES (default pools only) — balances live/mutable hain (real
+-- disbursals/collections inme jama hote hain), isliye reseed par sirf tab
+-- banao jab row already exist na kare — kabhi existing balance 0 par reset na karo.
 INSERT INTO `fund_sources` (`id`, `uuid`, `source_type`, `source_name`, `contact_info`, `total_invested`, `available_amount`, `total_received`, `distribute`, `withdraw`, `status`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 6, '95766b2e-7849-11f1-9d60-00155df136a0', 'loan_fund', 'Loan Fund Pool', NULL, '0.00', '0.00', '0.00', '0.00', '0.00', 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `fund_sources` WHERE `source_type` = 'loan_fund');
-UPDATE `fund_sources` SET `uuid` = '95768cec-7849-11f1-9d60-00155df136a0', `source_name` = 'Saving Fund Pool', `contact_info` = NULL, `total_invested` = '0.00', `available_amount` = '0.00', `total_received` = '0.00', `distribute` = '0.00', `withdraw` = '0.00', `status` = 'Active', `updated_at` = CURRENT_TIMESTAMP, `deleted_at` = NULL WHERE `source_type` = 'saving_fund';
 INSERT INTO `fund_sources` (`id`, `uuid`, `source_type`, `source_name`, `contact_info`, `total_invested`, `available_amount`, `total_received`, `distribute`, `withdraw`, `status`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 7, '95768cec-7849-11f1-9d60-00155df136a0', 'saving_fund', 'Saving Fund Pool', NULL, '0.00', '0.00', '0.00', '0.00', '0.00', 'Active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `fund_sources` WHERE `source_type` = 'saving_fund');

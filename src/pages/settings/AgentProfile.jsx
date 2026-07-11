@@ -23,6 +23,8 @@ export default function AgentProfile() {
     pin: '',
     confirmPin: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPin, setShowPin] = useState(false);
 
   const [profileData, setProfileData] = useState({
     name: '',
@@ -460,15 +462,6 @@ export default function AgentProfile() {
                   <div className="flex justify-between">
                     <span className="text-secondary-text font-semibold">Last Login</span>
                     <span className="font-bold text-primary-text">{agent.linked_user.last_login_at ? new Date(agent.linked_user.last_login_at).toLocaleString('en-IN') : 'Never'}</span>
-                  </div>
-                  <div className="pt-2 border-t border-border-fin flex justify-end">
-                    <Link
-                      to={`/settings/user/${agent.linked_user.id}`}
-                      className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1"
-                    >
-                      <span className="material-symbols-rounded text-xs select-none">open_in_new</span>
-                      Go to User Profile
-                    </Link>
                   </div>
                 </div>
 

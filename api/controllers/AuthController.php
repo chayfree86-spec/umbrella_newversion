@@ -95,7 +95,8 @@ class AuthController {
                 'branch_id' => $user['branch_id'],
                 'area_id' => $user['area_id'],
                 'agent_id' => $user['agent_id'],
-                'permissions' => $user['permissions']
+                'permissions' => $user['permissions'],
+                'can_approve_accounts' => Policy::canApprove($db, $user['policy_id'] ?? null)
             ]
         ], 'Logged in successfully.');
     }
@@ -119,7 +120,8 @@ class AuthController {
             'branch_id' => $authUser['branch_id'],
             'area_id' => $authUser['area_id'],
             'agent_id' => $authUser['agent_id'],
-            'permissions' => $authUser['permissions']
+            'permissions' => $authUser['permissions'],
+            'can_approve_accounts' => Policy::canApprove($db, $authUser['policy_id'] ?? null)
         ]);
     }
 

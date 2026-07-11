@@ -71,6 +71,9 @@ export default function DailyCollection() {
 
   const companyName = localStorage.getItem('company_name') || 'Umbrella Finance';
   const companyTagline = localStorage.getItem('company_tagline') || 'Chhote Kadam, Bade Sapne';
+  // Account Approval ab role se nahi, user ki assigned Policy Profile
+  // (Settings > System Policies > Disbursement) se decide hoti hai.
+  const canApproveAccounts = localStorage.getItem('user_can_approve_accounts') === 'true';
 
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -638,7 +641,7 @@ export default function DailyCollection() {
                         ₹{inr(acc.outstanding)}
                       </td>
                       <td className="whitespace-nowrap px-6 py-3.5 text-center text-xs font-bold" onClick={(e) => e.stopPropagation()}>
-                        {acc.status === 'Processing' ? (
+                        {acc.status === 'Processing' && canApproveAccounts ? (
                           <div className="flex justify-center gap-1.5">
                             <button
                               onClick={() => handleApprove(acc)}
@@ -653,6 +656,8 @@ export default function DailyCollection() {
                               Reject
                             </button>
                           </div>
+                        ) : acc.status === 'Processing' ? (
+                          <span className="text-[10px] text-[#2563EB] font-bold uppercase tracking-wider">Awaiting Approval</span>
                         ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
                           <button
                             onClick={() => handleOpenCollect(acc)}
@@ -730,7 +735,7 @@ export default function DailyCollection() {
 
                 {/* Footer Action Buttons */}
                 <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                  {acc.status === 'Processing' ? (
+                  {acc.status === 'Processing' && canApproveAccounts ? (
                     <div className="flex gap-2 w-full">
                       <button
                         onClick={() => handleApprove(acc)}
@@ -745,6 +750,8 @@ export default function DailyCollection() {
                         Reject
                       </button>
                     </div>
+                  ) : acc.status === 'Processing' ? (
+                    <span className="text-[9px] text-[#2563EB] font-black uppercase tracking-wider">Awaiting Approval</span>
                   ) : ['Approved', 'Active', 'Defaulter'].includes(acc.status) ? (
                     <button
                       onClick={() => handleOpenCollect(acc)}

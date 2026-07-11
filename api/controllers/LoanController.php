@@ -395,6 +395,20 @@ class LoanController {
             $db->commit();
             AuditLog::log($db, $authUser['id'], $isRepair ? 'repair_loan_schedule' : 'approve_loan_account', 'loan_accounts', $account['id'], $account, ['status' => 'Active', 'duration_days' => $durationDays]);
 
+            // Agent ko notify karo ki uske registered account ko approve kar diya gaya
+            if (!$isRepair) {
+                try {
+                    $agentUserId = Agent::getLinkedUserId($db, $account['agent_id']);
+                    if ($agentUserId && $agentUserId != $authUser['id']) {
+                        Notification::create($db, $agentUserId, 'Loan Account Approved',
+                            "Your registered loan account {$account['loan_account_no']} for \"{$account['customer_name']}\" has been approved by {$authUser['name']}.",
+                            'success', 'loan_accounts', $account['id']);
+                    }
+                } catch (Exception $notifyEx) {
+                    error_log('notify agent (loan approve) failed: ' . $notifyEx->getMessage());
+                }
+            }
+
             $updated = LoanAccount::getById($db, $account['id']);
             $msg = $isRepair ? 'Loan schedule repaired successfully.' : 'Loan account approved and EMI schedule generated.';
             Response::success($updated, $msg);
@@ -450,6 +464,18 @@ class LoanController {
 
             $db->commit();
             AuditLog::log($db, $authUser['id'], 'reject_loan_account', 'loan_accounts', $account['id']);
+
+            try {
+                $agentUserId = Agent::getLinkedUserId($db, $account['agent_id']);
+                if ($agentUserId && $agentUserId != $authUser['id']) {
+                    Notification::create($db, $agentUserId, 'Loan Account Rejected',
+                        "Your registered loan account {$account['loan_account_no']} for \"{$account['customer_name']}\" has been rejected by {$authUser['name']}.",
+                        'danger', 'loan_accounts', $account['id']);
+                }
+            } catch (Exception $notifyEx) {
+                error_log('notify agent (loan reject) failed: ' . $notifyEx->getMessage());
+            }
+
             Response::success(null, 'Loan account rejected and schedule cleared.');
         } catch (Exception $e) {
             $db->rollBack();

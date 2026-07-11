@@ -327,11 +327,11 @@ try {
             LoanController::collect($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/loan-accounts/([^/]+)/approve$#', $uri, $m) && $method === 'POST') {
-            RoleGuard::check($authUser, 'loans.approve');
+            RoleGuard::checkDisbursementPolicy($db, $authUser);
             LoanController::approve($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/loan-accounts/([^/]+)/reject$#', $uri, $m) && $method === 'POST') {
-            RoleGuard::check($authUser, 'loans.approve');
+            RoleGuard::checkDisbursementPolicy($db, $authUser);
             LoanController::reject($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/loan-accounts/([^/]+)/reset$#', $uri, $m) && $method === 'POST') {
@@ -376,11 +376,11 @@ try {
             SavingController::mature($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/saving-accounts/([^/]+)/approve$#', $uri, $m) && $method === 'POST') {
-            RoleGuard::check($authUser, 'savings.approve');
+            RoleGuard::checkDisbursementPolicy($db, $authUser);
             SavingController::approve($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/saving-accounts/([^/]+)/reject$#', $uri, $m) && $method === 'POST') {
-            RoleGuard::check($authUser, 'savings.approve');
+            RoleGuard::checkDisbursementPolicy($db, $authUser);
             SavingController::reject($db, $authUser, $m[1], $input);
         }
         elseif (preg_match('#^/saving-accounts/([^/]+)/reset$#', $uri, $m) && $method === 'POST') {

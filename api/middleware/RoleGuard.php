@@ -17,4 +17,14 @@ class RoleGuard {
 
         return true;
     }
+
+    // Account Approval (loan/saving) — sirf assigned Policy Profile
+    // decide karti hai, koi role bypass nahi (Super Admin bhi is check
+    // se guzarta hai, jaanboojh kar).
+    public static function checkDisbursementPolicy($db, $user) {
+        if (!Policy::canApprove($db, $user['policy_id'] ?? null)) {
+            throw new Exception('Your policy profile does not allow account approval/disbursement.', 403);
+        }
+        return true;
+    }
 }
