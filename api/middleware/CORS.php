@@ -13,13 +13,35 @@ class CORS {
             if (preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin)) {
                 $allowed = true;
             } else {
-                // Check if origin host matches current host domain or its subdomains
-                $host = $_SERVER['HTTP_HOST'] ?? '';
-                $hostName = explode(':', $host)[0];
-                $parsedOrigin = parse_url($origin, PHP_URL_HOST);
+                // Check allowed origins from Env
+                $allowedOriginsStr = Env::get('CORS_ALLOWED_ORIGINS', '');
+                if (!empty($allowedOriginsStr)) {
+                    $allowedOrigins = array_map('trim', explode(',', $allowedOriginsStr));
+                    if (in_array($origin, $allowedOrigins)) {
+                        $allowed = true;
+                    }
+                }
 
-                if ($parsedOrigin && ($parsedOrigin === $hostName || str_ends_with($parsedOrigin, '.' . $hostName))) {
-                    $allowed = true;
+                if (!$allowed) {
+                    // Check if origin host matches current host domain or its subdomains,
+                    // or if it shares the same base root domain (e.g. umbrellafinance.co)
+                    $host = $_SERVER['HTTP_HOST'] ?? '';
+                    $hostName = explode(':', $host)[0];
+                    $parsedOrigin = parse_url($origin, PHP_URL_HOST);
+
+                    if ($parsedOrigin) {
+                        if ($parsedOrigin === $hostName || str_ends_with($parsedOrigin, '.' . $hostName)) {
+                            $allowed = true;
+                        } else {
+                            $hostParts = explode('.', $hostName);
+                            if (count($hostParts) >= 2) {
+                                $baseDomain = implode('.', array_slice($hostParts, -2));
+                                if ($parsedOrigin === $baseDomain || str_ends_with($parsedOrigin, '.' . $baseDomain)) {
+                                    $allowed = true;
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
