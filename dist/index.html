@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A3598" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Umbrella" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Umbrella Finance - Chhote Kadam, Bade Sapne</title>
+    <!-- Material Symbols Rounded — self-hosted (no external network wait,
+         so icons don't flash as raw text like "arrow_back" on refresh) -->
+    <link rel="stylesheet" href="/fonts/material-symbols-rounded.css" />
+    <!-- Google Fonts Manrope -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/assets/index-DGABNYln.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Ctej9XaI.css">
+  </head>
+  <body class="bg-[#F8FAFC] text-[#0F172A] min-h-[100dvh]">
+    <div id="root"></div>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Service Worker registered successfully!', reg.scope))
+            .catch(err => console.log('Service Worker registration failed:', err));
+        });
+      }
+    </script>
+  </body>
+</html>
