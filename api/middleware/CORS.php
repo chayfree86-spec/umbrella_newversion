@@ -4,11 +4,30 @@
  */
 class CORS {
     public static function handle() {
-        // Allow dynamic origin matching (React dev server or hosting domain)
+        // Allow dynamic origin matching ONLY if it matches trusted local origins or host subdomains
         if (isset($_SERVER['HTTP_ORIGIN'])) {
-            header("Access-Control-Allow-Origin: {$_SERVER['HTTP_ORIGIN']}");
-            header('Access-Control-Allow-Credentials: true');
-            header('Access-Control-Max-Age: 86400'); // Cache for 1 day
+            $origin = $_SERVER['HTTP_ORIGIN'];
+            $allowed = false;
+
+            // Allow localhost / 127.0.0.1 on any port for development
+            if (preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin)) {
+                $allowed = true;
+            } else {
+                // Check if origin host matches current host domain or its subdomains
+                $host = $_SERVER['HTTP_HOST'] ?? '';
+                $hostName = explode(':', $host)[0];
+                $parsedOrigin = parse_url($origin, PHP_URL_HOST);
+
+                if ($parsedOrigin && ($parsedOrigin === $hostName || str_ends_with($parsedOrigin, '.' . $hostName))) {
+                    $allowed = true;
+                }
+            }
+
+            if ($allowed) {
+                header("Access-Control-Allow-Origin: {$origin}");
+                header('Access-Control-Allow-Credentials: true');
+                header('Access-Control-Max-Age: 86400'); // Cache for 1 day
+            }
         }
 
         // Access-Control headers are received during OPTIONS requests

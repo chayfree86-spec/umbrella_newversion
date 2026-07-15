@@ -115,6 +115,36 @@ class CustomerController {
             Response::error("Mobile number is already registered with {$existing['full_name']} ({$existing['customer_code']}).", 422);
         }
 
+        // Validate unique Aadhaar number
+        if (!empty($input['aadhaar_no'])) {
+            $stmt = $db->prepare("
+                SELECT c.id, c.full_name, c.customer_code 
+                FROM customer_kyc k
+                JOIN customers c ON k.customer_id = c.id
+                WHERE k.aadhaar_no = :aadhaar AND c.deleted_at IS NULL
+            ");
+            $stmt->execute(['aadhaar' => trim($input['aadhaar_no'])]);
+            $dupAadhaar = $stmt->fetch();
+            if ($dupAadhaar) {
+                Response::error("Aadhaar number is already registered with {$dupAadhaar['full_name']} ({$dupAadhaar['customer_code']}).", 422);
+            }
+        }
+
+        // Validate unique PAN number
+        if (!empty($input['pan_no'])) {
+            $stmt = $db->prepare("
+                SELECT c.id, c.full_name, c.customer_code 
+                FROM customer_kyc k
+                JOIN customers c ON k.customer_id = c.id
+                WHERE k.pan_no = :pan AND c.deleted_at IS NULL
+            ");
+            $stmt->execute(['pan' => trim($input['pan_no'])]);
+            $dupPan = $stmt->fetch();
+            if ($dupPan) {
+                Response::error("PAN number is already registered with {$dupPan['full_name']} ({$dupPan['customer_code']}).", 422);
+            }
+        }
+
         $db->beginTransaction();
 
         try {
@@ -411,6 +441,44 @@ class CustomerController {
         // Deactive/Blocked customer edit hote hi wapas Active ho jata tha
         if (!isset($input['status']) || $input['status'] === '') {
             $input['status'] = $customer['status'];
+        }
+
+        // Validate unique mobile number (excluding current customer)
+        $stmt = $db->prepare("SELECT id FROM customers WHERE mobile = :mobile AND id != :id AND deleted_at IS NULL");
+        $stmt->execute(['mobile' => trim($input['mobile']), 'id' => $id]);
+        $existing = $stmt->fetch();
+        if ($existing) {
+            Response::error("Mobile number is already registered with another customer.", 422);
+        }
+
+        // Validate unique Aadhaar number (excluding current customer)
+        if (!empty($input['aadhaar_no'])) {
+            $stmt = $db->prepare("
+                SELECT c.id, c.full_name, c.customer_code 
+                FROM customer_kyc k
+                JOIN customers c ON k.customer_id = c.id
+                WHERE k.aadhaar_no = :aadhaar AND k.customer_id != :id AND c.deleted_at IS NULL
+            ");
+            $stmt->execute(['aadhaar' => trim($input['aadhaar_no']), 'id' => $id]);
+            $dupAadhaar = $stmt->fetch();
+            if ($dupAadhaar) {
+                Response::error("Aadhaar number is already registered with {$dupAadhaar['full_name']} ({$dupAadhaar['customer_code']}).", 422);
+            }
+        }
+
+        // Validate unique PAN number (excluding current customer)
+        if (!empty($input['pan_no'])) {
+            $stmt = $db->prepare("
+                SELECT c.id, c.full_name, c.customer_code 
+                FROM customer_kyc k
+                JOIN customers c ON k.customer_id = c.id
+                WHERE k.pan_no = :pan AND k.customer_id != :id AND c.deleted_at IS NULL
+            ");
+            $stmt->execute(['pan' => trim($input['pan_no']), 'id' => $id]);
+            $dupPan = $stmt->fetch();
+            if ($dupPan) {
+                Response::error("PAN number is already registered with {$dupPan['full_name']} ({$dupPan['customer_code']}).", 422);
+            }
         }
 
         $db->beginTransaction();

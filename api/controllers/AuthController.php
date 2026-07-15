@@ -156,30 +156,8 @@ class AuthController {
     }
 
     public static function resetCredentials($db, $input) {
-        $errors = Validator::required($input, ['username', 'password', 'pin']);
-        if (!empty($errors)) {
-            Response::error('Validation error', 422, $errors);
-        }
-
-        $user = User::getByMobileOrEmail($db, trim($input['username']));
-        if (!$user) {
-            Response::error('No account registered with this email or mobile number.', 404);
-        }
-
-        $password = trim($input['password']);
-        $pin = trim($input['pin']);
-
-        if (strlen($password) < 6) {
-            Response::error('Password must be at least 6 characters.', 422);
-        }
-        if (!preg_match('/^\d{4}$/', $pin)) {
-            Response::error('PIN must be exactly 4 digits.', 422);
-        }
-
-        User::changePasswordOrPin($db, $user['id'], $password, $pin);
-        AuditLog::log($db, $user['id'], 'reset_credentials_anonymous', 'auth', $user['id']);
-
-        Response::success(null, 'Credentials updated successfully.');
+        // Critical Security Fix: Prevent anonymous password/PIN reset in production
+        Response::error('Self-service credential reset is disabled for security. Please contact your Branch Manager or System Administrator to reset your password or PIN.', 403);
     }
 }
 ?>
