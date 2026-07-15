@@ -6,18 +6,18 @@
  */
 class Database {
     private static $instance = null;
-    
-    private const HOST = 'localhost';
-    private const DB_NAME = 'ufin';
-    private const USERNAME = 'root';
-    private const PASSWORD = '';
-    private const CHARSET = 'utf8mb4';
 
     public static function connect() {
         if (self::$instance === null) {
             try {
-                $dsn = "mysql:host=" . self::HOST . ";dbname=" . self::DB_NAME . ";charset=" . self::CHARSET;
-                self::$instance = new PDO($dsn, self::USERNAME, self::PASSWORD, [
+                $host = Env::get('DB_HOST', 'localhost');
+                $dbName = Env::get('DB_NAME', 'ufin');
+                $username = Env::get('DB_USER', 'root');
+                $password = Env::get('DB_PASS', '');
+                $charset = Env::get('DB_CHARSET', 'utf8mb4');
+
+                $dsn = "mysql:host=" . $host . ";dbname=" . $dbName . ";charset=" . $charset;
+                self::$instance = new PDO($dsn, $username, $password, [
                     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES   => false,

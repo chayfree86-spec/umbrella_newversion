@@ -4,8 +4,8 @@
  */
 
 // JWT
-define('JWT_SECRET', 'uf_s3cr3t_k3y_2026_umbrella_finance_jwt_token');
-define('JWT_EXPIRY_HOURS', 24);
+define('JWT_SECRET', Env::get('JWT_SECRET', 'uf_s3cr3t_k3y_2026_umbrella_finance_jwt_token'));
+define('JWT_EXPIRY_HOURS', (int)Env::get('JWT_EXPIRY_HOURS', 24));
 
 // Numbering Prefixes
 define('PREFIX_CUSTOMER', 'CU');

@@ -12,6 +12,10 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+// Load Env and load environment variables
+require_once __DIR__ . '/helpers/Env.php';
+Env::load(__DIR__ . '/.env');
+
 // Load core files
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/constants.php';
