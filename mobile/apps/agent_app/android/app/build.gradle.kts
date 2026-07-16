@@ -46,7 +46,11 @@ android {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                // key.properties lives in android/, alongside the .jks — file()
+                // here resolves relative to android/app/, so this must be
+                // rootProject.file() to find a keystore path stored relative
+                // to android/ itself.
+                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }

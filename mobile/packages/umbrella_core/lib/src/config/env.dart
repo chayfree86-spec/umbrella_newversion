@@ -1,9 +1,13 @@
-/// Build-time environment config.
+/// Build-time environment config, read from mobile/.env via Flutter's native
+/// --dart-define-from-file (Flutter 3.28+ accepts plain KEY=VALUE .env files
+/// directly, no extra package needed):
+///   flutter build apk --release --dart-define-from-file=../../.env
 ///
-/// Default base URL points at the host machine's XAMPP from the Android
-/// emulator (10.0.2.2 = emulator's alias for host localhost). Override per
-/// build with:
-///   flutter build apk --dart-define=API_BASE_URL=https://yourhost.com/api
+/// mobile/.env is gitignored (holds the real live API_BASE_URL); copy
+/// mobile/.env.example to mobile/.env and fill in your own values to build
+/// locally. Falls back to the local XAMPP/emulator address when not passed
+/// (e.g. plain `flutter run` with no --dart-define-from-file), so dev still
+/// works out of the box.
 ///
 /// A runtime override (stored in secure storage) takes precedence — see
 /// ApiClient.baseUrlOverride — so the server URL can be re-pointed in the

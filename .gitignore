@@ -148,6 +148,10 @@ dist
 **/*.g.dart
 mobile/**/ios/Flutter/.last_build_id
 
+# Live API config — mobile/.env holds the real live URL, kept local so it
+# never gets committed. mobile/.env.example (the template) IS tracked.
+mobile/.env
+
 # Flutter/Dart IDE
 **/*.iml
 **/*.ipr
