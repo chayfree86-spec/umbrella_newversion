@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  This is an internal, side-loaded field app (not Play Store distributed),
+  and dev/early deployments point at plain-HTTP LAN hosts (emulator's
+  10.0.2.2 alias, or a branch office's local XAMPP IP) via the runtime
+  Server URL override. Cleartext is allowed globally for that reason.
+  Once a real HTTPS deployment host is set as API_BASE_URL, all traffic
+  goes through TLS as normal — this config only matters if an http://
+  base URL is actually configured.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
