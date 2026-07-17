@@ -23,6 +23,7 @@ import AgentProfile from './pages/settings/AgentProfile';
 import Login from './pages/Login';
 import { PremiumLoader } from './components/ui/PremiumLoader';
 import { PWAInstallPrompt } from './components/ui/PWAInstallPrompt';
+import { ConnectivityGuard } from './components/ConnectivityGuard';
 
 export default function App() {
   const [appLoading, setAppLoading] = useState(true);
@@ -106,6 +107,7 @@ export default function App() {
 
   return (
     <Router>
+      <ConnectivityGuard />
       {appLoading && <PremiumLoader />}
       <PWAInstallPrompt />
       {isLoggedIn ? (
