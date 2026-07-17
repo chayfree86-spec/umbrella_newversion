@@ -1,10 +1,19 @@
-const CACHE_NAME = 'umbrella-static-v2';
+// Bump this version whenever index.html or precached assets change, so the
+// new SW re-precaches (old caches are wiped in `activate`). Without a bump,
+// the stale-while-revalidate handler keeps serving the OLD index.html.
+const CACHE_NAME = 'umbrella-static-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/logo.png',
   '/login-bg.png',
-  '/favicon.svg'
+  '/favicon.svg',
+  // Precache the icon font on install so it's ready before first paint —
+  // stops the raw icon-name text flash ("dashboard", "settings") on cold
+  // loads / hard refresh where the 5.3MB woff2 would otherwise still be
+  // downloading past font-display:block's timeout.
+  '/fonts/material-symbols-rounded.css',
+  '/fonts/material-symbols-rounded.woff2'
 ];
 
 self.addEventListener('install', (event) => {

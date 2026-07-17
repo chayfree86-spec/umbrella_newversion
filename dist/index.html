@@ -12,7 +12,11 @@
     <link rel="manifest" href="/manifest.json" />
     <title>Umbrella Finance - Chhote Kadam, Bade Sapne</title>
     <!-- Material Symbols Rounded — self-hosted (no external network wait,
-         so icons don't flash as raw text like "arrow_back" on refresh) -->
+         so icons don't flash as raw text like "arrow_back" on refresh).
+         Preload kicks the woff2 download off at highest priority right away
+         (parallel to JS/CSS), so on a cold/hard-refresh the font is ready
+         before first paint instead of flashing raw icon-name text. -->
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/material-symbols-rounded.woff2" crossorigin />
     <link rel="stylesheet" href="/fonts/material-symbols-rounded.css" />
     <!-- Google Fonts Manrope -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
