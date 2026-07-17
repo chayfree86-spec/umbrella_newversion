@@ -164,7 +164,7 @@ class CollectionController {
         // Fetch accounts assigned to specific agent for daily collection checklist
         $stmt = $db->prepare("
             SELECT la.id, la.loan_account_no as accNo, 'Loan' as type, la.emi_amount as emiAmt,
-            la.outstanding_amount as outstanding, c.full_name as customer_name, c.mobile as phone,
+            la.outstanding_amount as outstanding, c.id as customer_id, c.full_name as customer_name, c.mobile as phone, c.photo_path as photo,
             b.name as branch, ar.name as area, ag.name as agent,
             (SELECT COUNT(*) FROM loan_collections WHERE loan_account_id = la.id AND collection_date = CURRENT_DATE() AND is_reversal = 0) as today_paid
             FROM loan_accounts la
@@ -173,11 +173,11 @@ class CollectionController {
             JOIN areas ar ON la.area_id = ar.id
             JOIN agents ag ON la.agent_id = ag.id
             WHERE la.agent_id = :agent_id AND la.account_status IN ('Approved', 'Active', 'Defaulter') AND la.deleted_at IS NULL
-            
+
             UNION ALL
-            
+
             SELECT sa.id, sa.saving_account_no as accNo, 'Saving' as type, sa.deposit_amount as emiAmt,
-            sa.total_deposited as outstanding, c.full_name as customer_name, c.mobile as phone,
+            sa.total_deposited as outstanding, c.id as customer_id, c.full_name as customer_name, c.mobile as phone, c.photo_path as photo,
             b.name as branch, ar.name as area, ag.name as agent,
             (SELECT COUNT(*) FROM saving_deposits WHERE saving_account_id = sa.id AND deposit_date = CURRENT_DATE() AND is_reversal = 0) as today_paid
             FROM saving_accounts sa
@@ -201,8 +201,10 @@ class CollectionController {
                 'outstanding' => (float)$row['outstanding'],
                 'todayStatus' => $row['today_paid'] > 0 ? 'Paid' : 'Pending',
                 'customer' => [
+                    'id' => (int)$row['customer_id'],
                     'name' => $row['customer_name'],
-                    'phone' => $row['phone']
+                    'phone' => $row['phone'],
+                    'photo' => $row['photo']
                 ],
                 'branch' => $row['branch'],
                 'area' => $row['area'],

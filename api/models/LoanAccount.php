@@ -43,7 +43,7 @@ class LoanAccount {
         $total = $stmtCount->fetchColumn();
 
         $stmt = $db->prepare("
-            SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
+            SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile, c.photo_path as customer_photo,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             la.plan_name as plan_name,
             (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
@@ -78,7 +78,7 @@ class LoanAccount {
 
     public static function getById($db, $id) {
         $stmt = $db->prepare("
-            SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
+            SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile, c.photo_path as customer_photo,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             la.plan_name as plan_name,
             (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)
@@ -103,7 +103,7 @@ class LoanAccount {
 
     public static function getByAccountNo($db, $accNo) {
         $stmt = $db->prepare("
-            SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile,
+            SELECT la.*, c.full_name as customer_name, c.mobile as customer_mobile, c.photo_path as customer_photo,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             la.plan_name as plan_name,
             (SELECT COALESCE(SUM(li.total_due - li.paid_amount), 0)

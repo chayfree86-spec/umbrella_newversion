@@ -43,7 +43,7 @@ class SavingAccount {
         $total = $stmtCount->fetchColumn();
 
         $stmt = $db->prepare("
-            SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile,
+            SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile, c.photo_path as customer_photo,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             sa.plan_name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,
@@ -77,7 +77,7 @@ class SavingAccount {
 
     public static function getById($db, $id) {
         $stmt = $db->prepare("
-            SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile,
+            SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile, c.photo_path as customer_photo,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             sa.plan_name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,
@@ -101,7 +101,7 @@ class SavingAccount {
 
     public static function getByAccountNo($db, $accNo) {
         $stmt = $db->prepare("
-            SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile,
+            SELECT sa.*, c.full_name as customer_name, c.mobile as customer_mobile, c.photo_path as customer_photo,
             b.name as branch_name, ar.name as area_name, ag.name as agent_name,
             sa.plan_name as plan_name,
             (SELECT MAX(sd.deposit_date) FROM saving_deposits sd WHERE sd.saving_account_id = sa.id AND sd.is_reversal = 0) as last_deposit_date,

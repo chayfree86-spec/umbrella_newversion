@@ -135,3 +135,63 @@ out
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# ----------------------------------------------------------
+# Flutter / Dart (mobile/apps/*, mobile/packages/*)
+# ----------------------------------------------------------
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/*.freezed.dart
+**/*.g.dart
+mobile/**/ios/Flutter/.last_build_id
+
+# Live API config — mobile/.env holds the real live URL, kept local so it
+# never gets committed. mobile/.env.example (the template) IS tracked.
+mobile/.env
+
+# Flutter/Dart IDE
+**/*.iml
+**/*.ipr
+**/*.iws
+**/.idea/
+**/.metadata
+
+# ----------------------------------------------------------
+# Android (mobile/apps/*/android)
+# ----------------------------------------------------------
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/**/gradle-wrapper.jar
+**/android/**/.cxx/
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
+# ----------------------------------------------------------
+# iOS (mobile/apps/*/ios) — kept for when iOS builds are added
+# ----------------------------------------------------------
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*

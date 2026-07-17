@@ -1,0 +1,32 @@
+name: umbrella_core
+description: Shared core (API client, models, theme, storage) for Umbrella Finance mobile apps.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.7.0
+  flutter_secure_storage: ^10.0.0
+  intl: ^0.19.0
+  connectivity_plus: ^6.1.0
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+
+flutter:
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-ExtraBold.ttf
+          weight: 800
