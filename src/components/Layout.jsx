@@ -51,8 +51,21 @@ export function Layout({ children }) {
     });
   };
 
-  const loggedInName = localStorage.getItem('username') || '';
-  const loggedInRole = localStorage.getItem('userRole') || '';
+  const [loggedInName, setLoggedInName] = useState(() => localStorage.getItem('username') || '');
+  const [loggedInRole, setLoggedInRole] = useState(() => localStorage.getItem('userRole') || '');
+
+  // Listen for the logged-in user's own name/role changing elsewhere (e.g.
+  // Settings > Users > My Profile) so the sidebar updates without a reload.
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      setLoggedInName(localStorage.getItem('username') || '');
+      setLoggedInRole(localStorage.getItem('userRole') || '');
+    };
+    window.addEventListener('user-updated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('user-updated', handleUserUpdate);
+    };
+  }, []);
 
   // Fetch notifications from backend
   const fetchNotifications = () => {
