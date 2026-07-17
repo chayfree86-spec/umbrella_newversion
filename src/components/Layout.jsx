@@ -51,19 +51,38 @@ export function Layout({ children }) {
     });
   };
 
+  // Name/role always come from the backend (not a cached localStorage copy)
+  // so the sidebar can never go stale — localStorage is only used for the
+  // very first paint before this fetch resolves.
   const [loggedInName, setLoggedInName] = useState(() => localStorage.getItem('username') || '');
   const [loggedInRole, setLoggedInRole] = useState(() => localStorage.getItem('userRole') || '');
 
-  // Listen for the logged-in user's own name/role changing elsewhere (e.g.
+  const fetchOwnProfile = () => {
+    authApi.profile()
+      .then(res => {
+        const p = res.data || {};
+        if (p.name) {
+          setLoggedInName(p.name);
+          localStorage.setItem('username', p.name);
+        }
+        if (p.role) {
+          setLoggedInRole(p.role);
+          localStorage.setItem('userRole', p.role);
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchOwnProfile();
+  }, []);
+
+  // Re-fetch when the logged-in user's own profile changes elsewhere (e.g.
   // Settings > Users > My Profile) so the sidebar updates without a reload.
   useEffect(() => {
-    const handleUserUpdate = () => {
-      setLoggedInName(localStorage.getItem('username') || '');
-      setLoggedInRole(localStorage.getItem('userRole') || '');
-    };
-    window.addEventListener('user-updated', handleUserUpdate);
+    window.addEventListener('user-updated', fetchOwnProfile);
     return () => {
-      window.removeEventListener('user-updated', handleUserUpdate);
+      window.removeEventListener('user-updated', fetchOwnProfile);
     };
   }, []);
 

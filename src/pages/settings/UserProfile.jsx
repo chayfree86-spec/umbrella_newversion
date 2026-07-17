@@ -67,10 +67,9 @@ export default function UserProfile() {
     })
       .then(() => {
         setUser(prev => ({ ...prev, name: profileData.name, email: profileData.email, mobile: profileData.mobile }));
-        // Editing your own account? Keep the sidebar's name/initials in sync
-        // without needing a full reload (mirrors the settings-updated pattern).
+        // Editing your own account? Tell the sidebar to re-fetch its copy
+        // from the backend so it never goes stale (no local caching).
         if (String(id) === localStorage.getItem('user_id')) {
-          localStorage.setItem('username', profileData.name);
           window.dispatchEvent(new Event('user-updated'));
         }
         alert('User profile information updated successfully.');
